@@ -1,0 +1,57 @@
+{
+  "A0": {
+    "linguistic_complexity": "Very limited language; short memorized or highly supported phrases.",
+    "cognitive_demand": "Concrete recognition, matching, recall, and simple personal meaning.",
+    "interaction_expectation": "Highly supported pair/group interaction with predictable turns.",
+    "scaffolding": "Very high; models, sentence frames, visuals, repetition, and guided practice.",
+    "autonomy_expectation": "Very low; learners depend on clear models and structured choices.",
+    "grammar_precision": "Basic accuracy of taught forms is prioritized over range.",
+    "fluency_expectation": "Emerging; short utterances with pauses are acceptable.",
+    "register": "Simple everyday language in familiar contexts.",
+    "assessment_expectation": "Demonstrate controlled understanding and basic meaningful production with strong support."
+  },
+  "A1": {
+    "linguistic_complexity": "Simple sentences and familiar functional language.",
+    "cognitive_demand": "Concrete identification, recall, selection, and simple application.",
+    "interaction_expectation": "Structured pair/group interaction using familiar language.",
+    "scaffolding": "High; models, prompts, frames, examples, and guided practice remain important.",
+    "autonomy_expectation": "Limited; learners can make simple choices within familiar tasks.",
+    "grammar_precision": "Basic control of taught structures with frequent support.",
+    "fluency_expectation": "Short connected production with noticeable pauses.",
+    "register": "Everyday informal and neutral contexts.",
+    "assessment_expectation": "Show basic comprehension and communicate simple personal information or needs."
+  },
+  "A2": {
+    "linguistic_complexity": "Simple connected sentences with a growing range of familiar structures.",
+    "cognitive_demand": "Application, comparison, sequencing, and simple problem solving.",
+    "interaction_expectation": "Meaningful pair/group interaction with some spontaneous language.",
+    "scaffolding": "Moderate; prompts and models support performance but do not carry the task.",
+    "autonomy_expectation": "Moderate; learners can complete familiar tasks with limited support.",
+    "grammar_precision": "Functional control of taught structures; meaning remains more important than perfect accuracy.",
+    "fluency_expectation": "Can produce short connected speech despite pauses and reformulation.",
+    "register": "Everyday social, personal, and practical contexts.",
+    "assessment_expectation": "Demonstrate functional comprehension and communication in familiar situations."
+  },
+  "B1": {
+    "linguistic_complexity": "Connected language with a functional range of common structures and vocabulary.",
+    "cognitive_demand": "Explanation, comparison, justification, sequencing, and familiar problem solving.",
+    "interaction_expectation": "Sustained pair/group interaction with increasing spontaneous contribution.",
+    "scaffolding": "Moderate to low; support is targeted rather than continuous.",
+    "autonomy_expectation": "Increasing; learners can manage familiar communicative tasks independently.",
+    "grammar_precision": "Generally controlled use of familiar grammar with errors that do not usually block meaning.",
+    "fluency_expectation": "Can maintain connected speech with some hesitation and reformulation.",
+    "register": "Everyday, academic, and workplace contexts with basic register awareness.",
+    "assessment_expectation": "Demonstrate independent functional communication and explain or support ideas with relevant detail."
+  },
+  "B2": {
+    "linguistic_complexity": "Extended, flexible language with a broad functional range of structures and vocabulary.",
+    "cognitive_demand": "Analysis, evaluation, synthesis, justification, inference, and problem solving.",
+    "interaction_expectation": "Sustained spontaneous interaction, negotiation of meaning, and development of ideas.",
+    "scaffolding": "Low; support is mainly strategic and used to refine performance.",
+    "autonomy_expectation": "High; learners manage tasks, strategies, and language choices independently.",
+    "grammar_precision": "Good control with attention to accuracy, flexibility, and appropriate complexity.",
+    "fluency_expectation": "Generally fluent and spontaneous, with hesitation mainly when developing complex ideas.",
+    "register": "Social, academic, and professional contexts with purposeful register choices.",
+    "assessment_expectation": "Demonstrate independent, effective communication, including developed ideas, justification, and appropriate language choices."
+  }
+}
