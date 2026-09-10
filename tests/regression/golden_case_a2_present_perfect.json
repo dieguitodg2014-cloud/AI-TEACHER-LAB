@@ -1,0 +1,38 @@
+{
+  "case_id": "golden-a2-present-perfect-001",
+  "name": "A2 Present Perfect with question formation",
+  "request": {
+    "level": "A2",
+    "audience": "adult ESL learners",
+    "duration_minutes": 90,
+    "objective": "Discuss past experiences and ask follow-up questions.",
+    "topic": "Present Perfect",
+    "prior_knowledge": ["Past Simple"],
+    "constraints": ["Students struggle with question formation"]
+  },
+  "expected_invariants": {
+    "level": "A2",
+    "duration_minutes": 90,
+    "objective": "Discuss past experiences and ask follow-up questions.",
+    "required_learning_plan_stages": [
+      "presentation",
+      "modeling",
+      "guided_practice",
+      "communicative_practice",
+      "production",
+      "assessment"
+    ],
+    "resource_decision_must_be_explicit": true,
+    "tool_selection_must_be_capability_based": true,
+    "qc_must_be_run_before_final_approval": true
+  },
+  "success_criteria": [
+    "The system preserves the requested level, objective, and duration.",
+    "The pedagogical decision precedes generation.",
+    "The learning plan contains evidence of learning.",
+    "Tool selection is based on capabilities rather than provider names.",
+    "Generated output is validated by QC before approval.",
+    "A failed generation can enter the bounded revision loop.",
+    "No unnecessary resource is assumed to be required."
+  ]
+}
