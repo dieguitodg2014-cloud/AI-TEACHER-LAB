@@ -1,7 +1,7 @@
 # AI TEACHER LAB - SYSTEM VALIDATION REPORT
 
 ## Version
-1.8
+1.9
 
 ## Purpose
 
@@ -23,19 +23,31 @@ The system must transform a teacher request into a classroom-ready pedagogical p
 
 **Input:** `Modo ESL: Present Simple A0`
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The system treated A0 as true beginner level, used bilingual English/Spanish explanation, controlled language load, high scaffolding, supported oral production, and avoided premature production. The lesson included a communicative purpose, two supported conversations, an aligned worksheet, and the default 90-minute duration.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-01-MODO-ESL-A0.md`
 
 ### TEST 02 - Modo ESL A1
 
 **Input:** `Modo ESL: there is / there are A1`
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The system activated A1-specific behavior, used English for explanation, targeted basic functional communication, reduced scaffolding compared with A0, progressed toward guided interaction, included two conversations and an aligned worksheet, and respected the default 90-minute duration.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-02-MODO-ESL-A1.md`
 
 ### TEST 03 - Modo ESL A2
 
-**Input:** `Modo ESL: Present Perfect A2`
+**Input:** `Modo ESL: Present Continuous for future arrangements A2`
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The system activated A2-specific behavior, used English for explanation, required routine independent communication and connected simple language, reduced scaffolding compared with A1, incorporated practical planning and negotiation, included two conversations and an aligned worksheet, and respected the default 90-minute duration.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-03-MODO-ESL-A2.md`
 
 ### TEST 04 - Modo ESL B1
 
@@ -145,7 +157,7 @@ A0, A1, A2, B1, and B2 are explicitly defined in the Level Control Engine. B1 an
 
 **Status: PASS**
 
-The ESL Lesson Engine explicitly activates level-specific behavior for A0, A1, A2, B1, and B2.
+The ESL Lesson Engine explicitly activates level-specific behavior for A0, A1, A2, B1, and B2. Direct runtime validation has now passed for all five levels.
 
 ### Finding 3 - Pedagogical Authority
 
@@ -161,9 +173,9 @@ Project, lesson, assessment, resource, level, integration, and QC components are
 
 ### Finding 5 - Controlled Runtime Validation
 
-**Status: IN PROGRESS**
+**Status: PASS**
 
-TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, TEST 09, TEST 10, TEST 11, and TEST 12 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
+All twelve representative runtime tests have been executed and passed. TEST 01, TEST 02, and TEST 03 completed the critical A0-A1-A2 Modo ESL activation sequence. The test suite now covers all five levels, cross-level adaptation, project design, assessment, resource design, specialized-tool handoff, weak-request correction, and timing feasibility.
 
 ### Finding 6 - Timing and Feasibility
 
@@ -173,7 +185,7 @@ TEST 12 demonstrated that an explicit lesson duration is treated as an authorita
 
 ## Final Validation Gate
 
-AI TEACHER LAB is considered **System-Ready for controlled testing** when:
+AI TEACHER LAB has now satisfied the defined validation conditions:
 
 1. all required engines are present;
 2. level control is applied consistently;
@@ -184,14 +196,17 @@ AI TEACHER LAB is considered **System-Ready for controlled testing** when:
 7. Quality Control is applied before classroom-ready delivery;
 8. representative runtime tests produce acceptable results.
 
-Nine representative runtime tests have now passed. The final gate remains open until TEST 01, TEST 02, and TEST 03 are executed.
+All twelve representative runtime tests passed.
 
 ## Current Overall Status
 
-**STRUCTURALLY VALIDATED - CONTROLLED RUNTIME TESTING IN PROGRESS**
+**SYSTEM VALIDATED - STRUCTURAL AND CONTROLLED RUNTIME VALIDATION COMPLETE**
 
 ### Completed representative runtime tests
 
+- TEST 01 - Modo ESL A0: PASS
+- TEST 02 - Modo ESL A1: PASS
+- TEST 03 - Modo ESL A2: PASS
 - TEST 04 - Modo ESL B1: PASS
 - TEST 05 - Modo ESL B2: PASS
 - TEST 06 - Same Topic, Different Level: PASS
@@ -202,10 +217,8 @@ Nine representative runtime tests have now passed. The final gate remains open u
 - TEST 11 - Ambiguous or Weak Request: PASS
 - TEST 12 - Timing Reality Check: PASS
 
-### Remaining critical tests
+## Final Interpretation
 
-1. **TEST 01 - Modo ESL A0**
-2. **TEST 02 - Modo ESL A1**
-3. **TEST 03 - Modo ESL A2**
+The current architecture is validated as a coherent pedagogical system under the defined structural and controlled runtime test protocol. This validation demonstrates that the documented rules can be applied consistently in representative conversational executions.
 
-After these three direct runtime tests pass, the system can proceed to a final validation review of the complete architecture.
+This result does **not** mean that every future lesson or resource will automatically be perfect. Quality Control remains a mandatory gate for each new pedagogical product, and classroom evidence remains necessary for continuous improvement.
