@@ -29,6 +29,7 @@ def run_configured_lesson_planning(
             resource_decision=None,
             resource_task=None,
             resource_tool=None,
+            resource_handoff=None,
             generation=None,
             missing=[],
             errors=[f"RUNTIME_CONNECTOR_ERROR:{exc}"],
