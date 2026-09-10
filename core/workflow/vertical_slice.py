@@ -13,8 +13,8 @@ from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
-from tools.registry.config_loader import load_tool_registry_config
 from tools.registry import ToolRegistry
+from tools.registry.config_loader import load_tool_registry_config
 
 
 DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
@@ -66,7 +66,7 @@ def run_lesson_planning(
             errors=[str(exc)],
         )
 
-    # Preserve the planning-only behavior when no execution dependencies are supplied.
+    # Preserve planning-only behavior when no execution dependencies are supplied.
     if tools is None and generators is None:
         return VerticalSliceResult(
             status="PLANNED",
@@ -80,16 +80,14 @@ def run_lesson_planning(
 
     try:
         if tools is None:
-            configured_tools, policy = load_tool_registry_config(
+            configured_tools, _policy = load_tool_registry_config(
                 tool_config_path or DEFAULT_TOOL_CONFIG
             )
             registry = ToolRegistry(configured_tools)
             selected_tools = registry.list_available()
-            free_first = bool(policy.get("free_first", True))
         else:
             selected_tools = tools
-            free_first = True
-    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError) as exc:
         return VerticalSliceResult(
             status="FAILED",
             context=context_result.context,
