@@ -1,224 +1,110 @@
 # AI TEACHER LAB - SYSTEM VALIDATION REPORT
 
 ## Version
-1.9
+2.0
 
 ## Purpose
 
-This document validates the coherence and integration of the current AI TEACHER LAB architecture.
+This document records the current validation state of AI TEACHER LAB, distinguishing the original structural/conversational validation from the new executable MVP runtime.
 
-The validation checks whether the engines work together as one pedagogical system rather than as independent documents.
-
-This is a **structural and controlled runtime validation** of the repository. Runtime tests are representative conversational executions of the defined system rules; they are not automated software integration tests.
+The objective is to verify that the repository is progressing as one coherent pedagogical system and that the executable vertical slice respects the defined authority, contracts, tool-selection rules, resource decisions, generation flow, and Quality Control gate.
 
 ## Validation Principle
 
-The system must transform a teacher request into a classroom-ready pedagogical product through a consistent chain:
+The system must transform a teacher request through a consistent chain:
 
-**Teacher Request → Pedagogical Diagnosis → Level Control → Design → Assessment/Evidence → Resources → Specialized Production → Quality Control → Classroom Use → Evidence → Revision**
+**Teacher Request -> Context -> Level Control -> Pedagogical Decision -> Resource Decision -> Task Packaging -> Tool Selection -> Generation or Human Handoff -> Validation -> Quality Control**
 
-## Test Suite
+Classroom use, learner evidence, and adaptation remain downstream stages and are not yet represented as a complete executable runtime in the current MVP.
 
-### TEST 01 - Modo ESL A0
+## Historical Structural Validation
 
-**Input:** `Modo ESL: Present Simple A0`
+The repository contains twelve previously documented representative runtime validations covering Modo ESL A0-B2, same-topic level adaptation, project design, assessment, resource requests, specialized-tool handoff, weak-request correction, and timing feasibility.
 
-**Runtime result: PASS**
+Those tests document representative conversational validation of the architecture. They should not be interpreted as automated software tests.
 
-The system treated A0 as true beginner level, used bilingual English/Spanish explanation, controlled language load, high scaffolding, supported oral production, and avoided premature production. The lesson included a communicative purpose, two supported conversations, an aligned worksheet, and the default 90-minute duration.
+## Executable MVP Validation
 
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-01-MODO-ESL-A0.md`
+The current implementation contains an executable vertical slice connecting the main MVP components.
 
-### TEST 02 - Modo ESL A1
+### Implemented flow
 
-**Input:** `Modo ESL: there is / there are A1`
+1. Context extraction and validation.
+2. Level decision for A0-A1-A2-B1-B2.
+3. Learning-plan decision with a six-stage instructional sequence.
+4. Resource decision based on objective and explicit constraints.
+5. Resource task packet creation when production is required.
+6. Capability-based resource tool selection.
+7. Human handoff when a required resource capability is unavailable.
+8. Configured lesson-generation tool selection.
+9. Lesson generation through the configured local OpenAI-compatible connector.
+10. Generated-output validation.
+11. Revision loop for Quality Control failures.
+12. Structured QC result before approval.
 
-**Runtime result: PASS**
+The vertical slice exposes these results through `VerticalSliceResult`, keeping context, level, learning plan, resource decision, resource task, selected resource tool, human handoff, generation result, missing context, and errors together in one controlled result object. fileciteturn306file0
 
-The system activated A1-specific behavior, used English for explanation, targeted basic functional communication, reduced scaffolding compared with A0, progressed toward guided interaction, included two conversations and an aligned worksheet, and respected the default 90-minute duration.
+The configured runtime resolves generators from `config/tools.json` and then executes the vertical slice rather than bypassing the orchestration layer. fileciteturn307file0
 
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-02-MODO-ESL-A1.md`
+## Runtime Evidence
 
-### TEST 03 - Modo ESL A2
+A real local execution using the configured Gemma 3n E4B connector has produced a successful lesson-generation result with the expected A2 context, 90-minute duration, objective alignment, explicit topic control, forbidden-term enforcement, one generation attempt, and QC READY result.
 
-**Input:** `Modo ESL: Present Continuous for future arrangements A2`
+This demonstrates that the core generation path is executable with the current local connector.
 
-**Runtime result: PASS**
+## Resource Orchestration Evidence
 
-The system activated A2-specific behavior, used English for explanation, required routine independent communication and connected simple language, reduced scaffolding compared with A1, incorporated practical planning and negotiation, included two conversations and an aligned worksheet, and respected the default 90-minute duration.
+The current configured tool registry intentionally exposes the local connector for lesson generation only. It does not falsely advertise resource-generation capability.
 
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-03-MODO-ESL-A2.md`
+Therefore, when a lesson requires an audio resource but no compatible resource-generation connector is available, the system creates the resource task and produces a controlled human handoff rather than selecting an incompatible lesson generator.
 
-### TEST 04 - Modo ESL B1
+The configured-runtime regression test explicitly verifies this expected behavior, including the NotebookLM handoff workflow and preservation of the original objective. The test is present in the repository but has not yet been executed by an automated CI system. fileciteturn308file0
 
-**Input:** `Modo ESL: Present Perfect B1`
+## Validation Status by Component
 
-**Runtime result: PASS**
+| Component | Status | Current evidence |
+|---|---|---|
+| Context Engine | IMPLEMENTED | Executable vertical slice |
+| Level Control A0-B2 | IMPLEMENTED | Configuration, engine, unit tests |
+| Pedagogical Decision Engine | IMPLEMENTED | Executable learning-plan flow |
+| Resource Decision Engine | IMPLEMENTED | Executable resource routing |
+| Resource Task Packaging | IMPLEMENTED | Executable task packet flow |
+| Tool Registry | IMPLEMENTED | Configured registry and capability metadata |
+| Capability-based Tool Selection | IMPLEMENTED | Executable selector and tests |
+| Resource Human Handoff | IMPLEMENTED | Executable handoff package |
+| Local Lesson Generation | IMPLEMENTED | Real runtime execution |
+| Generated Output Validation | IMPLEMENTED | Topic/constraint/structure checks |
+| Revision Loop | IMPLEMENTED | Deterministic integration tests exist |
+| Generation QC | MVP IMPLEMENTATION | Structural/alignment checks; not yet full weighted QC |
+| Course Memory | DESIGNED | Not complete executable MVP |
+| Learning Evidence / Adaptation | DESIGNED | Not complete executable MVP |
+| Full external tool automation | PARTIAL | Human handoff supported; connector automation remains future work |
+| Automated test execution / CI | NOT YET COMPLETE | Tests exist, but no CI execution has been established |
 
-The lesson required sustained communication, narration, comparison, explanation, reflection, follow-up questions, and reduced scripting. Present Perfect and Past Simple were used purposefully for communicative meaning.
+## Important Validation Limitations
 
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-04-MODO-ESL-B1-PRESENT-PERFECT.md`
+The current Quality Control implementation is an MVP implementation. It validates core structural and alignment conditions, but it does not yet implement the complete weighted QC model defined by the architecture, including the full communicative, scaffolding, language, assessment, and resource-efficiency scoring system.
 
-### TEST 05 - Modo ESL B2
+The repository contains unit and integration tests for the implemented components, but the current validation record does not claim that those automated tests have passed in CI. They have been created as executable verification artifacts and still require actual automated execution.
 
-**Input:** `Modo ESL: Present Perfect B2`
+The real local runtime has been validated manually. This is evidence of executable integration, not a substitute for a repeatable automated test suite.
 
-**Runtime result: PASS**
+## Final MVP Gate
 
-The lesson required interpretation, evaluation, argumentation, qualification, spontaneous interaction, and synthesis. B2 demand was qualitatively higher than B1 rather than simply lexically harder.
+The MVP is considered **FUNCTIONALLY INTEGRATED BUT NOT YET FORMALLY TEST-CERTIFIED**.
 
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-05-MODO-ESL-B2-PRESENT-PERFECT.md`
+The critical architecture-to-code path is implemented and a real local generation path has been demonstrated. The remaining strictly necessary validation work is:
 
-### TEST 06 - Same Topic, Different Level
+1. execute the existing unit and integration test suite;
+2. resolve any failures found by that execution;
+3. establish one repeatable automated test command or CI workflow;
+4. verify the configured resource human-handoff test in the same environment;
+5. record the resulting test evidence here.
 
-**Input:** the same communicative topic requested at A0, A1, A2, B1, and B2.
-
-**Runtime result: PASS**
-
-The controlled comparison used `Personal experiences and travel`. The five versions changed objective, cognitive demand, scaffolding, interaction, autonomy, output, language expectations, and assessment.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-06-SAME-TOPIC-DIFFERENT-LEVEL.md`
-
-### TEST 07 - Complete Project
-
-**Input:** request for a multi-week ESL course or camp.
-
-**Runtime result: PASS**
-
-The system successfully orchestrated Project Design, Level Control, ESL Lesson Design, Assessment, Resource Management, AI Tool Coordination, and Quality Control for an 8-week A2 adult course. The design included hierarchy, progression, evidence, milestones, final performance, resources, feasibility, and revision logic.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-07-COMPLETE-PROJECT.md`
-
-### TEST 08 - Assessment
-
-**Input:** request for a 10-minute B1 speaking assessment about experiences and travel.
-
-**Runtime result: PASS**
-
-The system began with learning objectives and evidence, then constructed the task, observable criteria, feedback process, and decision rule. The assessment measured connected speech, explanation, follow-up interaction, and communicative effectiveness rather than isolated grammar recall.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-08-ASSESSMENT.md`
-
-### TEST 09 - Resource Request
-
-**Input:** `Modo ESL A0: necesito una worksheet de 30 minutos para practicar daily routines. Quiero que los estudiantes practiquen I wake up, I get up, I have breakfast, I go to work, I go home, I go to bed, I go to bed, y las preguntas What time do you...? / I ... at ... . No introduzcas gramática nueva.`
-
-**Runtime result: PASS**
-
-The system activated A0 Level Control and Resource Management. The resulting worksheet preserved the teacher-specified target language, used high scaffolding, progressed from recognition to supported production and partner interaction, and avoided introducing new grammar or unnecessary language. Resource quality was checked for pedagogical purpose, level appropriacy, language scope, communication, feasibility, and usability.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-09-RESOURCE-REQUEST.md`
-
-### TEST 10 - NotebookLM / Specialized Tool Handoff
-
-**Input:** approved pedagogical lesson sent to a specialized production tool.
-
-**Runtime result: PASS**
-
-The controlled handoff preserved the approved lesson's level, communicative objective, target language, interaction pattern, sequence, assessment evidence, timing, and pedagogical intent. The specialized production role was limited to transformation of presentation, layout, readability, and multimodal support. It did not receive authority to redesign the pedagogy or silently alter the approved source.
-
-The test confirms the architecture principle: **pedagogical decision → approved source → specialized production → Quality Control → classroom use**.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-10-SPECIALIZED-TOOL-HANDOFF.md`
-
-### TEST 11 - Ambiguous or Weak Request
-
-**Input:** `Hazme una clase B1 de Present Perfect de 90 minutos con 40 ejercicios de completar espacios y al final una conversación.`
-
-**Runtime result: PASS**
-
-The system identified the conflict between a mechanically dominated lesson and B1 communicative requirements. It preserved the valid intent but redesigned the activity distribution, limiting controlled gap-fill practice and allocating substantial time to guided and semi-open communication.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-11-AMBIGUOUS-WEAK-REQUEST.md`
-
-### TEST 12 - Timing Reality Check
-
-**Input:** `Modo ESL: Present Perfect B1. Duración: 60 minutos. Diseña una clase orientada a experiencias con explicación breve, práctica controlada, conversación y una evidencia oral final.`
-
-**Runtime result: PASS**
-
-The system respected the explicit 60-minute duration rather than applying the default 90-minute Modo ESL duration. The complete sequence totaled exactly 60 minutes and preserved B1 communicative progression, interaction, final oral evidence, transitions, instructions, feedback, and feasibility.
-
-The timing audit used seven stages: 5 minutes opening/context, 7 minutes language focus, 8 minutes controlled practice, 12 minutes guided pair speaking, 17 minutes freer communication, 8 minutes feedback/final oral evidence, and 3 minutes exit check. No hidden activities or additional time were required.
-
-All five quality gates passed: G1 Level, G2 Alignment, G3 Language, G4 Communication, and G5 Feasibility.
-
-Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-12-TIMING-REALITY-CHECK.md`
-
-## Integration Findings
-
-### Finding 1 - Level Control
-
-**Status: PASS**
-
-A0, A1, A2, B1, and B2 are explicitly defined in the Level Control Engine. B1 and B2 include qualitative distinctions beyond vocabulary difficulty.
-
-### Finding 2 - Modo ESL Activation
-
-**Status: PASS**
-
-The ESL Lesson Engine explicitly activates level-specific behavior for A0, A1, A2, B1, and B2. Direct runtime validation has now passed for all five levels.
-
-### Finding 3 - Pedagogical Authority
-
-**Status: PASS**
-
-The system preserves the Director Pedagógico as the central pedagogical authority while allowing specialized tools to handle production tasks.
-
-### Finding 4 - Cross-Engine Alignment
-
-**Status: PASS**
-
-Project, lesson, assessment, resource, level, integration, and QC components are connected through defined responsibilities and information flow.
-
-### Finding 5 - Controlled Runtime Validation
-
-**Status: PASS**
-
-All twelve representative runtime tests have been executed and passed. TEST 01, TEST 02, and TEST 03 completed the critical A0-A1-A2 Modo ESL activation sequence. The test suite now covers all five levels, cross-level adaptation, project design, assessment, resource design, specialized-tool handoff, weak-request correction, and timing feasibility.
-
-### Finding 6 - Timing and Feasibility
-
-**Status: PASS**
-
-TEST 12 demonstrated that an explicit lesson duration is treated as an authoritative pedagogical constraint. The system can compress or expand the lesson architecture to the available time without silently extending the session or sacrificing the communicative objective.
-
-## Final Validation Gate
-
-AI TEACHER LAB has now satisfied the defined validation conditions:
-
-1. all required engines are present;
-2. level control is applied consistently;
-3. Modo ESL activates the correct level behavior;
-4. project, lesson, assessment, and resource workflows remain aligned;
-5. specialized tools do not alter pedagogical intent;
-6. timing and classroom feasibility are checked;
-7. Quality Control is applied before classroom-ready delivery;
-8. representative runtime tests produce acceptable results.
-
-All twelve representative runtime tests passed.
+No new architectural layer is required for this validation gate.
 
 ## Current Overall Status
 
-**SYSTEM VALIDATED - STRUCTURAL AND CONTROLLED RUNTIME VALIDATION COMPLETE**
+**MVP CORE IMPLEMENTED - FINAL AUTOMATED VALIDATION PENDING**
 
-### Completed representative runtime tests
-
-- TEST 01 - Modo ESL A0: PASS
-- TEST 02 - Modo ESL A1: PASS
-- TEST 03 - Modo ESL A2: PASS
-- TEST 04 - Modo ESL B1: PASS
-- TEST 05 - Modo ESL B2: PASS
-- TEST 06 - Same Topic, Different Level: PASS
-- TEST 07 - Complete Project: PASS
-- TEST 08 - Assessment: PASS
-- TEST 09 - Resource Request: PASS
-- TEST 10 - Specialized Tool Handoff: PASS
-- TEST 11 - Ambiguous or Weak Request: PASS
-- TEST 12 - Timing Reality Check: PASS
-
-## Final Interpretation
-
-The current architecture is validated as a coherent pedagogical system under the defined structural and controlled runtime test protocol. This validation demonstrates that the documented rules can be applied consistently in representative conversational executions.
-
-This result does **not** mean that every future lesson or resource will automatically be perfect. Quality Control remains a mandatory gate for each new pedagogical product, and classroom evidence remains necessary for continuous improvement.
+The architecture should now be treated as frozen for the MVP. Further work should focus on execution, testing, bug fixing, and real classroom validation rather than adding new conceptual engines.
