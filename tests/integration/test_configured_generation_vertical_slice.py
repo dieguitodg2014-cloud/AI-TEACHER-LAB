@@ -43,6 +43,7 @@ class ConfiguredGenerationVerticalSliceTests(unittest.TestCase):
                     "level": request["level"],
                     "objective": request["objective"],
                     "duration_minutes": request["duration_minutes"],
+                    "topic": request["topic"],
                     "activities": [{"name": "communicative task"}],
                 }
 
