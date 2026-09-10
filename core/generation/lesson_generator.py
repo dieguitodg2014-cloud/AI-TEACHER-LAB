@@ -27,6 +27,8 @@ def build_generation_request(
         "level": context.get("level"),
         "audience": context.get("audience"),
         "duration_minutes": context.get("duration_minutes"),
+        "topic": context.get("topic"),
+        "prior_knowledge": context.get("prior_knowledge", []),
         "sequence": [
             {
                 "purpose": activity.purpose,
