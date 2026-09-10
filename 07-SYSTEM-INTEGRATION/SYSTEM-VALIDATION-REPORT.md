@@ -1,7 +1,7 @@
 # AI TEACHER LAB - SYSTEM VALIDATION REPORT
 
 ## Version
-1.6
+1.7
 
 ## Purpose
 
@@ -101,7 +101,13 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-09-RESOURCE-REQUEST.md`
 
 **Input:** approved pedagogical lesson sent to a specialized production tool.
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The controlled handoff preserved the approved lesson's level, communicative objective, target language, interaction pattern, sequence, assessment evidence, timing, and pedagogical intent. The specialized production role was limited to transformation of presentation, layout, readability, and multimodal support. It did not receive authority to redesign the pedagogy or silently alter the approved source.
+
+The test confirms the architecture principle: **pedagogical decision → approved source → specialized production → Quality Control → classroom use**.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-10-SPECIALIZED-TOOL-HANDOFF.md`
 
 ### TEST 11 - Ambiguous or Weak Request
 
@@ -151,7 +157,7 @@ Project, lesson, assessment, resource, level, integration, and QC components are
 
 **Status: IN PROGRESS**
 
-TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, TEST 09, and TEST 11 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
+TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, TEST 09, TEST 10, and TEST 11 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
 
 ## Final Validation Gate
 
@@ -166,7 +172,7 @@ AI TEACHER LAB is considered **System-Ready for controlled testing** when:
 7. Quality Control is applied before classroom-ready delivery;
 8. representative runtime tests produce acceptable results.
 
-Seven representative runtime tests have now passed. The final gate remains open until the remaining critical test cases are executed.
+Eight representative runtime tests have now passed. The final gate remains open until the remaining critical test cases are executed.
 
 ## Current Overall Status
 
@@ -180,10 +186,10 @@ Seven representative runtime tests have now passed. The final gate remains open 
 - TEST 07 - Complete Project: PASS
 - TEST 08 - Assessment: PASS
 - TEST 09 - Resource Request: PASS
+- TEST 10 - Specialized Tool Handoff: PASS
 - TEST 11 - Ambiguous or Weak Request: PASS
 
 ### Next recommended tests
 
-1. **TEST 10 - Specialized Tool Handoff** - validates preservation of pedagogical intent during production.
-2. **TEST 12 - Timing Reality Check** - broadens feasibility validation beyond individual lessons.
-3. **TEST 01-03 - Modo ESL A0/A1/A2** - completes direct runtime validation of all five level-specific Modo ESL activations.
+1. **TEST 12 - Timing Reality Check** - broadens feasibility validation beyond individual lessons.
+2. **TEST 01-03 - Modo ESL A0/A1/A2** - completes direct runtime validation of all five level-specific Modo ESL activations.
