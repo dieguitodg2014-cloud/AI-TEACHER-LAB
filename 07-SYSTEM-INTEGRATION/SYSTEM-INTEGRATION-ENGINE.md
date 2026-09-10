@@ -1,19 +1,19 @@
 # SYSTEM INTEGRATION ENGINE
 
 ## Version
-1.0
+1.1
 
 ## Purpose
 
 The System Integration Engine ensures that the components of AI TEACHER LAB operate as one pedagogical system rather than as independent documents or generators.
 
-It defines hierarchy, information flow, dependency control, conflict resolution, and final validation.
+It defines hierarchy, information flow, dependency control, conflict resolution, intelligent resource/tool selection, and final validation.
 
 ## System Architecture
 
 AI TEACHER LAB is organized as a hierarchy:
 
-**Master System → Level Control → Project/Lesson/Assessment Design → Resources → Specialized AI Production → Quality Control → Classroom Use → Evidence → Revision**
+**Master System → Diagnosis → Level Control → Project/Lesson/Assessment Design → Resource & Tool Decision → Production → Quality Control → Classroom Use → Evidence → Revision**
 
 The components have different responsibilities and must not compete for pedagogical authority.
 
@@ -27,9 +27,10 @@ When two components appear to conflict, apply this order:
 4. Pedagogical Framework
 5. Project Design Engine or ESL Lesson Engine, according to scope
 6. Assessment Engine for assessment decisions
-7. Resource Management System for resource decisions
-8. AI Tool Coordination rules
-9. Specialized production tools
+7. Multimedia & Tool Decision Engine for resource/tool recommendations
+8. Resource Management System for resource governance
+9. AI Tool Coordination rules
+10. Specialized production tools
 
 The teacher remains the final professional authority when classroom evidence or institutional requirements justify an override.
 
@@ -50,6 +51,9 @@ Controls individual lesson architecture and classroom-ready lesson design.
 ### Assessment Engine
 Controls evidence, task validity, criteria, scoring, fairness, and assessment decisions.
 
+### Multimedia & Tool Decision Engine
+Determines whether additional resources are pedagogically justified and recommends the smallest effective set of resources and tools. It can explicitly decide to create, reuse, adapt, omit, or use no specialized tool.
+
 ### Resource Management System
 Controls the selection, creation, adaptation, reuse, versioning, and retirement of instructional resources.
 
@@ -63,9 +67,23 @@ Controls the role of secondary AI tools and protects pedagogical intent during p
 
 The preferred workflow is:
 
-**Teacher request → diagnosis → desired result → level control → scope decision → design → resource selection/creation → assessment/evidence alignment → production → QC → classroom use → evidence → revision**
+**Teacher request → diagnosis → desired result → level control → scope decision → design → evidence alignment → resource/tool decision → approved source → specialized production → QC → classroom use → evidence → revision**
 
 Not every request requires every stage explicitly, but the relevant decisions must be represented.
+
+## Intelligent Resource and Tool Decision Rule
+
+AI TEACHER LAB must not assume that every lesson requires a presentation, audio, video, worksheet, quiz, infographic, or other generated resource.
+
+The system should first determine the learning need and evidence required, then identify the minimum resource set that materially improves the learning experience.
+
+The governing rule is:
+
+> **Use the smallest set of resources and tools that fully supports the intended learning outcome.**
+
+More resources do not equal a better lesson, and more AI does not equal better pedagogy.
+
+The Multimedia & Tool Decision Engine should be invoked whenever a request involves multimedia, multiple production tools, a classroom-ready package, or a decision about what resources should accompany a pedagogical product.
 
 ## Scope Routing
 
@@ -83,6 +101,7 @@ Primarily use:
 - Level Control
 - ESL Lesson Engine
 - Assessment when evidence is required
+- Multimedia & Tool Decision Engine when resource/tool decisions are relevant
 - Resource Management
 - QC
 
@@ -92,6 +111,7 @@ Primarily use:
 - Project Design Engine
 - ESL Lesson Engine
 - Assessment Engine
+- Multimedia & Tool Decision Engine when resource/tool decisions are relevant
 - Resource Management
 - QC
 
@@ -110,6 +130,7 @@ Examples:
 
 - A lesson depends on level control but does not redefine the level.
 - An assessment depends on learning objectives but does not invent unrelated objectives.
+- The tool decision engine recommends resources but does not change the learning objective.
 - A worksheet supports a lesson but does not determine the lesson sequence.
 - NotebookLM may transform approved content into a presentation but does not redefine the pedagogical purpose.
 
@@ -136,6 +157,7 @@ The following elements must remain consistent across the system:
 - timing
 - terminology
 - project dependencies
+- approved resource purpose
 
 A change to one of these may require review of downstream components.
 
@@ -148,8 +170,9 @@ A change to one of these may require review of downstream components.
 | Project sequence | Project Design | Lessons, assessment, resources |
 | Lesson sequence | ESL Lesson Engine | Objectives, level, evidence |
 | Assessment construct | Assessment Engine | Objectives, level, evidence |
-| Resource choice | Resource Management | Lesson/project purpose |
-| Tool selection | AI Tool Coordination | Approved pedagogical content |
+| Resource/tool necessity | Multimedia & Tool Decision Engine | Learning purpose, evidence, level |
+| Resource governance | Resource Management | Purpose, usability, versioning |
+| Tool implementation | AI Tool Coordination | Approved pedagogical content |
 | Final approval | Quality Control | All relevant components |
 
 ## Quality Control as a Gate, Not a Separate Department
@@ -157,6 +180,8 @@ A change to one of these may require review of downstream components.
 QC is not something added only at the end.
 
 Relevant quality checks should occur during design, while a final integrated QC gate occurs before classroom delivery.
+
+For multimedia/resource production, QC must also verify that the selected resource was actually justified and that unnecessary production was avoided.
 
 ## Evidence Feedback Loop
 
@@ -188,14 +213,17 @@ Before a product is labeled classroom-ready, verify:
 2. The learner level is controlled.
 3. Objectives and evidence are aligned.
 4. Activities support the intended outcome.
-5. Resources support rather than drive pedagogy.
-6. Assessment measures the intended learning.
-7. Timing and implementation are realistic.
-8. No component has silently changed the pedagogical intent.
-9. The product passes the applicable QC criteria.
+5. Resources were justified by pedagogical need.
+6. The selected tool(s) are appropriate for the resource function.
+7. Assessment measures the intended learning.
+8. Timing and implementation are realistic.
+9. No component has silently changed the pedagogical intent.
+10. The product passes the applicable QC criteria.
 
 ## System Integrity Principle
 
 **AI TEACHER LAB is one system with specialized engines, not several independent AI assistants placed in the same folder.**
 
 Specialization improves performance only when responsibilities, authority, and information flow remain clear.
+
+The system optimizes not for maximum content production, but for **maximum pedagogical value with justified production**.
