@@ -12,7 +12,7 @@ class GenerationQCTests(unittest.TestCase):
             "activities": [{"name": "discussion"}],
         }
 
-    def test_valid_lesson_passes_qc(self):
+    def test_valid_lesson_matches_official_qc_contract(self):
         result = review_generated_lesson(
             self._lesson(),
             level="A2",
@@ -22,10 +22,15 @@ class GenerationQCTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "READY")
         self.assertEqual(result["blocking_errors"], [])
-        self.assertIn("level_alignment", result["checked"])
-        self.assertIn("objective_alignment", result["checked"])
-        self.assertIn("duration", result["checked"])
-        self.assertIn("activity_presence", result["checked"])
+        self.assertEqual(result["score"], 100.0)
+        self.assertFalse(result["critical_failure"])
+        self.assertFalse(result["revision_required"])
+        self.assertEqual(result["checks"]["level_alignment"], True)
+        self.assertEqual(result["checks"]["objective_alignment"], True)
+        self.assertEqual(result["checks"]["communicative_value"], True)
+        self.assertEqual(result["checks"]["time_realism"], True)
+        self.assertEqual(result["checks"]["linguistic_accuracy"], True)
+        self.assertEqual(result["checks"]["assessment_alignment"], True)
 
     def test_qc_rejects_misaligned_lesson(self):
         lesson = self._lesson()
@@ -39,7 +44,12 @@ class GenerationQCTests(unittest.TestCase):
             duration_minutes=90,
         )
 
-        self.assertEqual(result["status"], "REJECT")
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertEqual(result["score"], 40.0)
+        self.assertTrue(result["critical_failure"])
+        self.assertTrue(result["revision_required"])
+        self.assertFalse(result["checks"]["level_alignment"])
+        self.assertFalse(result["checks"]["time_realism"])
         self.assertIn("LEVEL_MISMATCH", result["blocking_errors"])
         self.assertIn("DURATION_EXCEEDED", result["blocking_errors"])
 
