@@ -20,7 +20,7 @@ class VerticalSliceStatusContractTests(unittest.TestCase):
         result = run_lesson_planning(request)
 
         self.assertEqual(result.status, "MISSING_CONTEXT")
-        self.assertIsNotNone(result.context)
+        self.assertIsNone(result.context)
         self.assertTrue(result.missing)
         self.assertEqual(result.errors, [])
 
