@@ -4,21 +4,24 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from core.foundation.models import LearningPlanDecision
-
 
 class LessonGenerator(Protocol):
     """Adapter contract for an AI model or another lesson-generation provider."""
 
-    def generate(self, plan: LearningPlanDecision, context: dict[str, Any]) -> dict[str, Any]:
+    def generate(
+        self,
+        generation_request: dict[str, Any],
+        previous_errors: list[str],
+    ) -> dict[str, Any]:
+        """Generate a lesson from a constrained request and prior QC errors."""
         ...
 
 
 def build_generation_request(
-    plan: LearningPlanDecision,
+    plan: Any,
     context: dict[str, Any],
 ) -> dict[str, Any]:
-    """Create the constrained request sent to a future generation adapter."""
+    """Create the constrained request sent to a generation adapter."""
     return {
         "objective": plan.objective,
         "level": context.get("level"),
