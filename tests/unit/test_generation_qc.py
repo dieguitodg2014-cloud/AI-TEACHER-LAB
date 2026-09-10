@@ -53,6 +53,18 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("LEVEL_MISMATCH", result["blocking_errors"])
         self.assertIn("DURATION_EXCEEDED", result["blocking_errors"])
 
+    def test_qc_handles_malformed_provider_output(self):
+        result = review_generated_lesson(
+            None,
+            level="A2",
+            objective="Test objective",
+            duration_minutes=90,
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("INVALID_OUTPUT", result["blocking_errors"])
+        self.assertTrue(result["critical_failure"])
+
 
 if __name__ == "__main__":
     unittest.main()
