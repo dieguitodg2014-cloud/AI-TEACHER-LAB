@@ -78,7 +78,7 @@ def run_lesson_planning(
     resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
     resource_handoff = (
         build_resource_handoff(context_result.context, resource_task)
-        if resource_task is not None
+        if resource_task is not None and resource_tool is None
         else None
     )
 
