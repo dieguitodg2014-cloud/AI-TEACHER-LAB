@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from core.generation.output_validator import validate_generated_lesson
+from core.quality.generation_qc import review_generated_lesson
 
 
 Generator = Callable[[dict[str, Any], list[str]], dict[str, Any]]
@@ -16,7 +16,7 @@ def generate_with_revision(
     *,
     max_revisions: int = 2,
 ) -> dict[str, Any]:
-    """Generate, validate, and request bounded revisions without pedagogical drift."""
+    """Generate, pass through the QC gate, and request bounded revisions."""
     expected_level = generation_request.get("level")
     expected_objective = generation_request.get("objective")
     expected_duration = generation_request.get("duration_minutes")
@@ -29,17 +29,25 @@ def generate_with_revision(
     attempts = 0
     errors: list[str] = []
     lesson: dict[str, Any] | None = None
+    qc_result: dict[str, Any] | None = None
 
     while attempts <= max_revisions:
         lesson = generator(generation_request, errors)
-        errors = validate_generated_lesson(
+        qc_result = review_generated_lesson(
             lesson,
-            expected_level=expected_level,
-            expected_objective=expected_objective,
-            expected_duration=expected_duration,
+            level=expected_level,
+            objective=expected_objective,
+            duration_minutes=expected_duration,
         )
-        if not errors:
-            return {"status": "READY", "lesson": lesson, "errors": [], "attempts": attempts + 1}
+        errors = list(qc_result["blocking_errors"])
+        if qc_result["status"] == "READY":
+            return {
+                "status": "READY",
+                "lesson": lesson,
+                "errors": [],
+                "attempts": attempts + 1,
+                "qc": qc_result,
+            }
         attempts += 1
 
     return {
@@ -47,4 +55,5 @@ def generate_with_revision(
         "lesson": lesson,
         "errors": errors,
         "attempts": attempts,
+        "qc": qc_result,
     }
