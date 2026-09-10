@@ -50,6 +50,17 @@ class GenerationOrchestratorTests(unittest.TestCase):
         self.assertEqual(result["status"], "READY")
         self.assertEqual(result["tool_id"], "free-generator")
 
+    def test_free_first_policy_can_be_disabled(self):
+        orchestrator = GenerationOrchestrator(
+            self.tools,
+            {},
+        )
+        result = orchestrator.run(self.request, free_first=False)
+
+        self.assertEqual(result["status"], "HUMAN_HANDOFF")
+        self.assertEqual(result["tool_id"], "premium-generator")
+        self.assertEqual(result["errors"], ["GENERATOR_UNAVAILABLE"])
+
     def test_missing_generator_causes_handoff(self):
         orchestrator = GenerationOrchestrator(self.tools, {})
         result = orchestrator.run(self.request)
