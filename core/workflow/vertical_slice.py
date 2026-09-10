@@ -78,13 +78,15 @@ def run_lesson_planning(
             errors=[],
         )
 
+    free_first = True
     try:
         if tools is None:
-            configured_tools, _policy = load_tool_registry_config(
+            configured_tools, policy = load_tool_registry_config(
                 tool_config_path or DEFAULT_TOOL_CONFIG
             )
             registry = ToolRegistry(configured_tools)
             selected_tools = registry.list_available()
+            free_first = bool(policy.get("free_first", True))
         else:
             selected_tools = tools
     except (OSError, ValueError, TypeError) as exc:
@@ -119,7 +121,10 @@ def run_lesson_planning(
         asdict(context_result.context),
     )
     orchestration = GenerationOrchestrator(selected_tools, generators)
-    generation = orchestration.run(generation_request)
+    generation = orchestration.run(
+        generation_request,
+        free_first=free_first,
+    )
     return VerticalSliceResult(
         status=generation["status"],
         context=context_result.context,
