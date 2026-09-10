@@ -2,6 +2,7 @@
   "tools": [
     {
       "tool_id": "local-lesson-generator",
+      "connector": "local_openai_compatible",
       "capabilities": ["lesson_generation"],
       "quality": 0.7,
       "reliability": 0.9,
