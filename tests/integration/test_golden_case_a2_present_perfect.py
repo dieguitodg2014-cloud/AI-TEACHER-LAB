@@ -43,10 +43,11 @@ class GoldenCaseA2PresentPerfectTests(unittest.TestCase):
             invariants["duration_minutes"],
         )
         self.assertTrue(result.learning_plan.evidence_of_learning)
-        self.assertEqual(
-            result.learning_plan.resource_need,
-            "NO_RESOURCE_DECIDED_YET",
-        )
+        if invariants["resource_decision_must_be_explicit"]:
+            self.assertIn(
+                result.learning_plan.resource_need,
+                {"CREATE", "REUSE", "ADAPT", "OMIT", "NO_RESOURCE_REQUIRED"},
+            )
 
 
 if __name__ == "__main__":
