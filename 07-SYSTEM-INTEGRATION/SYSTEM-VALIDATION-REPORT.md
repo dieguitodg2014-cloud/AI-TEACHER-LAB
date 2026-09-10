@@ -1,7 +1,7 @@
 # AI TEACHER LAB - SYSTEM VALIDATION REPORT
 
 ## Version
-1.7
+1.8
 
 ## Purpose
 
@@ -121,11 +121,17 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-11-AMBIGUOUS-WEAK-REQUEST
 
 ### TEST 12 - Timing Reality Check
 
-**Input:** any lesson with a stated duration.
+**Input:** `Modo ESL: Present Perfect B1. Duración: 60 minutos. Diseña una clase orientada a experiencias con explicación breve, práctica controlada, conversación y una evidencia oral final.`
 
-**Status: PARTIALLY TESTED IN TEST 04, TEST 05, TEST 07, AND TEST 11**
+**Runtime result: PASS**
 
-Tests 04, 05, and 11 passed individual 90-minute feasibility audits. Test 07 validated project-level feasibility for 24 sessions of 90 minutes. A broader timing test across multiple lesson types remains pending.
+The system respected the explicit 60-minute duration rather than applying the default 90-minute Modo ESL duration. The complete sequence totaled exactly 60 minutes and preserved B1 communicative progression, interaction, final oral evidence, transitions, instructions, feedback, and feasibility.
+
+The timing audit used seven stages: 5 minutes opening/context, 7 minutes language focus, 8 minutes controlled practice, 12 minutes guided pair speaking, 17 minutes freer communication, 8 minutes feedback/final oral evidence, and 3 minutes exit check. No hidden activities or additional time were required.
+
+All five quality gates passed: G1 Level, G2 Alignment, G3 Language, G4 Communication, and G5 Feasibility.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-12-TIMING-REALITY-CHECK.md`
 
 ## Integration Findings
 
@@ -157,7 +163,13 @@ Project, lesson, assessment, resource, level, integration, and QC components are
 
 **Status: IN PROGRESS**
 
-TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, TEST 09, TEST 10, and TEST 11 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
+TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, TEST 09, TEST 10, TEST 11, and TEST 12 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
+
+### Finding 6 - Timing and Feasibility
+
+**Status: PASS**
+
+TEST 12 demonstrated that an explicit lesson duration is treated as an authoritative pedagogical constraint. The system can compress or expand the lesson architecture to the available time without silently extending the session or sacrificing the communicative objective.
 
 ## Final Validation Gate
 
@@ -172,7 +184,7 @@ AI TEACHER LAB is considered **System-Ready for controlled testing** when:
 7. Quality Control is applied before classroom-ready delivery;
 8. representative runtime tests produce acceptable results.
 
-Eight representative runtime tests have now passed. The final gate remains open until the remaining critical test cases are executed.
+Nine representative runtime tests have now passed. The final gate remains open until TEST 01, TEST 02, and TEST 03 are executed.
 
 ## Current Overall Status
 
@@ -188,8 +200,12 @@ Eight representative runtime tests have now passed. The final gate remains open 
 - TEST 09 - Resource Request: PASS
 - TEST 10 - Specialized Tool Handoff: PASS
 - TEST 11 - Ambiguous or Weak Request: PASS
+- TEST 12 - Timing Reality Check: PASS
 
-### Next recommended tests
+### Remaining critical tests
 
-1. **TEST 12 - Timing Reality Check** - broadens feasibility validation beyond individual lessons.
-2. **TEST 01-03 - Modo ESL A0/A1/A2** - completes direct runtime validation of all five level-specific Modo ESL activations.
+1. **TEST 01 - Modo ESL A0**
+2. **TEST 02 - Modo ESL A1**
+3. **TEST 03 - Modo ESL A2**
+
+After these three direct runtime tests pass, the system can proceed to a final validation review of the complete architecture.
