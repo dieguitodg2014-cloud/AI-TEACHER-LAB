@@ -53,6 +53,35 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("LEVEL_MISMATCH", result["blocking_errors"])
         self.assertIn("DURATION_EXCEEDED", result["blocking_errors"])
 
+    def test_qc_rejects_missing_target_topic(self):
+        result = review_generated_lesson(
+            self._lesson(),
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            topic="Present Perfect",
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("CONTENT_TOPIC_MISSING", result["blocking_errors"])
+        self.assertFalse(result["checks"]["content_alignment"])
+
+    def test_qc_rejects_explicit_forbidden_term(self):
+        lesson = self._lesson()
+        lesson["activities"][0]["instructions"] = "Practice used to with a partner."
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            constraints=["FORBIDDEN_TERMS: used to"],
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("CONTENT_FORBIDDEN_TERM", result["blocking_errors"])
+        self.assertFalse(result["checks"]["content_alignment"])
+
     def test_qc_handles_malformed_provider_output(self):
         result = review_generated_lesson(
             None,
