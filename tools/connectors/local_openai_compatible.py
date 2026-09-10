@@ -14,7 +14,8 @@ from typing import Any
 from urllib import error, request
 
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1/chat/completions"
-DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_MAX_TOKENS = 1400
 
 
 class LocalProviderError(RuntimeError):
@@ -26,7 +27,8 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
     return (
         "You are the lesson-generation component of an ESL teaching system. "
         "The pedagogical plan below is authoritative. Do not change the level, "
-        "objective, duration, sequence, or constraints. Generate only the lesson artifact.\n\n"
+        "objective, duration, sequence, or constraints. Generate only the lesson artifact. "
+        "Be concise: use at most 1-2 sentences for each activity instruction and do not add commentary.\n\n"
         f"APPROVED REQUEST:\n{json.dumps(generation_request, ensure_ascii=False, indent=2)}\n\n"
         f"PREVIOUS QC ERRORS:\n{json.dumps(previous_errors, ensure_ascii=False)}\n\n"
         "Return ONLY valid JSON with this structure:\n"
@@ -63,12 +65,18 @@ def create_local_openai_compatible_generator(
     model: str | None = None,
     api_key: str | None = None,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ):
     """Return a callable implementing the LessonGenerator contract.
 
     Values default to environment variables so secrets and machine-specific
     settings remain outside the repository.
     """
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    if max_tokens <= 0:
+        raise ValueError("max_tokens must be positive")
+
     endpoint = base_url or os.getenv("AI_TEACHER_LAB_PROVIDER_URL", DEFAULT_BASE_URL)
     selected_model = model or os.getenv("AI_TEACHER_LAB_PROVIDER_MODEL", "local-model")
     selected_api_key = api_key if api_key is not None else os.getenv("AI_TEACHER_LAB_PROVIDER_API_KEY", "")
@@ -84,6 +92,7 @@ def create_local_openai_compatible_generator(
                 {"role": "user", "content": _build_prompt(generation_request, previous_errors)},
             ],
             "temperature": 0.2,
+            "max_tokens": max_tokens,
         }
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -94,7 +103,9 @@ def create_local_openai_compatible_generator(
         try:
             with request.urlopen(req, timeout=timeout_seconds) as response:
                 raw = response.read().decode("utf-8")
-        except (error.URLError, TimeoutError, OSError) as exc:
+        except TimeoutError as exc:
+            raise LocalProviderError("PROVIDER_TIMEOUT") from exc
+        except (error.URLError, OSError) as exc:
             raise LocalProviderError("PROVIDER_UNAVAILABLE") from exc
 
         try:
