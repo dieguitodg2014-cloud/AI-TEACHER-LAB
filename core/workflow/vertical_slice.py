@@ -58,7 +58,7 @@ def run_lesson_planning(
         learning_plan = apply_resource_decision(learning_plan, resource_decision)
         resource_task = build_resource_task_packet(context_result.context, learning_plan, resource_decision)
     except (ValueError, OSError, KeyError) as exc:
-        return VerticalSliceResult("FAILED", context_result.context, None, None, None, None, None, None, None, None, [], [str(exc)])
+        return VerticalSliceResult("FAILED", context_result.context, None, None, None, None, None, None, None, [], [str(exc)])
 
     if tools is None and generators is None:
         return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, resource_decision, resource_task, None, None, None, [], [])
@@ -83,7 +83,7 @@ def run_lesson_planning(
     )
 
     if generators is None:
-        return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, resource_decision, resource_task, resource_tool, resource_handoff, None, [], [])
+        return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, resource_decision, resource_task, resource_tool, resource_handoff, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
 
     generation_request = build_generation_request(learning_plan, asdict(context_result.context))
     orchestration = GenerationOrchestrator(selected_tools, generators)
