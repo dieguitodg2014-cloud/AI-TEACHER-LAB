@@ -13,6 +13,8 @@ def review_generated_lesson(
     level: str,
     objective: str,
     duration_minutes: int,
+    topic: str | None = None,
+    constraints: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
@@ -20,10 +22,16 @@ def review_generated_lesson(
         expected_level=level,
         expected_objective=objective,
         expected_duration=duration_minutes,
+        expected_topic=topic,
+        constraints=constraints,
     )
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = "OBJECTIVE_MISMATCH" not in blocking_errors
+    content_alignment = not any(
+        error in blocking_errors
+        for error in ("CONTENT_TOPIC_MISSING", "CONTENT_FORBIDDEN_TERM")
+    )
     time_realism = not any(
         error in blocking_errors
         for error in ("INVALID_DURATION", "DURATION_EXCEEDED")
@@ -39,6 +47,7 @@ def review_generated_lesson(
     checks = {
         "level_alignment": level_alignment,
         "objective_alignment": objective_alignment,
+        "content_alignment": content_alignment,
         "communicative_value": communicative_value,
         "time_realism": time_realism,
         "linguistic_accuracy": linguistic_accuracy,
