@@ -42,7 +42,7 @@ class PedagogicalDecisionEngineTests(unittest.TestCase):
         self.assertEqual(plan.total_minutes, 90)
         self.assertEqual(plan.objective, context.objective)
         self.assertTrue(plan.evidence_of_learning)
-        self.assertEqual(plan.resource_need, "NO_RESOURCE_DECIDED_YET")
+        self.assertEqual(plan.resource_need, "NO_RESOURCE_REQUIRED")
 
     def test_mismatched_level_is_rejected(self):
         context = self._context()
