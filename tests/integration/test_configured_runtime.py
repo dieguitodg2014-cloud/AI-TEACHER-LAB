@@ -32,6 +32,7 @@ def test_configured_runtime_resolves_generator_and_runs_vertical_slice(tmp_path,
             "level": generation_request["level"],
             "objective": generation_request["objective"],
             "duration_minutes": generation_request["duration_minutes"],
+            "topic": generation_request["topic"],
             "activities": [
                 {
                     "stage": stage,
