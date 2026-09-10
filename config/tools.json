@@ -12,6 +12,14 @@
     }
   ],
   "policy": {
-    "free_first": true
+    "free_first": true,
+    "provider_policy": {
+      "pedagogical_authority": "chatgpt",
+      "primary_provider": "chatgpt",
+      "secondary_provider": "gemini",
+      "specialized_resource_creators": ["notebooklm"],
+      "fallback_providers": ["gemma_local"],
+      "fallback_rule": "Fallback providers may execute an approved task but may not redefine the pedagogical decision."
+    }
   }
 }
