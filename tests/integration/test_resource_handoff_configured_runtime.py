@@ -1,4 +1,4 @@
-from core.workflow.configured_runtime import run_configured_lesson
+from core.workflow.configured_runtime import run_configured_lesson_planning
 
 
 def test_required_audio_uses_human_handoff_when_no_resource_connector_exists():
@@ -11,7 +11,7 @@ def test_required_audio_uses_human_handoff_when_no_resource_connector_exists():
         "constraints": ["Students need listening practice"],
     }
 
-    result = run_configured_lesson(request)
+    result = run_configured_lesson_planning(request)
 
     assert result.resource_decision.action == "CREATE"
     assert result.resource_task is not None
