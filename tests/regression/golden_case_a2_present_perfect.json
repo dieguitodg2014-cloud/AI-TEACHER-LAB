@@ -8,7 +8,10 @@
     "objective": "Discuss past experiences and ask follow-up questions.",
     "topic": "Present Perfect",
     "prior_knowledge": ["Past Simple"],
-    "constraints": ["Students struggle with question formation"]
+    "constraints": [
+      "Students struggle with question formation",
+      "FORBIDDEN_TERMS: used to"
+    ]
   },
   "expected_invariants": {
     "level": "A2",
@@ -33,6 +36,7 @@
     "Tool selection is based on capabilities rather than provider names.",
     "Generated output is validated by QC before approval.",
     "A failed generation can enter the bounded revision loop.",
+    "Content alignment rejects explicit forbidden terms.",
     "No unnecessary resource is assumed to be required."
   ]
 }
