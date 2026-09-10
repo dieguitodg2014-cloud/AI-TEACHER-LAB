@@ -82,13 +82,16 @@ def run_lesson_planning(
         else None
     )
 
-    # A resource-only planning request does not require a lesson generator.
-    # Keep the workflow in PLANNED state so resource orchestration can be
-    # inspected independently from lesson generation. A missing generator is
-    # a handoff only when there is no resource task and the caller has supplied
-    # tools, meaning the request is entering the lesson-generation path.
+    # When no lesson generator is supplied, distinguish resource-planning
+    # mode from lesson-generation mode. A resource-capable tool indicates
+    # that the caller is inspecting/planning the resource path, so generation
+    # is not required yet. Otherwise the request is entering lesson generation
+    # and the absence of a generator requires human handoff.
     if generators is None:
-        if resource_task is not None:
+        has_resource_capability = any(
+            "resource_generation" in tool.capabilities for tool in selected_tools
+        )
+        if resource_task is not None or has_resource_capability:
             return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, resource_decision, resource_task, resource_tool, resource_handoff, None, [], [])
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, resource_decision, resource_task, resource_tool, resource_handoff, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
 
