@@ -29,6 +29,8 @@ class GenerationRevisionTests(unittest.TestCase):
         self.assertEqual(result["attempts"], 1)
         self.assertEqual(len(calls), 1)
         self.assertEqual(result["qc"]["status"], "READY")
+        self.assertEqual(result["qc"]["score"], 100.0)
+        self.assertFalse(result["qc"]["critical_failure"])
         self.assertEqual(result["qc"]["blocking_errors"], [])
 
     def test_invalid_generation_can_be_revised(self):
@@ -55,6 +57,7 @@ class GenerationRevisionTests(unittest.TestCase):
         self.assertEqual(result["status"], "READY")
         self.assertEqual(result["attempts"], 2)
         self.assertEqual(result["qc"]["status"], "READY")
+        self.assertEqual(result["qc"]["score"], 100.0)
         self.assertEqual(result["qc"]["blocking_errors"], [])
 
     def test_repeated_failure_is_rejected(self):
@@ -71,7 +74,8 @@ class GenerationRevisionTests(unittest.TestCase):
         self.assertEqual(result["status"], "REJECT")
         self.assertEqual(result["attempts"], 3)
         self.assertIn("LEVEL_MISMATCH", result["errors"])
-        self.assertEqual(result["qc"]["status"], "REJECT")
+        self.assertEqual(result["qc"]["status"], "REJECT_AND_REDESIGN")
+        self.assertTrue(result["qc"]["critical_failure"])
         self.assertIn("LEVEL_MISMATCH", result["qc"]["blocking_errors"])
 
 
