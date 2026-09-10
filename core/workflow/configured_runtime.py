@@ -8,7 +8,6 @@ from typing import Any
 from core.workflow.vertical_slice import VerticalSliceResult, run_lesson_planning
 from tools.connectors.runtime_loader import load_runtime_generators
 
-
 DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
 
 
@@ -27,6 +26,9 @@ def run_configured_lesson_planning(
             context=None,
             level_decision=None,
             learning_plan=None,
+            resource_decision=None,
+            resource_task=None,
+            resource_tool=None,
             generation=None,
             missing=[],
             errors=[f"RUNTIME_CONNECTOR_ERROR:{exc}"],
