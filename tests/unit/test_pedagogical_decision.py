@@ -27,17 +27,19 @@ class PedagogicalDecisionEngineTests(unittest.TestCase):
         level = decide_level(context)
         plan = decide_learning_plan(context, level)
 
+        self.assertEqual(len(plan.sequence), 6)
         self.assertEqual(
-            [activity.purpose for activity in plan.sequence],
+            [activity.interaction for activity in plan.sequence],
             [
-                "presentation",
-                "modeling",
-                "guided_practice",
-                "communicative_practice",
-                "production",
-                "assessment",
+                "teacher_to_class",
+                "teacher_to_class",
+                "pairs",
+                "pairs_or_small_groups",
+                "individual_or_pairs",
+                "individual",
             ],
         )
+        self.assertTrue(all(activity.purpose for activity in plan.sequence))
         self.assertEqual(sum(activity.minutes for activity in plan.sequence), 90)
         self.assertEqual(plan.total_minutes, 90)
         self.assertEqual(plan.objective, context.objective)
