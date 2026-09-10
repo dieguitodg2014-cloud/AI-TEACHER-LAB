@@ -6,9 +6,9 @@ from typing import Any, Protocol
 
 
 class LessonGenerator(Protocol):
-    """Adapter contract for an AI model or another lesson-generation provider."""
+    """Callable contract for an AI model or another lesson-generation provider."""
 
-    def generate(
+    def __call__(
         self,
         generation_request: dict[str, Any],
         previous_errors: list[str],
