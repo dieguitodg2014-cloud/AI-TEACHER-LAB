@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from core.context.engine import build_context
@@ -12,6 +13,11 @@ from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
+from tools.registry.config_loader import load_tool_registry_config
+from tools.registry import ToolRegistry
+
+
+DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
 
 
 @dataclass(frozen=True)
@@ -30,8 +36,9 @@ def run_lesson_planning(
     *,
     tools: list[ToolCandidate] | None = None,
     generators: dict[str, Callable] | None = None,
+    tool_config_path: str | Path | None = None,
 ) -> VerticalSliceResult:
-    """Run request through context, pedagogy, tool selection, generation and QC."""
+    """Run request through context, pedagogy, registry, selection, generation and validation."""
     context_result = build_context(request)
 
     if context_result.errors or context_result.missing or context_result.context is None:
@@ -59,7 +66,8 @@ def run_lesson_planning(
             errors=[str(exc)],
         )
 
-    if tools is None or generators is None:
+    # Preserve the planning-only behavior when no execution dependencies are supplied.
+    if tools is None and generators is None:
         return VerticalSliceResult(
             status="PLANNED",
             context=context_result.context,
@@ -70,13 +78,50 @@ def run_lesson_planning(
             errors=[],
         )
 
+    try:
+        if tools is None:
+            configured_tools, policy = load_tool_registry_config(
+                tool_config_path or DEFAULT_TOOL_CONFIG
+            )
+            registry = ToolRegistry(configured_tools)
+            selected_tools = registry.list_available()
+            free_first = bool(policy.get("free_first", True))
+        else:
+            selected_tools = tools
+            free_first = True
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        return VerticalSliceResult(
+            status="FAILED",
+            context=context_result.context,
+            level_decision=level_decision,
+            learning_plan=learning_plan,
+            generation=None,
+            missing=[],
+            errors=[f"TOOL_REGISTRY_ERROR:{exc}"],
+        )
+
+    if generators is None:
+        return VerticalSliceResult(
+            status="HUMAN_HANDOFF",
+            context=context_result.context,
+            level_decision=level_decision,
+            learning_plan=learning_plan,
+            generation={
+                "status": "HUMAN_HANDOFF",
+                "tool_id": None,
+                "result": None,
+                "errors": ["GENERATOR_UNAVAILABLE"],
+            },
+            missing=[],
+            errors=["GENERATOR_UNAVAILABLE"],
+        )
+
     generation_request = build_generation_request(
         learning_plan,
         asdict(context_result.context),
     )
-    orchestration = GenerationOrchestrator(tools, generators)
+    orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request)
-
     return VerticalSliceResult(
         status=generation["status"],
         context=context_result.context,
