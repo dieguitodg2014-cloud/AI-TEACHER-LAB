@@ -1,0 +1,60 @@
+"""Connect tool selection to the controlled lesson generation cycle."""
+
+from __future__ import annotations
+
+from typing import Any, Callable
+
+from core.generation.revision import generate_with_revision
+from core.orchestration.tool_selector import ToolCandidate, select_tool
+
+
+class GenerationOrchestrator:
+    """Route a generation task to a capable tool and apply bounded revision."""
+
+    def __init__(self, tools: list[ToolCandidate], generators: dict[str, Callable]):
+        self._tools = tools
+        self._generators = generators
+
+    def run(
+        self,
+        generation_request: dict[str, Any],
+        *,
+        required_capabilities: set[str] | None = None,
+        blocked_tools: set[str] | None = None,
+        max_revisions: int = 2,
+    ) -> dict[str, Any]:
+        capabilities = required_capabilities or {"lesson_generation"}
+        tool = select_tool(
+            self._tools,
+            capabilities,
+            blocked_tools=blocked_tools,
+        )
+
+        if tool is None:
+            return {
+                "status": "HUMAN_HANDOFF",
+                "tool_id": None,
+                "result": None,
+                "errors": ["NO_SUITABLE_TOOL"],
+            }
+
+        generator = self._generators.get(tool.tool_id)
+        if generator is None:
+            return {
+                "status": "HUMAN_HANDOFF",
+                "tool_id": tool.tool_id,
+                "result": None,
+                "errors": ["GENERATOR_UNAVAILABLE"],
+            }
+
+        result = generate_with_revision(
+            generator,
+            generation_request,
+            max_revisions=max_revisions,
+        )
+        return {
+            "status": result["status"],
+            "tool_id": tool.tool_id,
+            "result": result,
+            "errors": result.get("errors", []),
+        }
