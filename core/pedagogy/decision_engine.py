@@ -32,7 +32,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     decision = LearningPlanDecision(
         plan_id=f"plan-{uuid4().hex[:12]}", objective=objective, sequence=sequence,
         total_minutes=sum(activity.minutes for activity in sequence),
-        evidence_of_learning="Observable student performance demonstrating the stated objective.", resource_need="",
+        evidence_of_learning="Observable student performance demonstrating the stated objective.", resource_need="NO_RESOURCE_REQUIRED",
     )
     errors = validate_learning_plan(decision, duration)
     if errors:
