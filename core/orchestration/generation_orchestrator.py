@@ -22,12 +22,14 @@ class GenerationOrchestrator:
         required_capabilities: set[str] | None = None,
         blocked_tools: set[str] | None = None,
         max_revisions: int = 2,
+        free_first: bool = True,
     ) -> dict[str, Any]:
         capabilities = required_capabilities or {"lesson_generation"}
         tool = select_tool(
             self._tools,
             capabilities,
             blocked_tools=blocked_tools,
+            free_first=free_first,
         )
 
         if tool is None:
