@@ -1,7 +1,7 @@
 # ESL LESSON ENGINE
 
 ## Version
-1.0
+1.1
 
 ## Purpose
 
@@ -40,6 +40,63 @@ The engine follows this order:
 This is the operational application of Backward Design:
 
 **Result → Evidence → Assessment → Practice → Input → Activities → Materials**
+
+## Modo ESL Activation Protocol
+
+When the user explicitly writes **"modo ESL"**, the engine activates the complete ESL lesson specification rather than generating a simple explanation or collection of activities.
+
+When a level is specified, the level becomes a mandatory design parameter:
+
+- **Modo ESL A0** → apply A0 rules from the Level Control Engine and A0 Special Rules in this engine.
+- **Modo ESL A1** → apply A1 level requirements.
+- **Modo ESL A2** → apply A2 level requirements.
+- **Modo ESL B1** → apply B1 level requirements.
+- **Modo ESL B2** → apply B2 level requirements.
+
+The level must affect the objective, language load, cognitive demand, scaffolding, interaction, expected output, autonomy, accuracy, fluency, register/pragmatics, task type, and assessment criteria. It must not be treated as a label or as a request for more difficult vocabulary alone.
+
+### Modo ESL B1 Requirements
+
+When the user requests **Modo ESL B1**, the lesson must be designed for learners who can communicate independently in familiar and moderately unfamiliar situations.
+
+The lesson should normally prioritize:
+
+- sustained communication
+- explanation and narration
+- expressing and supporting opinions
+- handling unexpected but manageable interaction
+- increasing fluency and flexibility
+- connected discourse
+- a broader grammatical and lexical range
+- appropriate use of common complex structures
+- functional variation in register
+- discussions, role plays with reduced scripting, problem-solving, presentations, or collaborative tasks when appropriate
+
+B1 lessons should progressively reduce scaffolding and provide meaningful opportunities for learners to maintain interaction, explain ideas, narrate, compare, justify opinions, and respond to follow-up questions.
+
+Assessment should prioritize task achievement, coherence, fluency, range and control, and the ability to maintain interaction, according to the specific lesson objective.
+
+B1 must not be produced by simply taking an A2 lesson and adding longer sentences or harder vocabulary. The cognitive demand, interaction, autonomy, and communicative expectations must also increase.
+
+### Modo ESL Level-Control Rule
+
+Before designing the lesson, the engine must internally establish:
+
+- target level
+- learner profile
+- communicative objective
+- language objective
+- cognitive demand
+- expected output
+- interaction type
+- scaffolding level
+- autonomy level
+- accuracy expectation
+- fluency expectation
+- register/pragmatics where relevant
+- assessment criteria
+
+The Level Control Engine remains the authority for these level decisions. The ESL Lesson Engine translates those decisions into a coherent lesson.
 
 ## Lesson Architecture
 
