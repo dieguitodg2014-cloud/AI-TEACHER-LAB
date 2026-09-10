@@ -155,7 +155,8 @@
           }
         },
         "revision_required": {"type": "boolean"},
-        "feedback": {"type": "array", "items": {"type": "string"}}
+        "feedback": {"type": "array", "items": {"type": "string"}},
+        "blocking_errors": {"type": "array", "items": {"type": "string"}}
       }
     }
   }
