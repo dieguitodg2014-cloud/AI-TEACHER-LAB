@@ -44,7 +44,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
         sequence=sequence,
         total_minutes=sum(activity.minutes for activity in sequence),
         evidence_of_learning="Observable student performance demonstrating the stated objective.",
-        resource_need="NO_RESOURCE_DECIDED_YET",
+        resource_need="NO_RESOURCE_REQUIRED",
     )
     errors = validate_learning_plan(decision, duration)
     if errors:
