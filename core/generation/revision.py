@@ -25,6 +25,8 @@ def generate_with_revision(
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if not isinstance(expected_duration, int) or expected_duration <= 0:
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+    if not isinstance(max_revisions, int) or max_revisions < 0:
+        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
 
     attempts = 0
     errors: list[str] = []
@@ -32,7 +34,17 @@ def generate_with_revision(
     qc_result: dict[str, Any] | None = None
 
     while attempts <= max_revisions:
-        lesson = generator(generation_request, errors)
+        try:
+            lesson = generator(generation_request, errors)
+        except Exception as exc:
+            return {
+                "status": "FAILED",
+                "lesson": None,
+                "errors": ["EXECUTION_ERROR", f"{type(exc).__name__}: {exc}"],
+                "attempts": attempts + 1,
+                "qc": None,
+            }
+
         qc_result = review_generated_lesson(
             lesson,
             level=expected_level,
