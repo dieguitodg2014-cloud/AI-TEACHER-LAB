@@ -1,7 +1,7 @@
 # AI TEACHER LAB - SYSTEM VALIDATION REPORT
 
 ## Version
-1.3
+1.5
 
 ## Purpose
 
@@ -51,15 +51,9 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-04-MODO-ESL-B1-PRESENT-PE
 
 **Input:** `Modo ESL: Present Perfect B2`
 
-**Expected behavior:** apply B2 Level Control; increase precision, flexibility, nuance, register awareness, spontaneous interaction, analysis, evaluation, synthesis, and purposeful complex language.
-
-**Pass condition:** B2 demand is cognitive, communicative, linguistic, and pragmatic, not vocabulary-only.
-
 **Runtime result: PASS**
 
-The controlled runtime lesson required learners to interpret viewpoints, discuss how experiences affect attitudes or decisions, support and challenge interpretations, qualify claims, respond to spontaneous follow-up questions, and collaboratively synthesize a nuanced conclusion. Present Perfect was used purposefully for experience and present relevance, with Past Simple used where specific completed past events required reference.
-
-The test passed all five quality gates: G1 Level, G2 Alignment, G3 Language, G4 Communication, and G5 Feasibility. The B2 demand was qualitatively higher than the B1 test because learners had to evaluate interpretations, manage nuance, challenge or qualify viewpoints, and synthesize rather than mainly narrate, compare, and explain.
+The lesson required interpretation, evaluation, argumentation, qualification, spontaneous interaction, and synthesis. B2 demand was qualitatively higher than B1 rather than simply lexically harder.
 
 Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-05-MODO-ESL-B2-PRESENT-PERFECT.md`
 
@@ -69,7 +63,7 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-05-MODO-ESL-B2-PRESENT-PE
 
 **Runtime result: PASS**
 
-The controlled comparison used `Personal experiences and travel`. The five versions changed objective, cognitive demand, scaffolding, interaction, autonomy, output, language expectations, and assessment. A0 required tightly supported short statements; A1 guided exchange; A2 connected description and comparison; B1 sustained narration, explanation, justification and follow-up interaction; B2 evaluation, challenge/qualification of viewpoints, synthesis, and nuanced spontaneous discussion.
+The controlled comparison used `Personal experiences and travel`. The five versions changed objective, cognitive demand, scaffolding, interaction, autonomy, output, language expectations, and assessment.
 
 Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-06-SAME-TOPIC-DIFFERENT-LEVEL.md`
 
@@ -77,13 +71,21 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-06-SAME-TOPIC-DIFFERENT-L
 
 **Input:** request for a multi-week ESL course or camp.
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The system successfully orchestrated Project Design, Level Control, ESL Lesson Design, Assessment, Resource Management, AI Tool Coordination, and Quality Control for an 8-week A2 adult course. The design included hierarchy, progression, evidence, milestones, final performance, resources, feasibility, and revision logic.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-07-COMPLETE-PROJECT.md`
 
 ### TEST 08 - Assessment
 
-**Input:** request for a speaking or written assessment.
+**Input:** request for a 10-minute B1 speaking assessment about experiences and travel.
 
-**Status: NOT YET RUNTIME TESTED**
+**Runtime result: PASS**
+
+The system began with learning objectives and evidence, then constructed the task, observable criteria, feedback process, and decision rule. The assessment measured connected speech, explanation, follow-up interaction, and communicative effectiveness rather than isolated grammar recall.
+
+Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-08-ASSESSMENT.md`
 
 ### TEST 09 - Resource Request
 
@@ -103,7 +105,7 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-06-SAME-TOPIC-DIFFERENT-L
 
 **Runtime result: PASS**
 
-The system identified the conflict between a mechanically dominated lesson and B1 communicative requirements. It preserved the valid intent but redesigned the activity distribution, limiting controlled gap-fill practice and allocating substantial time to guided and semi-open communication. The final evidence was oral performance rather than worksheet completion alone.
+The system identified the conflict between a mechanically dominated lesson and B1 communicative requirements. It preserved the valid intent but redesigned the activity distribution, limiting controlled gap-fill practice and allocating substantial time to guided and semi-open communication.
 
 Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-11-AMBIGUOUS-WEAK-REQUEST.md`
 
@@ -111,9 +113,9 @@ Detailed artifact: `07-SYSTEM-INTEGRATION/RUNTIME-TEST-11-AMBIGUOUS-WEAK-REQUEST
 
 **Input:** any lesson with a stated duration.
 
-**Status: PARTIALLY TESTED IN TEST 04, TEST 05, AND TEST 11**
+**Status: PARTIALLY TESTED IN TEST 04, TEST 05, TEST 07, AND TEST 11**
 
-Tests 04, 05, and 11 totaled 90 minutes and passed their individual feasibility audits. A broader timing test across multiple lesson types remains pending.
+Tests 04, 05, and 11 passed individual 90-minute feasibility audits. Test 07 validated project-level feasibility for 24 sessions of 90 minutes. A broader timing test across multiple lesson types remains pending.
 
 ## Integration Findings
 
@@ -145,7 +147,7 @@ Project, lesson, assessment, resource, level, integration, and QC components are
 
 **Status: IN PROGRESS**
 
-TEST 04, TEST 05, TEST 06, and TEST 11 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
+TEST 04, TEST 05, TEST 06, TEST 07, TEST 08, and TEST 11 have now been executed as representative runtime tests and passed. The remaining critical tests require representative execution before the overall system can be considered fully runtime validated.
 
 ## Final Validation Gate
 
@@ -160,7 +162,7 @@ AI TEACHER LAB is considered **System-Ready for controlled testing** when:
 7. Quality Control is applied before classroom-ready delivery;
 8. representative runtime tests produce acceptable results.
 
-Four representative runtime tests have now passed. The final gate remains open until the remaining critical test cases are executed.
+Six representative runtime tests have now passed. The final gate remains open until the remaining critical test cases are executed.
 
 ## Current Overall Status
 
@@ -171,12 +173,13 @@ Four representative runtime tests have now passed. The final gate remains open u
 - TEST 04 - Modo ESL B1: PASS
 - TEST 05 - Modo ESL B2: PASS
 - TEST 06 - Same Topic, Different Level: PASS
+- TEST 07 - Complete Project: PASS
+- TEST 08 - Assessment: PASS
 - TEST 11 - Ambiguous or Weak Request: PASS
 
 ### Next recommended tests
 
-1. **TEST 07 - Complete Project** - validates cross-engine project orchestration.
-2. **TEST 08 - Assessment** - validates objective/evidence/task/criteria alignment.
-3. **TEST 09 - Resource Request** - validates resource governance and QC.
-4. **TEST 10 - Specialized Tool Handoff** - validates preservation of pedagogical intent during production.
-5. **TEST 12 - Timing Reality Check** - broadens feasibility validation beyond individual lessons.
+1. **TEST 09 - Resource Request** - validates resource governance and QC.
+2. **TEST 10 - Specialized Tool Handoff** - validates preservation of pedagogical intent during production.
+3. **TEST 12 - Timing Reality Check** - broadens feasibility validation beyond individual lessons.
+4. **TEST 01-03 - Modo ESL A0/A1/A2** - completes direct runtime validation of all five level-specific Modo ESL activations.
