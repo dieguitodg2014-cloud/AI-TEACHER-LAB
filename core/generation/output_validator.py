@@ -12,6 +12,9 @@ def validate_generated_lesson(
     expected_duration: int,
 ) -> list[str]:
     """Return blocking errors without rewriting the generated lesson."""
+    if not isinstance(lesson, dict):
+        return ["INVALID_OUTPUT"]
+
     errors: list[str] = []
 
     if lesson.get("level") != expected_level:
