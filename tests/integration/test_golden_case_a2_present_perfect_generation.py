@@ -38,6 +38,7 @@ class GoldenCaseA2PresentPerfectGenerationTests(unittest.TestCase):
                 "level": generation_request["level"],
                 "objective": generation_request["objective"],
                 "duration_minutes": generation_request["duration_minutes"],
+                "topic": generation_request["topic"],
                 "activities": [
                     {"name": "Golden Case activity"}
                 ],
