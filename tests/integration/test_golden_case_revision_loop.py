@@ -38,12 +38,14 @@ class GoldenCaseRevisionLoopTests(unittest.TestCase):
                     "level": "B1",
                     "objective": generation_request["objective"],
                     "duration_minutes": 120,
+                    "topic": generation_request["topic"],
                     "activities": [{"name": "Incorrect first attempt"}],
                 }
             return {
                 "level": generation_request["level"],
                 "objective": generation_request["objective"],
                 "duration_minutes": generation_request["duration_minutes"],
+                "topic": generation_request["topic"],
                 "activities": [{"name": "Corrected attempt"}],
             }
 
@@ -85,6 +87,7 @@ class GoldenCaseRevisionLoopTests(unittest.TestCase):
                 "level": "B1",
                 "objective": generation_request["objective"],
                 "duration_minutes": 120,
+                "topic": generation_request["topic"],
                 "activities": [{"name": "Still incorrect"}],
             }
 
