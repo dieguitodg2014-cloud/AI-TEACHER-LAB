@@ -10,8 +10,9 @@ from core.context.engine import build_context
 from core.foundation.models import Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
+from core.orchestration.resource_orchestrator import select_resource_tool
 from core.orchestration.task_packets import build_resource_task_packet
-from core.orchestration.tool_selector import ToolCandidate, select_tool
+from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
 from core.resources.decision_engine import apply_resource_decision, decide_resource
@@ -72,9 +73,7 @@ def run_lesson_planning(
     except (OSError, ValueError, TypeError) as exc:
         return VerticalSliceResult("FAILED", context_result.context, level_decision, learning_plan, resource_decision, resource_task, None, None, [], [f"TOOL_REGISTRY_ERROR:{exc}"])
 
-    resource_tool = None
-    if resource_task is not None:
-        resource_tool = select_tool(selected_tools, {"resource_generation"}, free_first=free_first)
+    resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
 
     if generators is None:
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, resource_decision, resource_task, resource_tool, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
