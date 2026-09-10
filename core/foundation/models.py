@@ -126,3 +126,4 @@ class QCResult:
     checks: QCChecks
     revision_required: bool = False
     feedback: list[str] = field(default_factory=list)
+    blocking_errors: list[str] = field(default_factory=list)
