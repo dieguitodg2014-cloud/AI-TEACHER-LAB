@@ -23,6 +23,7 @@ def generate_with_revision(
     expected_topic = generation_request.get("topic")
     constraints = generation_request.get("constraints", [])
     assessment_decision = generation_request.get("assessment_decision")
+    approved_sequence = generation_request.get("sequence")
 
     if not isinstance(expected_level, str) or not isinstance(expected_objective, str):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
@@ -33,6 +34,8 @@ def generate_with_revision(
     if not isinstance(constraints, list):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if assessment_decision is not None and not isinstance(assessment_decision, dict):
+        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+    if approved_sequence is not None and not isinstance(approved_sequence, list):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if not isinstance(max_revisions, int) or max_revisions < 0:
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
@@ -62,6 +65,7 @@ def generate_with_revision(
             topic=expected_topic,
             constraints=constraints,
             assessment_decision=assessment_decision,
+            approved_sequence=approved_sequence,
         )
         errors = list(qc_result["blocking_errors"])
         if qc_result["status"] == "READY":
