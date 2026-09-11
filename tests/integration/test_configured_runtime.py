@@ -39,6 +39,8 @@ def test_configured_runtime_resolves_generator_and_runs_vertical_slice(tmp_path,
                     "minutes": minutes,
                     "purpose": stage,
                     "instructions": "Run the activity.",
+                    "student_production": "Students discuss a past experience and ask a follow-up question.",
+                    "assessment_link": "Teacher observes the learner response during the task.",
                 }
                 for stage, minutes in zip(
                     generation_request["sequence"],
