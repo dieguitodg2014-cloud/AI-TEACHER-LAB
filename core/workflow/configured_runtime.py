@@ -26,6 +26,7 @@ def run_configured_lesson_planning(
             context=None,
             level_decision=None,
             learning_plan=None,
+            assessment_decision=None,
             resource_decision=None,
             resource_task=None,
             resource_tool=None,
