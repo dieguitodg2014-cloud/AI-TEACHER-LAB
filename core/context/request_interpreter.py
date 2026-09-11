@@ -18,6 +18,10 @@ _GROUP_SIZE = re.compile(
     r"\b(\d+)\s+(?:(?:adult|ESL)\s+)*(?:students?|learners?|people)\b",
     re.IGNORECASE,
 )
+_AUDIENCE_FROM_GROUP = re.compile(
+    r"\bfor\s+\d+\s+([^,.]+?(?:students?|learners?|people))\b",
+    re.IGNORECASE,
+)
 _OBJECTIVE = re.compile(r"\b(?:objective|goal|aim)\s*:\s*(.+?)(?=\s+(?:topic|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
 _TOPIC = re.compile(r"\btopic\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
 _AUDIENCE = re.compile(r"\baudience\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|topic|level|duration|constraints?)\s*:|$)", re.IGNORECASE)
@@ -86,6 +90,11 @@ def interpret_request(request: str | dict[str, Any]) -> dict[str, Any]:
             if match:
                 value = match.group(1)
                 normalized[field] = _clean_topic(value) if field == "topic" else _clean(value)
+
+    if not normalized.get("audience"):
+        audience = _AUDIENCE_FROM_GROUP.search(text)
+        if audience:
+            normalized["audience"] = _clean(audience.group(1))
 
     if not normalized.get("constraints"):
         match = _CONSTRAINTS.search(text)
