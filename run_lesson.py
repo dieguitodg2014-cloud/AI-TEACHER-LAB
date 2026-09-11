@@ -6,6 +6,7 @@ import argparse
 import json
 from typing import Any
 
+from core.context.request_interpreter import interpret_request
 from core.workflow.configured_runtime import run_configured_lesson_planning
 from core.workflow.vertical_slice import result_to_dict
 
@@ -15,14 +16,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run AI TEACHER LAB lesson planning with the configured runtime."
     )
     request_group = parser.add_mutually_exclusive_group(required=True)
-    request_group.add_argument(
-        "--request",
-        help="Natural-language lesson request."
-    )
-    request_group.add_argument(
-        "--objective",
-        help="Observable learning objective for a structured request."
-    )
+    request_group.add_argument("--request", help="Natural-language lesson request.")
+    request_group.add_argument("--objective", help="Observable learning objective for a structured request.")
     parser.add_argument("--level", help="Learner level, e.g. A0, A1, A2, B1, or B2")
     parser.add_argument("--audience", help="Learner audience")
     parser.add_argument("--duration", type=int, default=90, help="Lesson duration in minutes")
@@ -33,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
     if args.request:
-        return args.request
+        return interpret_request(args.request)
 
     if not args.level or not args.audience:
         raise ValueError("--level and --audience are required when using --objective")
@@ -41,7 +36,7 @@ def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
     request: dict[str, Any] = {
         "level": args.level,
         "audience": args.audience,
-        "duration": args.duration,
+        "duration_minutes": args.duration,
         "objective": args.objective,
     }
     if args.topic:
