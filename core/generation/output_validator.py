@@ -15,6 +15,18 @@ def _flatten_text(value: Any) -> str:
     return str(value)
 
 
+def _topic_match(expected_topic: str, generated_text: str) -> bool:
+    """Match a topic label without making a modality suffix mandatory."""
+    expected = expected_topic.casefold().strip()
+    generated = generated_text.casefold()
+
+    if expected in generated:
+        return True
+
+    core_topic = re.split(r"\s+-\s+|\s*:\s*", expected, maxsplit=1)[0].strip()
+    return bool(core_topic) and core_topic in generated
+
+
 def _forbidden_terms(constraints: list[Any]) -> list[str]:
     """Read explicit forbidden terms from constraints using a small contract."""
     terms: list[str] = []
@@ -59,7 +71,7 @@ def validate_generated_lesson(
         errors.append("MISSING_ACTIVITIES")
 
     generated_text = _flatten_text(lesson).casefold()
-    if expected_topic and expected_topic.casefold() not in generated_text:
+    if expected_topic and not _topic_match(expected_topic, generated_text):
         errors.append("CONTENT_TOPIC_MISSING")
 
     for term in _forbidden_terms(constraints or []):
