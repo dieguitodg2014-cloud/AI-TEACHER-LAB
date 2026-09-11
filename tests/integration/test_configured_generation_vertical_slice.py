@@ -44,7 +44,11 @@ class ConfiguredGenerationVerticalSliceTests(unittest.TestCase):
                     "objective": request["objective"],
                     "duration_minutes": request["duration_minutes"],
                     "topic": request["topic"],
-                    "activities": [{"name": "communicative task"}],
+                    "activities": [{
+                        "name": "communicative task",
+                        "student_production": "Students discuss a past experience and ask a follow-up question.",
+                        "assessment_link": "Teacher observes the learner response during the task.",
+                    }],
                 }
 
             result = run_lesson_planning(
