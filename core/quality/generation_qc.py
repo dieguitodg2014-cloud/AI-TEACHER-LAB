@@ -7,6 +7,39 @@ from typing import Any
 from core.generation.output_validator import validate_generated_lesson
 
 
+def _assessment_alignment_errors(
+    lesson: dict[str, Any],
+    assessment_decision: dict[str, Any] | None,
+) -> list[str]:
+    """Check that the generated lesson contains observable assessment evidence."""
+    if assessment_decision is None:
+        return []
+
+    activities = lesson.get("activities")
+    if not isinstance(activities, list) or not activities:
+        return ["ASSESSMENT_EVIDENCE_MISSING"]
+
+    assessment_links = [
+        str(activity.get("assessment_link", "")).strip()
+        for activity in activities
+        if isinstance(activity, dict)
+    ]
+    if not any(assessment_links):
+        return ["ASSESSMENT_EVIDENCE_MISSING"]
+
+    assessment_type = str(assessment_decision.get("type", "")).upper()
+    if assessment_type in {"PERFORMANCE", "ORAL", "MIXED"}:
+        productions = [
+            str(activity.get("student_production", "")).strip()
+            for activity in activities
+            if isinstance(activity, dict)
+        ]
+        if not any(productions):
+            return ["ASSESSMENT_PRODUCTION_MISSING"]
+
+    return []
+
+
 def review_generated_lesson(
     lesson: dict[str, Any],
     *,
@@ -15,6 +48,7 @@ def review_generated_lesson(
     duration_minutes: int,
     topic: str | None = None,
     constraints: list[Any] | None = None,
+    assessment_decision: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
@@ -25,6 +59,8 @@ def review_generated_lesson(
         expected_topic=topic,
         constraints=constraints,
     )
+    if not blocking_errors and assessment_decision is not None:
+        blocking_errors.extend(_assessment_alignment_errors(lesson, assessment_decision))
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = "OBJECTIVE_MISMATCH" not in blocking_errors
@@ -42,7 +78,10 @@ def review_generated_lesson(
     # They therefore remain explicitly conservative rather than being invented.
     communicative_value = activity_presence
     linguistic_accuracy = True
-    assessment_alignment = activity_presence
+    assessment_alignment = not any(
+        error in blocking_errors
+        for error in ("ASSESSMENT_EVIDENCE_MISSING", "ASSESSMENT_PRODUCTION_MISSING")
+    )
 
     checks = {
         "level_alignment": level_alignment,
