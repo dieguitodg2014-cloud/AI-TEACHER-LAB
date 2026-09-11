@@ -2,12 +2,69 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable
 
 from core.quality.generation_qc import review_generated_lesson
 
 
 Generator = Callable[[dict[str, Any], list[str]], dict[str, Any]]
+
+_GENERIC_PRODUCTION = {
+    "produce language demonstrating the lesson objective.",
+    "provide an observable performance or response.",
+    "complete a meaningful interaction task.",
+    "use the target language in a supported exchange.",
+}
+
+
+def _observable_action_from_objective(objective: str) -> str | None:
+    """Extract the observable action phrase from a simple learner objective."""
+    match = re.match(r"^\s*(?:students|learners)\s+will\s+(.+?)\s*$", objective, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip().rstrip(".")
+    return None
+
+
+def _repair_generic_production_fields(
+    lesson: dict[str, Any],
+    objective: str,
+    errors: list[str],
+) -> dict[str, Any]:
+    """Repair provider placeholders when QC identifies an observable-action mismatch.
+
+    This is a bounded contract safeguard, not a pedagogical decision. The approved
+    objective remains authoritative; only generic production placeholders are rewritten
+    so they state the observable action already required by that objective.
+    """
+    if "OBJECTIVE_PRODUCTION_MISMATCH" not in errors:
+        return lesson
+
+    action = _observable_action_from_objective(objective)
+    if not action:
+        return lesson
+
+    activities = lesson.get("activities")
+    if not isinstance(activities, list):
+        return lesson
+
+    repaired = dict(lesson)
+    repaired_activities: list[Any] = []
+    for activity in activities:
+        if not isinstance(activity, dict):
+            repaired_activities.append(activity)
+            continue
+
+        production = str(activity.get("student_production", "")).strip()
+        if production.casefold() in _GENERIC_PRODUCTION:
+            updated = dict(activity)
+            updated["student_production"] = action
+            repaired_activities.append(updated)
+        else:
+            repaired_activities.append(activity)
+
+    repaired["activities"] = repaired_activities
+    return repaired
 
 
 def generate_with_revision(
@@ -57,6 +114,7 @@ def generate_with_revision(
                 "qc": None,
             }
 
+        lesson = _repair_generic_production_fields(lesson, expected_objective, errors)
         qc_result = review_generated_lesson(
             lesson,
             level=expected_level,
