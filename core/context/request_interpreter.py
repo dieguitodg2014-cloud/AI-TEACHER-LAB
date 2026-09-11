@@ -14,7 +14,10 @@ from typing import Any
 _LEVEL_PATTERN = re.compile(r"\b(A0|A1|A2|B1|B2)\b", re.IGNORECASE)
 _DURATION_MINUTES = re.compile(r"\b(\d+)\s*(?:minutes?|mins?)\b", re.IGNORECASE)
 _DURATION_HOURS = re.compile(r"\b(\d+(?:\.5)?)\s*(?:hours?|hrs?)\b", re.IGNORECASE)
-_GROUP_SIZE = re.compile(r"\b(\d+)\s+(?:students?|learners?|people)\b", re.IGNORECASE)
+_GROUP_SIZE = re.compile(
+    r"\b(\d+)\s+(?:(?:adult|ESL)\s+)*(?:students?|learners?|people)\b",
+    re.IGNORECASE,
+)
 _OBJECTIVE = re.compile(r"\b(?:objective|goal|aim)\s*:\s*(.+?)(?=\s+(?:topic|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
 _TOPIC = re.compile(r"\btopic\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
 _AUDIENCE = re.compile(r"\baudience\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|topic|level|duration|constraints?)\s*:|$)", re.IGNORECASE)
@@ -23,6 +26,11 @@ _CONSTRAINTS = re.compile(r"\bconstraints?\s*:\s*(.+)$", re.IGNORECASE)
 
 def _clean(value: str) -> str:
     return " ".join(value.strip().split())
+
+
+def _clean_topic(value: str) -> str:
+    """Normalize a topic label without changing sentence-style objectives."""
+    return _clean(value).rstrip(".!?")
 
 
 def _find_duration(text: str) -> int | None:
@@ -76,7 +84,8 @@ def interpret_request(request: str | dict[str, Any]) -> dict[str, Any]:
         if not normalized.get(field):
             match = pattern.search(text)
             if match:
-                normalized[field] = _clean(match.group(1))
+                value = match.group(1)
+                normalized[field] = _clean_topic(value) if field == "topic" else _clean(value)
 
     if not normalized.get("constraints"):
         match = _CONSTRAINTS.search(text)
