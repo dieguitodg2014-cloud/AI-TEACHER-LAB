@@ -20,8 +20,12 @@ class VerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(result.context)
         self.assertIsNotNone(result.level_decision)
         self.assertIsNotNone(result.learning_plan)
+        self.assertIsNotNone(result.assessment_decision)
         self.assertEqual(result.learning_plan.total_minutes, 90)
         self.assertEqual(result.level_decision.level, "A2")
+        self.assertEqual(result.assessment_decision.type, "PERFORMANCE")
+        self.assertEqual(result.assessment_decision.evidence, result.learning_plan.evidence_of_learning)
+        self.assertTrue(result.assessment_decision.success_criteria)
         self.assertFalse(result.errors)
 
     def test_incomplete_request_stops_before_pedagogical_decision(self):
@@ -36,6 +40,7 @@ class VerticalSliceIntegrationTests(unittest.TestCase):
         self.assertEqual(result.status, "MISSING_CONTEXT")
         self.assertIsNone(result.level_decision)
         self.assertIsNone(result.learning_plan)
+        self.assertIsNone(result.assessment_decision)
         self.assertTrue(result.missing)
 
 
