@@ -55,18 +55,18 @@ export AI_TEACHER_LAB_PROVIDER_MODEL="google/gemma-3n-e4b"
 
 ### Run a lesson request
 
-From the repository root:
+From the repository root, the structured form is recommended for the first real provider test because it supplies every required context field explicitly:
 
 ```bash
-python run_lesson.py --request "Create a 90-minute A2 ESL lesson for adults about the present perfect. Students should talk about their life experiences."
+python run_lesson.py --level A2 --audience "adult ESL learners" --duration 90 --objective "Students will talk about their life experiences using the present perfect." --topic "Present Perfect"
 ```
 
 The CLI sends the request through the existing runtime rather than bypassing the pedagogical engines. The runtime resolves the configured generator, applies the approved learning and assessment decisions, requests the lesson artifact, and returns the serialized result as JSON.
 
-For a structured request:
+The natural-language form is also available. The request interpreter is intentionally conservative, so required fields should be stated explicitly when using it:
 
 ```bash
-python run_lesson.py --level A2 --audience "adult ESL learners" --duration 90 --objective "Students will talk about their life experiences using the present perfect." --topic "Present Perfect"
+python run_lesson.py --request "level: A2; audience: adult ESL learners; duration: 90 minutes; objective: Students will talk about their life experiences using the present perfect; topic: Present Perfect"
 ```
 
 A non-READY result exits with a non-zero status so that runtime failures are visible to scripts and future interfaces.
