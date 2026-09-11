@@ -1,7 +1,7 @@
 import unittest
 
 from core.orchestration.tool_selector import ToolCandidate
-from core.workflow.vertical_slice import run_lesson_planning
+from core.workflow.vertical_slice import result_to_dict, run_lesson_planning
 
 
 class GenerationVerticalSliceTests(unittest.TestCase):
@@ -92,6 +92,42 @@ class GenerationVerticalSliceTests(unittest.TestCase):
             captured["assessment_decision"]["success_criteria"],
             result.assessment_decision.success_criteria,
         )
+
+    def test_result_to_dict_exposes_stable_serializable_contract(self):
+        def generator(request, errors):
+            return {
+                "level": request["level"],
+                "objective": request["objective"],
+                "duration_minutes": request["duration_minutes"],
+                "topic": request["topic"],
+                "activities": [{
+                    "name": "communicative task",
+                    "student_production": "Students discuss a past experience and ask a follow-up question.",
+                    "assessment_link": "Teacher observes the learner response during the task.",
+                }],
+            }
+
+        result = run_lesson_planning(
+            self.request,
+            tools=self.tools,
+            generators={"test-generator": generator},
+        )
+        payload = result_to_dict(result)
+
+        self.assertEqual(payload["status"], "READY")
+        self.assertEqual(payload["context"]["level"], "A2")
+        self.assertEqual(
+            payload["assessment_decision"]["type"],
+            "PERFORMANCE",
+        )
+        self.assertEqual(
+            payload["assessment_decision"]["target"],
+            result.assessment_decision.target,
+        )
+        self.assertIsInstance(payload["assessment_decision"]["success_criteria"], list)
+        self.assertEqual(payload["generation"]["tool_id"], "test-generator")
+        self.assertIn("resource_decision", payload)
+        self.assertIn("learning_plan", payload)
 
     def test_full_slice_can_handoff(self):
         result = run_lesson_planning(
