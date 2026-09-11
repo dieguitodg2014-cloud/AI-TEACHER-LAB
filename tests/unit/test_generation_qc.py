@@ -94,6 +94,48 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("INVALID_OUTPUT", result["blocking_errors"])
         self.assertTrue(result["critical_failure"])
 
+    def test_qc_rejects_missing_assessment_evidence_when_decision_exists(self):
+        result = review_generated_lesson(
+            self._lesson(),
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            assessment_decision={
+                "assessment_id": "assessment-1",
+                "type": "PERFORMANCE",
+                "target": "Past experiences",
+                "evidence": "Observable learner response",
+                "success_criteria": ["Uses follow-up questions"],
+            },
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("ASSESSMENT_EVIDENCE_MISSING", result["blocking_errors"])
+        self.assertFalse(result["checks"]["assessment_alignment"])
+
+    def test_qc_accepts_performance_assessment_with_production_and_link(self):
+        lesson = self._lesson()
+        lesson["activities"][0]["student_production"] = "Students discuss a past experience."
+        lesson["activities"][0]["assessment_link"] = "Teacher observes the learner response."
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            assessment_decision={
+                "assessment_id": "assessment-1",
+                "type": "PERFORMANCE",
+                "target": "Past experiences",
+                "evidence": "Observable learner response",
+                "success_criteria": ["Uses follow-up questions"],
+            },
+        )
+
+        self.assertEqual(result["status"], "READY")
+        self.assertEqual(result["blocking_errors"], [])
+        self.assertTrue(result["checks"]["assessment_alignment"])
+
 
 if __name__ == "__main__":
     unittest.main()
