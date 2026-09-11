@@ -1,9 +1,4 @@
-"""Local OpenAI-compatible lesson generator.
-
-This connector is intentionally provider-agnostic at the core boundary. It can
-connect to a local server such as LM Studio without putting credentials,
-provider names, or secrets in the repository.
-"""
+"""Local OpenAI-compatible lesson generator."""
 
 from __future__ import annotations
 
@@ -27,8 +22,8 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
     return (
         "You are the lesson-generation component of an ESL teaching system. "
         "The pedagogical plan below is authoritative. Do not change the level, "
-        "objective, duration, sequence, or constraints. Generate only the lesson artifact. "
-        "Be concise: use at most 1-2 sentences for each activity instruction and do not add commentary.\n\n"
+        "objective, duration, sequence, assessment decision, or constraints. "
+        "Generate only the lesson artifact. Do not add commentary.\n\n"
         f"APPROVED REQUEST:\n{json.dumps(generation_request, ensure_ascii=False, indent=2)}\n\n"
         f"PREVIOUS QC ERRORS:\n{json.dumps(previous_errors, ensure_ascii=False)}\n\n"
         "Return ONLY valid JSON with this structure:\n"
@@ -37,10 +32,12 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         '  "objective": "...",\n'
         '  "duration_minutes": 90,\n'
         '  "activities": [\n'
-        '    {"stage": "...", "minutes": 10, "purpose": "...", "instructions": "..."}\n'
+        '    {"stage": "...", "minutes": 10, "purpose": "...", "instructions": "...", "student_production": "...", "assessment_link": "..."}\n'
         "  ]\n"
-        "}\n"
-        "Activities must implement the approved sequence and provide enough detail for a teacher to run the lesson."
+        "}\n\n"
+        "Use the approved sequence exactly. Include student_production and assessment_link "
+        "in activities whenever the approved plan calls for learner production or assessment evidence. "
+        "Keep instructions concise but concrete enough for a teacher to run the activity."
     )
 
 
