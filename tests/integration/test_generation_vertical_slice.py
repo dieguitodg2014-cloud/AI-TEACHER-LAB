@@ -46,6 +46,45 @@ class GenerationVerticalSliceTests(unittest.TestCase):
         self.assertEqual(result.generation["tool_id"], "test-generator")
         self.assertEqual(result.generation["result"]["status"], "READY")
 
+    def test_generator_receives_assessment_decision(self):
+        captured = {}
+
+        def generator(request, errors):
+            captured.update(request)
+            return {
+                "level": request["level"],
+                "objective": request["objective"],
+                "duration_minutes": request["duration_minutes"],
+                "topic": request["topic"],
+                "activities": [{"name": "communicative task"}],
+            }
+
+        result = run_lesson_planning(
+            self.request,
+            tools=self.tools,
+            generators={"test-generator": generator},
+        )
+
+        self.assertEqual(result.status, "READY")
+        self.assertIsNotNone(result.assessment_decision)
+        self.assertIn("assessment_decision", captured)
+        self.assertEqual(
+            captured["assessment_decision"]["assessment_id"],
+            result.assessment_decision.assessment_id,
+        )
+        self.assertEqual(
+            captured["assessment_decision"]["type"],
+            result.assessment_decision.type,
+        )
+        self.assertEqual(
+            captured["assessment_decision"]["evidence"],
+            result.assessment_decision.evidence,
+        )
+        self.assertEqual(
+            captured["assessment_decision"]["success_criteria"],
+            result.assessment_decision.success_criteria,
+        )
+
     def test_full_slice_can_handoff(self):
         result = run_lesson_planning(
             self.request,
