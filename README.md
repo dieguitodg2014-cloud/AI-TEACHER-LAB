@@ -34,6 +34,47 @@ No material is considered finished merely because it is grammatically correct or
 
 Secondary AI tools may accelerate research, production, visualization, audio, presentation, formatting, or offline support, but they must not silently change the approved pedagogical intent.
 
+## Local runtime
+
+The repository includes an executable runtime path for real lesson generation. The current configured runtime uses an OpenAI-compatible local connector, which can connect to LM Studio without storing provider credentials in the repository.
+
+### LM Studio configuration
+
+Start LM Studio, load the intended local model, and start its OpenAI-compatible server. The default endpoint expected by AI TEACHER LAB is:
+
+`http://127.0.0.1:1234/v1/chat/completions`
+
+The model name can be supplied through the environment variable `AI_TEACHER_LAB_PROVIDER_MODEL`. The endpoint can be overridden with `AI_TEACHER_LAB_PROVIDER_URL`. An API key is optional and can be supplied with `AI_TEACHER_LAB_PROVIDER_API_KEY` when the local server requires one.
+
+Example for the local Gemma setup:
+
+```bash
+export AI_TEACHER_LAB_PROVIDER_URL="http://127.0.0.1:1234/v1/chat/completions"
+export AI_TEACHER_LAB_PROVIDER_MODEL="google/gemma-3n-e4b"
+```
+
+### Run a lesson request
+
+From the repository root:
+
+```bash
+python run_lesson.py --request "Create a 90-minute A2 ESL lesson for adults about the present perfect. Students should talk about their life experiences."
+```
+
+The CLI sends the request through the existing runtime rather than bypassing the pedagogical engines. The runtime resolves the configured generator, applies the approved learning and assessment decisions, requests the lesson artifact, and returns the serialized result as JSON.
+
+For a structured request:
+
+```bash
+python run_lesson.py --level A2 --audience "adult ESL learners" --duration 90 --objective "Students will talk about their life experiences using the present perfect." --topic "Present Perfect"
+```
+
+A non-READY result exits with a non-zero status so that runtime failures are visible to scripts and future interfaces.
+
+## Provider governance
+
+The configuration records provider roles separately from executable connectors. ChatGPT remains the pedagogical authority, Gemini the secondary provider, NotebookLM a specialized source-based resource creator, and the local Gemma runtime a fallback/backup provider. The repository does not pretend that unavailable external production connectors exist.
+
 ## Current status
 
-The core system architecture is established through seven integrated layers. Further development should prioritize validation, integration, and real classroom use before adding unnecessary complexity.
+The core system architecture is established through seven integrated layers, with an executable request-to-generation runtime now available for local provider testing. Further development should prioritize real end-to-end execution, provider reliability, and classroom use before adding unnecessary complexity.
