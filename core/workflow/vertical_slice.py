@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from core.context.engine import build_context
+from core.context.request_interpreter import interpret_request
 from core.foundation.models import Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
@@ -39,14 +40,15 @@ class VerticalSliceResult:
 
 
 def run_lesson_planning(
-    request: dict[str, Any],
+    request: dict[str, Any] | str,
     *,
     tools: list[ToolCandidate] | None = None,
     generators: dict[str, Callable] | None = None,
     tool_config_path: str | Path | None = None,
 ) -> VerticalSliceResult:
     """Run context, pedagogy, resources, task packaging, tool selection and generation."""
-    context_result = build_context(request)
+    structured_request = interpret_request(request)
+    context_result = build_context(structured_request)
 
     if context_result.errors or context_result.missing or context_result.context is None:
         return VerticalSliceResult("MISSING_CONTEXT" if context_result.missing else "FAILED", context_result.context, None, None, None, None, None, None, None, context_result.missing, context_result.errors)
