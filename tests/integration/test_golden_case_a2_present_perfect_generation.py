@@ -39,9 +39,11 @@ class GoldenCaseA2PresentPerfectGenerationTests(unittest.TestCase):
                 "objective": generation_request["objective"],
                 "duration_minutes": generation_request["duration_minutes"],
                 "topic": generation_request["topic"],
-                "activities": [
-                    {"name": "Golden Case activity"}
-                ],
+                "activities": [{
+                    "name": "Golden Case activity",
+                    "student_production": "Students discuss a past experience and ask a follow-up question.",
+                    "assessment_link": "Teacher observes the learner response during the task.",
+                }],
             }
 
         result = run_lesson_planning(
