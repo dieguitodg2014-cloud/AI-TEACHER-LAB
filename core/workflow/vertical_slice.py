@@ -104,7 +104,11 @@ def run_lesson_planning(
             return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, None, [], [])
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
 
-    generation_request = build_generation_request(learning_plan, asdict(context_result.context))
+    generation_request = build_generation_request(
+        learning_plan,
+        asdict(context_result.context),
+        assessment_decision,
+    )
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request, free_first=free_first)
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, generation, [], generation.get("errors", []))
