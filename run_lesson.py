@@ -14,16 +14,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run AI TEACHER LAB lesson planning with the configured runtime."
     )
-    parser.add_argument("--level", required=True, help="Learner level, e.g. A0, A1, A2, B1, or B2")
-    parser.add_argument("--audience", required=True, help="Learner audience")
+    request_group = parser.add_mutually_exclusive_group(required=True)
+    request_group.add_argument(
+        "--request",
+        help="Natural-language lesson request."
+    )
+    request_group.add_argument(
+        "--objective",
+        help="Observable learning objective for a structured request."
+    )
+    parser.add_argument("--level", help="Learner level, e.g. A0, A1, A2, B1, or B2")
+    parser.add_argument("--audience", help="Learner audience")
     parser.add_argument("--duration", type=int, default=90, help="Lesson duration in minutes")
-    parser.add_argument("--objective", required=True, help="Observable learning objective")
     parser.add_argument("--topic", default="", help="Lesson topic")
     parser.add_argument("--group-size", type=int, default=None, help="Number of learners")
     return parser
 
 
-def build_request(args: argparse.Namespace) -> dict[str, Any]:
+def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
+    if args.request:
+        return args.request
+
+    if not args.level or not args.audience:
+        raise ValueError("--level and --audience are required when using --objective")
+
     request: dict[str, Any] = {
         "level": args.level,
         "audience": args.audience,
