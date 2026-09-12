@@ -63,8 +63,8 @@ def validate_generated_lesson(
     duration = lesson.get("duration_minutes")
     if not isinstance(duration, int) or duration <= 0:
         errors.append("INVALID_DURATION")
-    elif duration > expected_duration:
-        errors.append("DURATION_EXCEEDED")
+    elif duration != expected_duration:
+        errors.append("DURATION_MISMATCH")
 
     activities = lesson.get("activities")
     if not isinstance(activities, list) or not activities:
