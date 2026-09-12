@@ -2,7 +2,7 @@
 
 The validator does not generate or rewrite resources. It checks whether a
 produced resource satisfies the Resource TaskPacket that authorized its
-production.
+production, including a small structural output boundary.
 """
 
 from __future__ import annotations
@@ -20,16 +20,35 @@ MAX_RESOURCE_REVISIONS = 1
 
 RESOURCE_OUTPUT_CONTRACT: dict[str, Any] = {
     "required_fields": ["resource_type", "level", "objective", "content"],
-    "optional_fields": ["quality_criteria_addressed", "source_references"],
+    "optional_fields": [
+        "resource_id",
+        "format",
+        "duration",
+        "language",
+        "transcript",
+        "source_reference",
+        "production_status",
+        "quality_criteria_addressed",
+        "source_references",
+    ],
     "field_requirements": {
         "resource_type": "Must exactly match TaskPacket.required_output.",
         "level": "Must exactly match TaskPacket.level.",
         "objective": "Must exactly match TaskPacket.objective.",
         "content": "Must contain usable, non-empty resource content.",
+        "resource_id": "If supplied, must be a non-empty string.",
+        "format": "If supplied, must be a non-empty string.",
+        "duration": "If supplied, must be a positive number of minutes.",
+        "language": "If supplied, must be a non-empty string.",
+        "transcript": "If supplied, must be a non-empty string.",
+        "source_reference": "If supplied, must be a non-empty string.",
+        "production_status": "If supplied, must be a supported production state.",
         "quality_criteria_addressed": "If supplied, must be a list covering all TaskPacket quality criteria.",
         "source_references": "Required when the TaskPacket constraints explicitly require source references.",
     },
 }
+
+_PRODUCTION_STATUSES = {"PRODUCED", "READY"}
 
 
 @dataclass(frozen=True)
@@ -92,6 +111,12 @@ def validate_resource_output(
     if not checks["content_present"]:
         blocking_errors.append("Produced resource contains no usable content.")
 
+    structural_checks = _validate_optional_structure(produced_resource)
+    checks.update(structural_checks)
+    for field_name, passed in structural_checks.items():
+        if not passed:
+            blocking_errors.append(f"Invalid resource output structure: {field_name}.")
+
     checks["quality_criteria_acknowledged"] = _criteria_are_addressed(task, produced_resource)
     if not checks["quality_criteria_acknowledged"]:
         feedback.append("The output does not provide enough evidence that the requested quality criteria were addressed.")
@@ -126,6 +151,40 @@ def validate_resource_output(
         feedback=feedback,
         blocking_errors=blocking_errors,
     )
+
+
+def _validate_optional_structure(produced_resource: dict[str, Any]) -> dict[str, bool]:
+    """Validate optional metadata without making it mandatory for every type."""
+    checks: dict[str, bool] = {}
+
+    if "resource_id" in produced_resource:
+        checks["resource_id"] = _non_empty_string(produced_resource["resource_id"])
+    if "format" in produced_resource:
+        checks["format"] = _non_empty_string(produced_resource["format"])
+    if "duration" in produced_resource:
+        duration = produced_resource["duration"]
+        checks["duration"] = (
+            isinstance(duration, (int, float))
+            and not isinstance(duration, bool)
+            and duration > 0
+        )
+    if "language" in produced_resource:
+        checks["language"] = _non_empty_string(produced_resource["language"])
+    if "transcript" in produced_resource:
+        checks["transcript"] = _non_empty_string(produced_resource["transcript"])
+    if "source_reference" in produced_resource:
+        checks["source_reference"] = _non_empty_string(produced_resource["source_reference"])
+    if "production_status" in produced_resource:
+        checks["production_status"] = (
+            isinstance(produced_resource["production_status"], str)
+            and produced_resource["production_status"].strip().upper() in _PRODUCTION_STATUSES
+        )
+
+    return checks
+
+
+def _non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _has_usable_content(content: Any) -> bool:
