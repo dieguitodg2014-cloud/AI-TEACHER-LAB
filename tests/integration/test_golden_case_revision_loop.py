@@ -67,7 +67,7 @@ class GoldenCaseRevisionLoopTests(unittest.TestCase):
         self.assertFalse(generation_result["qc"]["critical_failure"])
         self.assertEqual(calls[0], [])
         self.assertIn("LEVEL_MISMATCH", calls[1])
-        self.assertIn("DURATION_EXCEEDED", calls[1])
+        self.assertIn("DURATION_MISMATCH", calls[1])
 
     def test_persistent_failure_is_bounded_and_rejected(self):
         case = json.loads(GOLDEN_CASE.read_text(encoding="utf-8"))
