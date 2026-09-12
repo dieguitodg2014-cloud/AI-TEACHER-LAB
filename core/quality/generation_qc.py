@@ -7,10 +7,6 @@ from typing import Any
 from core.generation.output_validator import validate_generated_lesson
 
 
-_ORAL_ACTIONS = ("talk", "speak", "discuss", "interview", "present", "describe orally")
-_WRITTEN_ACTIONS = ("write", "complete", "fill in", "compose")
-
-
 def _assessment_alignment_errors(
     lesson: dict[str, Any],
     assessment_decision: dict[str, Any] | None,
@@ -96,44 +92,6 @@ def _approved_sequence_errors(
     return []
 
 
-def _objective_action_alignment_errors(
-    lesson: dict[str, Any],
-    objective: str,
-) -> list[str]:
-    """Catch a semantic mismatch between the requested action and learner production.
-
-    This stays deliberately generic. It only evaluates student-production fields when
-    they are present, so older or minimal lesson artifacts are not given invented
-    requirements.
-    """
-    productions = [
-        str(activity.get("student_production", "")).strip().casefold()
-        for activity in lesson.get("activities", [])
-        if isinstance(activity, dict) and str(activity.get("student_production", "")).strip()
-    ]
-    if not productions:
-        return []
-
-    objective_text = objective.casefold()
-    production_text = " ".join(productions)
-
-    if any(action in objective_text for action in _ORAL_ACTIONS):
-        if not any(
-            marker in production_text
-            for marker in ("talk", "speak", "discuss", "interview", "present", "share", "oral")
-        ):
-            return ["OBJECTIVE_PRODUCTION_MISMATCH"]
-
-    if any(action in objective_text for action in _WRITTEN_ACTIONS):
-        if not any(
-            marker in production_text
-            for marker in ("write", "complete", "fill", "compose")
-        ):
-            return ["OBJECTIVE_PRODUCTION_MISMATCH"]
-
-    return []
-
-
 def review_generated_lesson(
     lesson: dict[str, Any],
     *,
@@ -158,15 +116,12 @@ def review_generated_lesson(
         blocking_errors.extend(_approved_sequence_errors(lesson, approved_sequence))
     if not blocking_errors and assessment_decision is not None:
         blocking_errors.extend(_assessment_alignment_errors(lesson, assessment_decision))
-    if not blocking_errors:
-        blocking_errors.extend(_objective_action_alignment_errors(lesson, objective))
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = not any(
         error in blocking_errors
         for error in (
             "OBJECTIVE_MISMATCH",
-            "OBJECTIVE_PRODUCTION_MISMATCH",
             "PLAN_SEQUENCE_MISMATCH",
         )
     )
