@@ -14,8 +14,11 @@ from uuid import uuid4
 from core.foundation.models import TaskPacket
 
 
-ValidationStatus = Literal["READY", "REVISION_REQUIRED", "REJECT"]
+ValidationStatus = Literal["READY", "REVISION_REQUIRED", "REJECT", "REJECT_AND_REDESIGN"]
 
+# Resource revisions are intentionally bounded. A repeated failure after the
+# allowed revision count means the production approach should be redesigned.
+MAX_RESOURCE_REVISIONS = 1
 
 # Provider-neutral contract returned by external production workflows such as
 # NotebookLM. This is a contract, not another decision engine.
@@ -27,12 +30,8 @@ RESOURCE_OUTPUT_CONTRACT: dict[str, Any] = {
         "level": "Must exactly match TaskPacket.level.",
         "objective": "Must exactly match TaskPacket.objective.",
         "content": "Must contain usable, non-empty resource content.",
-        "quality_criteria_addressed": (
-            "If supplied, must be a list covering all TaskPacket quality criteria."
-        ),
-        "source_references": (
-            "Required when the TaskPacket constraints explicitly require source references."
-        ),
+        "quality_criteria_addressed": "If supplied, must be a list covering all TaskPacket quality criteria.",
+        "source_references": "Required when the TaskPacket constraints explicitly require source references.",
     },
 }
 
@@ -53,17 +52,16 @@ class ResourceValidationResult:
 def validate_resource_output(
     task: TaskPacket,
     produced_resource: dict[str, Any],
+    *,
+    revision_count: int = 0,
 ) -> ResourceValidationResult:
     """Validate a provider-neutral resource output against a TaskPacket.
 
-    The first resource-QC layer is intentionally deterministic. It validates
-    the contract that can be checked without a provider-specific media parser:
-    resource presence, declared type/level, objective linkage, usable content,
-    and required source references when present in the TaskPacket contract.
-
-    Missing or contradictory contract data is blocking. Content that exists
-    but needs correction produces REVISION_REQUIRED. The function never edits
-    or generates the resource.
+    ``revision_count`` is the number of revisions already attempted before
+    this validation. A correct first output is READY. A correctable failure
+    becomes REVISION_REQUIRED while the revision budget remains. If the
+    resource still fails after the allowed revision, the result becomes
+    REJECT_AND_REDESIGN.
     """
     checks: dict[str, bool] = {}
     feedback: list[str] = []
@@ -92,7 +90,7 @@ def validate_resource_output(
 
     checks["objective_alignment"] = objective == task.objective.strip()
     if not checks["objective_alignment"]:
-        feedback.append("The produced resource does not declare the exact task objective.")
+        feedback.append("The produced resource does not declare the exact task objective; revise the declaration or resource alignment.")
 
     checks["content_present"] = _has_usable_content(content)
     if not checks["content_present"]:
@@ -110,7 +108,11 @@ def validate_resource_output(
         status: ValidationStatus = "REJECT"
         critical_failure = True
     elif not all(checks.values()):
-        status = "REVISION_REQUIRED"
+        if revision_count >= MAX_RESOURCE_REVISIONS:
+            status = "REJECT_AND_REDESIGN"
+            feedback.append("The resource still fails validation after the allowed revision. Redesign the production approach before producing another version.")
+        else:
+            status = "REVISION_REQUIRED"
         critical_failure = False
     else:
         status = "READY"
@@ -141,10 +143,7 @@ def _has_usable_content(content: Any) -> bool:
     return content is not None
 
 
-def _criteria_are_addressed(
-    task: TaskPacket,
-    produced_resource: dict[str, Any],
-) -> bool:
+def _criteria_are_addressed(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
     """Check optional producer evidence without pretending it is semantic QC."""
     evidence = produced_resource.get("quality_criteria_addressed")
     if evidence is None:
@@ -156,14 +155,9 @@ def _criteria_are_addressed(
     return requested.issubset(supplied)
 
 
-def _sources_are_acceptable(
-    task: TaskPacket,
-    produced_resource: dict[str, Any],
-) -> bool:
+def _sources_are_acceptable(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
     """Validate source references only when the TaskPacket explicitly asks for them."""
-    source_constraints = [
-        item.lower() for item in task.constraints if "source" in item.lower()
-    ]
+    source_constraints = [item.lower() for item in task.constraints if "source" in item.lower()]
     if not source_constraints:
         return True
     sources = produced_resource.get("source_references")
