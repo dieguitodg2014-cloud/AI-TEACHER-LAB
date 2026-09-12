@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Protocol, runtime_checkable
 
 from core.foundation.models import TaskPacket
 
 
+@runtime_checkable
 class ResourceProvider(Protocol):
     """Contract implemented by any executable resource provider.
 
