@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import asdict
+from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
+from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
 from core.orchestration.tool_selector import ToolCandidate, select_tool
 
 
@@ -55,4 +57,57 @@ def resource_tool_plan(
         "tool_id": tool.tool_id,
         "task_id": task.task_id,
         "capability": RESOURCE_CAPABILITY,
+    }
+
+
+def execute_resource_generation(
+    task: TaskPacket,
+    tool: ToolCandidate,
+    generators: dict[str, Callable[..., Any]],
+) -> dict[str, Any]:
+    """Execute an eligible resource provider against the approved TaskPacket.
+
+    The provider receives the provider-neutral TaskPacket as a dictionary and
+    returns the produced resource. Pedagogical decisions remain outside the
+    provider; resource quality is validated by the resource QC boundary after
+    execution.
+    """
+    generator = generators.get(tool.tool_id)
+    eligibility_errors = validate_provider_task_eligibility(
+        tool,
+        "RESOURCE_PRODUCTION",
+        generator,
+        required_capabilities={RESOURCE_CAPABILITY},
+    )
+    if eligibility_errors:
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": eligibility_errors,
+        }
+
+    try:
+        produced_resource = generator(asdict(task))
+    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [f"RESOURCE_GENERATOR_ERROR:{exc}"],
+        }
+
+    if not isinstance(produced_resource, dict):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": ["RESOURCE_OUTPUT_NOT_OBJECT"],
+        }
+
+    return {
+        "status": "PRODUCED",
+        "tool_id": tool.tool_id,
+        "result": produced_resource,
+        "errors": [],
     }
