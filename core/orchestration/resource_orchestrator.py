@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
+from core.orchestration.resource_provider import FunctionResourceProvider
 from core.orchestration.tool_selector import ToolCandidate, select_tool
 
 
@@ -67,10 +67,9 @@ def execute_resource_generation(
 ) -> dict[str, Any]:
     """Execute an eligible resource provider against the approved TaskPacket.
 
-    The provider receives the provider-neutral TaskPacket as a dictionary and
-    returns the produced resource. Pedagogical decisions remain outside the
-    provider; resource quality is validated by the resource QC boundary after
-    execution.
+    The legacy callable map is adapted to the minimal ResourceProvider
+    contract. Provider execution remains downstream of pedagogical decisions;
+    resource quality is validated by the resource QC boundary after execution.
     """
     generator = generators.get(tool.tool_id)
     eligibility_errors = validate_provider_task_eligibility(
@@ -87,22 +86,24 @@ def execute_resource_generation(
             "errors": eligibility_errors,
         }
 
-    try:
-        produced_resource = generator(asdict(task))
-    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+    provider = FunctionResourceProvider(generator)
+    if not provider.can_produce(task):
         return {
             "status": "HUMAN_HANDOFF",
             "tool_id": tool.tool_id,
             "result": None,
-            "errors": [f"RESOURCE_GENERATOR_ERROR:{exc}"],
+            "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"],
         }
 
-    if not isinstance(produced_resource, dict):
+    try:
+        produced_resource = provider.produce(task)
+    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+        error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_GENERATOR_ERROR:{exc}"
         return {
             "status": "HUMAN_HANDOFF",
             "tool_id": tool.tool_id,
             "result": None,
-            "errors": ["RESOURCE_OUTPUT_NOT_OBJECT"],
+            "errors": [error_code],
         }
 
     return {
