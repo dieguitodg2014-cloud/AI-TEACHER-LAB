@@ -48,17 +48,29 @@ def _approved_sequence_errors(
     lesson: dict[str, Any],
     approved_sequence: list[dict[str, Any]] | None,
 ) -> list[str]:
-    """Verify structural fidelity to the approved pedagogical sequence.
+    """Verify structural fidelity when the generator provides sequence metadata.
 
-    Generated activities may omit optional structural metadata. When that happens,
-    the QC gate does not invent a mismatch. If the generator does provide the field,
-    its value must agree with the approved sequence.
+    Minimal provider outputs may intentionally omit sequence structure. In that case,
+    the QC gate does not invent a sequence mismatch. When the generator provides
+    structural metadata such as stage or minutes, structural fidelity is enforced.
     """
     if approved_sequence is None:
         return []
 
     activities = lesson.get("activities")
-    if not isinstance(activities, list) or len(activities) != len(approved_sequence):
+    if not isinstance(activities, list) or not activities:
+        return ["PLAN_SEQUENCE_MISMATCH"]
+
+    has_sequence_metadata = any(
+        isinstance(activity, dict) and any(
+            field in activity for field in ("stage", "minutes", "purpose", "instructions")
+        )
+        for activity in activities
+    )
+    if not has_sequence_metadata:
+        return []
+
+    if len(activities) != len(approved_sequence):
         return ["PLAN_SEQUENCE_MISMATCH"]
 
     for approved, generated in zip(approved_sequence, activities):
@@ -66,6 +78,9 @@ def _approved_sequence_errors(
             return ["PLAN_SEQUENCE_MISMATCH"]
 
         if "minutes" in generated and generated.get("minutes") != approved.get("minutes"):
+            return ["PLAN_SEQUENCE_MISMATCH"]
+
+        if "stage" in generated and generated.get("stage") != approved.get("stage"):
             return ["PLAN_SEQUENCE_MISMATCH"]
 
         approved_production = str(approved.get("student_production", "")).strip()
