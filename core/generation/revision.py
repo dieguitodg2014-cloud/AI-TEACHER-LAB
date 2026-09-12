@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
+from core.orchestration.provider_contract import validate_provider_output
 from core.quality.generation_qc import review_generated_lesson
 
 
@@ -73,7 +74,7 @@ def generate_with_revision(
     *,
     max_revisions: int = 2,
 ) -> dict[str, Any]:
-    """Generate, pass through the QC gate, and request bounded revisions."""
+    """Generate, validate the provider boundary, pass through QC, and revise."""
     expected_level = generation_request.get("level")
     expected_objective = generation_request.get("objective")
     expected_duration = generation_request.get("duration_minutes")
@@ -110,6 +111,16 @@ def generate_with_revision(
                 "status": "FAILED",
                 "lesson": None,
                 "errors": ["EXECUTION_ERROR", f"{type(exc).__name__}: {exc}"],
+                "attempts": attempts + 1,
+                "qc": None,
+            }
+
+        provider_errors = validate_provider_output(lesson)
+        if provider_errors:
+            return {
+                "status": "FAILED",
+                "lesson": lesson if isinstance(lesson, dict) else None,
+                "errors": provider_errors,
                 "attempts": attempts + 1,
                 "qc": None,
             }
