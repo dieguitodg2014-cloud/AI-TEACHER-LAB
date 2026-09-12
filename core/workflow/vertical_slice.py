@@ -123,7 +123,12 @@ def run_lesson_planning(
             )
 
     if tools is None and generators is None:
-        return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, None, resource_validation, None, [], [])
+        resource_handoff = (
+            build_resource_handoff(context_result.context, resource_task)
+            if resource_task is not None
+            else None
+        )
+        return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
 
     free_first = True
     try:
