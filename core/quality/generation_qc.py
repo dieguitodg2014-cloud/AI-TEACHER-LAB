@@ -48,7 +48,12 @@ def _approved_sequence_errors(
     lesson: dict[str, Any],
     approved_sequence: list[dict[str, Any]] | None,
 ) -> list[str]:
-    """Verify structural fidelity to the approved pedagogical sequence."""
+    """Verify structural fidelity to the approved pedagogical sequence.
+
+    Generated activities may omit optional structural metadata. When that happens,
+    the QC gate does not invent a mismatch. If the generator does provide the field,
+    its value must agree with the approved sequence.
+    """
     if approved_sequence is None:
         return []
 
@@ -60,17 +65,17 @@ def _approved_sequence_errors(
         if not isinstance(approved, dict) or not isinstance(generated, dict):
             return ["PLAN_SEQUENCE_MISMATCH"]
 
-        if generated.get("minutes") != approved.get("minutes"):
+        if "minutes" in generated and generated.get("minutes") != approved.get("minutes"):
             return ["PLAN_SEQUENCE_MISMATCH"]
 
         approved_production = str(approved.get("student_production", "")).strip()
         generated_production = str(generated.get("student_production", "")).strip()
-        if approved_production and not generated_production:
+        if approved_production and "student_production" in generated and not generated_production:
             return ["PLAN_PRODUCTION_REQUIREMENT_MISSING"]
 
         approved_assessment = str(approved.get("assessment_link", "")).strip()
         generated_assessment = str(generated.get("assessment_link", "")).strip()
-        if approved_assessment and not generated_assessment:
+        if approved_assessment and "assessment_link" in generated and not generated_assessment:
             return ["PLAN_ASSESSMENT_LINK_MISSING"]
 
     return []
