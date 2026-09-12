@@ -50,12 +50,14 @@ def run_lesson_planning(
     generators: dict[str, Callable] | None = None,
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
+    revision_count: int = 0,
 ) -> VerticalSliceResult:
     """Run context, pedagogy, assessment, resources, validation and generation.
 
     ``produced_resource`` is optional so the existing planning/handoff flow is
-    unchanged until an external provider returns a resource. When supplied,
-    it is validated against the generated Resource TaskPacket.
+    unchanged until an external provider returns a resource. ``revision_count``
+    records revisions already attempted and enforces the resource revision
+    policy without creating a separate workflow engine.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -89,7 +91,11 @@ def run_lesson_planning(
                 blocking_errors=["A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."],
             )
         else:
-            resource_validation = validate_resource_output(resource_task, produced_resource)
+            resource_validation = validate_resource_output(
+                resource_task,
+                produced_resource,
+                revision_count=revision_count,
+            )
 
         if resource_validation.status != "READY":
             revision_handoff = None
@@ -138,11 +144,6 @@ def run_lesson_planning(
         else None
     )
 
-    # When no lesson generator is supplied, distinguish resource-planning
-    # mode from lesson-generation mode. A resource-capable tool indicates
-    # that the caller is inspecting/planning the resource path, so generation
-    # is not required yet. Otherwise the request is entering lesson generation
-    # and the absence of a generator requires human handoff.
     if generators is None:
         has_resource_capability = any(
             "resource_generation" in tool.capabilities for tool in selected_tools
