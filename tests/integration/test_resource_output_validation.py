@@ -44,6 +44,13 @@ def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REVISION_REQUIRED"
     assert result.resource_validation.critical_failure is False
+    assert result.resource_handoff is not None
+    assert result.resource_handoff["status"] == "REVISION_REQUIRED"
+    assert result.resource_handoff["workflow"] == "NotebookLM"
+    assert result.resource_handoff["task_id"] == result.resource_task.task_id
+    assert "quality_criteria_acknowledged" in result.resource_handoff["failed_checks"]
+    assert result.resource_handoff["validation_id"] == result.resource_validation.validation_id
+    assert "validate" in result.resource_handoff["revision_instruction"].lower()
 
 
 def test_vertical_slice_rejects_produced_resource_with_wrong_type():
@@ -55,4 +62,5 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_type():
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
+    assert result.resource_handoff is None
     assert "resource_type" in result.resource_validation.blocking_errors[0]
