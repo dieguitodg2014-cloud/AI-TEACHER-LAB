@@ -16,12 +16,8 @@ from core.foundation.models import TaskPacket
 
 ValidationStatus = Literal["READY", "REVISION_REQUIRED", "REJECT", "REJECT_AND_REDESIGN"]
 
-# Resource revisions are intentionally bounded. A repeated failure after the
-# allowed revision count means the production approach should be redesigned.
 MAX_RESOURCE_REVISIONS = 1
 
-# Provider-neutral contract returned by external production workflows such as
-# NotebookLM. This is a contract, not another decision engine.
 RESOURCE_OUTPUT_CONTRACT: dict[str, Any] = {
     "required_fields": ["resource_type", "level", "objective", "content"],
     "optional_fields": ["quality_criteria_addressed", "source_references"],
@@ -79,7 +75,7 @@ def validate_resource_output(
     checks["resource_type"] = resource_type == task.required_output.strip()
     if not checks["resource_type"]:
         blocking_errors.append(
-            f"Resource type mismatch: expected '{task.required_output}', got '{resource_type or 'missing'}'."
+            f"resource_type mismatch: expected '{task.required_output}', got '{resource_type or 'missing'}'."
         )
 
     checks["level_alignment"] = level == task.level
