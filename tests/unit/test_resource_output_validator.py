@@ -86,6 +86,56 @@ class TestResourceOutputValidator(unittest.TestCase):
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
 
+    def test_optional_structural_metadata_is_accepted_when_valid(self):
+        result = validate_resource_output(
+            self.task,
+            self._resource(
+                resource_id="audio-a2-001",
+                format="mp3",
+                duration=2.5,
+                language="en",
+                transcript="A short listening transcript.",
+                source_reference="teacher-approved-source-001",
+                production_status="PRODUCED",
+            ),
+        )
+
+        self.assertEqual(result.status, "READY")
+        self.assertTrue(result.checks["resource_id"])
+        self.assertTrue(result.checks["format"])
+        self.assertTrue(result.checks["duration"])
+        self.assertTrue(result.checks["language"])
+        self.assertTrue(result.checks["transcript"])
+        self.assertTrue(result.checks["source_reference"])
+        self.assertTrue(result.checks["production_status"])
+
+    def test_invalid_optional_structural_metadata_is_rejected(self):
+        result = validate_resource_output(
+            self.task,
+            self._resource(
+                resource_id="",
+                format="",
+                duration=0,
+                language="",
+                transcript="",
+                source_reference="",
+                production_status="FAILED",
+            ),
+        )
+
+        self.assertEqual(result.status, "REJECT")
+        self.assertTrue(result.critical_failure)
+        for field_name in (
+            "resource_id",
+            "format",
+            "duration",
+            "language",
+            "transcript",
+            "source_reference",
+            "production_status",
+        ):
+            self.assertFalse(result.checks[field_name])
+
 
 if __name__ == "__main__":
     unittest.main()
