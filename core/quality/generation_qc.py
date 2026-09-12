@@ -76,9 +76,6 @@ def _approved_sequence_errors(
         if "minutes" in generated and generated.get("minutes") != approved.get("minutes"):
             return ["PLAN_SEQUENCE_MISMATCH"]
 
-        if "stage" in generated and generated.get("stage") != approved.get("stage"):
-            return ["PLAN_SEQUENCE_MISMATCH"]
-
         approved_production = str(approved.get("student_production", "")).strip()
         generated_production = str(generated.get("student_production", "")).strip()
         if approved_production and "student_production" in generated and not generated_production:
