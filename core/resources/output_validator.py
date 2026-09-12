@@ -17,6 +17,26 @@ from core.foundation.models import TaskPacket
 ValidationStatus = Literal["READY", "REVISION_REQUIRED", "REJECT"]
 
 
+# Provider-neutral contract returned by external production workflows such as
+# NotebookLM. This is a contract, not another decision engine.
+RESOURCE_OUTPUT_CONTRACT: dict[str, Any] = {
+    "required_fields": ["resource_type", "level", "objective", "content"],
+    "optional_fields": ["quality_criteria_addressed", "source_references"],
+    "field_requirements": {
+        "resource_type": "Must exactly match TaskPacket.required_output.",
+        "level": "Must exactly match TaskPacket.level.",
+        "objective": "Must exactly match TaskPacket.objective.",
+        "content": "Must contain usable, non-empty resource content.",
+        "quality_criteria_addressed": (
+            "If supplied, must be a list covering all TaskPacket quality criteria."
+        ),
+        "source_references": (
+            "Required when the TaskPacket constraints explicitly require source references."
+        ),
+    },
+}
+
+
 @dataclass(frozen=True)
 class ResourceValidationResult:
     """Result of validating a produced resource against a TaskPacket."""
@@ -34,7 +54,7 @@ def validate_resource_output(
     task: TaskPacket,
     produced_resource: dict[str, Any],
 ) -> ResourceValidationResult:
-    """Validate a provider-neutral resource output against its production task.
+    """Validate a provider-neutral resource output against a TaskPacket.
 
     The first resource-QC layer is intentionally deterministic. It validates
     the contract that can be checked without a provider-specific media parser:
