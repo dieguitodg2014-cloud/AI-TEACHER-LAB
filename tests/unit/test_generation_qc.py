@@ -51,7 +51,22 @@ class GenerationQCTests(unittest.TestCase):
         self.assertFalse(result["checks"]["level_alignment"])
         self.assertFalse(result["checks"]["time_realism"])
         self.assertIn("LEVEL_MISMATCH", result["blocking_errors"])
-        self.assertIn("DURATION_EXCEEDED", result["blocking_errors"])
+        self.assertIn("DURATION_MISMATCH", result["blocking_errors"])
+
+    def test_qc_rejects_duration_shorter_than_approved_plan(self):
+        lesson = self._lesson()
+        lesson["duration_minutes"] = 60
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("DURATION_MISMATCH", result["blocking_errors"])
+        self.assertFalse(result["checks"]["time_realism"])
 
     def test_qc_rejects_missing_target_topic(self):
         result = review_generated_lesson(
