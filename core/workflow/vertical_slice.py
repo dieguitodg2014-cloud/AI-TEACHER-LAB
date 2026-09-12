@@ -13,7 +13,7 @@ from core.foundation.models import AssessmentDecision, Context, LearningPlanDeci
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
-from core.orchestration.resource_orchestrator import select_resource_tool
+from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool
 from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
@@ -54,10 +54,11 @@ def run_lesson_planning(
 ) -> VerticalSliceResult:
     """Run context, pedagogy, assessment, resources, validation and generation.
 
-    ``produced_resource`` is optional so the existing planning/handoff flow is
-    unchanged until an external provider returns a resource. ``revision_count``
-    records revisions already attempted and enforces the resource revision
-    policy without creating a separate workflow engine.
+    ``produced_resource`` is optional so an external provider can return a
+    resource into the existing validation boundary. When ``generators`` are
+    supplied, a selected resource-generation provider can now execute the
+    Resource TaskPacket directly before resource QC. ``revision_count`` records
+    revisions already attempted and enforces the resource revision policy.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -148,6 +149,91 @@ def run_lesson_planning(
         if resource_task is not None and resource_tool is None and produced_resource is None
         else None
     )
+
+    if resource_task is not None and generators is not None:
+        if resource_tool is None:
+            return VerticalSliceResult(
+                "HUMAN_HANDOFF",
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
+                resource_task,
+                None,
+                resource_handoff or build_resource_handoff(context_result.context, resource_task),
+                resource_validation,
+                None,
+                [],
+                ["NO_SUITABLE_RESOURCE_TOOL"],
+            )
+
+        resource_generation = execute_resource_generation(
+            resource_task,
+            resource_tool,
+            generators,
+        )
+        if resource_generation["status"] != "PRODUCED":
+            return VerticalSliceResult(
+                "HUMAN_HANDOFF",
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
+                resource_task,
+                resource_tool,
+                build_resource_handoff(context_result.context, resource_task),
+                resource_validation,
+                resource_generation,
+                [],
+                resource_generation.get("errors", []),
+            )
+
+        resource_validation = validate_resource_output(
+            resource_task,
+            resource_generation["result"],
+            revision_count=revision_count,
+        )
+        if resource_validation.status != "READY":
+            revision_handoff = None
+            if resource_validation.status == "REVISION_REQUIRED":
+                revision_handoff = build_resource_revision_handoff(
+                    context_result.context,
+                    resource_task,
+                    resource_validation,
+                )
+            return VerticalSliceResult(
+                resource_validation.status,
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
+                resource_task,
+                resource_tool,
+                revision_handoff,
+                resource_validation,
+                resource_generation,
+                [],
+                list(resource_validation.blocking_errors) + list(resource_validation.feedback),
+            )
+
+        return VerticalSliceResult(
+            "PLANNED",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            resource_tool,
+            None,
+            resource_validation,
+            resource_generation,
+            [],
+            [],
+        )
 
     if generators is None:
         has_resource_capability = any(
