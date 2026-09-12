@@ -15,8 +15,13 @@ def run_configured_lesson_planning(
     request: dict[str, Any],
     *,
     tool_config_path: str | Path | None = None,
+    produced_resource: dict[str, Any] | None = None,
 ) -> VerticalSliceResult:
-    """Run the vertical slice using generators resolved from tool configuration."""
+    """Run the vertical slice using generators resolved from tool configuration.
+
+    ``produced_resource`` optionally carries a resource returned by an external
+    producer so the main workflow can validate it before continuing.
+    """
     config_path = tool_config_path or DEFAULT_TOOL_CONFIG
     try:
         generators = load_runtime_generators(config_path)
@@ -31,6 +36,7 @@ def run_configured_lesson_planning(
             resource_task=None,
             resource_tool=None,
             resource_handoff=None,
+            resource_validation=None,
             generation=None,
             missing=[],
             errors=[f"RUNTIME_CONNECTOR_ERROR:{exc}"],
@@ -40,4 +46,5 @@ def run_configured_lesson_planning(
         request,
         generators=generators,
         tool_config_path=config_path,
+        produced_resource=produced_resource,
     )
