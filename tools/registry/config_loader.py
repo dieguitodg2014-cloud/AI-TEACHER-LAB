@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from core.orchestration.provider_capability_contract import validate_provider_capabilities
 from core.orchestration.tool_selector import ToolCandidate
 
 
@@ -21,8 +22,11 @@ def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], di
         if not isinstance(raw, dict) or not isinstance(raw.get("tool_id"), str):
             raise ValueError("INVALID_TOOL_CONFIG:tool")
         capabilities = raw.get("capabilities", [])
-        if not isinstance(capabilities, list):
-            raise ValueError(f"INVALID_TOOL_CONFIG:capabilities:{raw['tool_id']}")
+        capability_errors = validate_provider_capabilities(capabilities)
+        if capability_errors:
+            raise ValueError(
+                f"INVALID_PROVIDER_CAPABILITIES:{raw['tool_id']}:{capability_errors[0]}"
+            )
         tools.append(
             ToolCandidate(
                 tool_id=raw["tool_id"],
