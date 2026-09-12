@@ -125,7 +125,7 @@ def run_lesson_planning(
     if tools is None and generators is None:
         resource_handoff = (
             build_resource_handoff(context_result.context, resource_task)
-            if resource_task is not None
+            if resource_task is not None and produced_resource is None
             else None
         )
         return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
@@ -145,7 +145,7 @@ def run_lesson_planning(
     resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
     resource_handoff = (
         build_resource_handoff(context_result.context, resource_task)
-        if resource_task is not None and resource_tool is None
+        if resource_task is not None and resource_tool is None and produced_resource is None
         else None
     )
 
