@@ -12,7 +12,7 @@ from core.context.request_interpreter import interpret_request
 from core.foundation.models import AssessmentDecision, Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
-from core.orchestration.resource_handoff import build_resource_handoff
+from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
 from core.orchestration.resource_orchestrator import select_resource_tool
 from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
@@ -92,6 +92,14 @@ def run_lesson_planning(
             resource_validation = validate_resource_output(resource_task, produced_resource)
 
         if resource_validation.status != "READY":
+            revision_handoff = None
+            if resource_validation.status == "REVISION_REQUIRED" and resource_task is not None:
+                revision_handoff = build_resource_revision_handoff(
+                    context_result.context,
+                    resource_task,
+                    resource_validation,
+                )
+
             return VerticalSliceResult(
                 resource_validation.status,
                 context_result.context,
@@ -101,7 +109,7 @@ def run_lesson_planning(
                 resource_decision,
                 resource_task,
                 None,
-                None,
+                revision_handoff,
                 resource_validation,
                 None,
                 [],
