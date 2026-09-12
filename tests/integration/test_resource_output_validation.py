@@ -57,6 +57,19 @@ def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
     ]
 
 
+def test_vertical_slice_requests_revision_for_objective_declaration_mismatch():
+    resource = {**VALID_RESOURCE, "objective": "Practice general listening."}
+
+    result = run_lesson_planning(REQUEST, produced_resource=resource)
+
+    assert result.status == "REVISION_REQUIRED"
+    assert result.resource_validation is not None
+    assert result.resource_validation.status == "REVISION_REQUIRED"
+    assert result.resource_validation.critical_failure is False
+    assert result.resource_validation.blocking_errors == []
+    assert "objective" in result.resource_validation.feedback[0]
+
+
 def test_vertical_slice_rejects_produced_resource_with_wrong_type():
     resource = {**VALID_RESOURCE, "resource_type": "presentation"}
 
@@ -67,6 +80,30 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_type():
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
     assert "resource_type" in result.resource_validation.blocking_errors[0]
+
+
+def test_vertical_slice_rejects_produced_resource_with_wrong_level():
+    resource = {**VALID_RESOURCE, "level": "B1"}
+
+    result = run_lesson_planning(REQUEST, produced_resource=resource)
+
+    assert result.status == "REJECT"
+    assert result.resource_validation is not None
+    assert result.resource_validation.status == "REJECT"
+    assert result.resource_validation.critical_failure is True
+    assert "Level mismatch" in result.resource_validation.blocking_errors[0]
+
+
+def test_vertical_slice_rejects_produced_resource_without_usable_content():
+    resource = {**VALID_RESOURCE, "content": ""}
+
+    result = run_lesson_planning(REQUEST, produced_resource=resource)
+
+    assert result.status == "REJECT"
+    assert result.resource_validation is not None
+    assert result.resource_validation.status == "REJECT"
+    assert result.resource_validation.critical_failure is True
+    assert any("usable content" in error for error in result.resource_validation.blocking_errors)
 
 
 def test_revision_round_trip_can_be_validated_again():
