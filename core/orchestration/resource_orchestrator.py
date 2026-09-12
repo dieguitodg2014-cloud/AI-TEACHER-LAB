@@ -5,8 +5,12 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
+from core.orchestration.provider_capability_contract import (
+    provider_supports_capabilities,
+    validate_provider_capabilities,
+)
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
-from core.orchestration.resource_provider import FunctionResourceProvider
+from core.orchestration.resource_provider import FunctionResourceProvider, ResourceProvider
 from core.orchestration.tool_selector import ToolCandidate, select_tool
 
 
@@ -60,6 +64,65 @@ def resource_tool_plan(
     }
 
 
+def execute_resource_provider(
+    task: TaskPacket,
+    tool: ToolCandidate,
+    provider: ResourceProvider,
+) -> dict[str, Any]:
+    """Execute an already-selected ResourceProvider against an approved task.
+
+    This is the provider-neutral boundary used by future connectors such as
+    NotebookLM. Provider selection and pedagogical decisions remain outside it.
+    """
+    capability_errors = validate_provider_capabilities(tool.capabilities)
+    if capability_errors:
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": capability_errors,
+        }
+    if not provider_supports_capabilities(tool.capabilities, {RESOURCE_CAPABILITY}):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [
+                f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"
+            ],
+        }
+    if not isinstance(provider, ResourceProvider):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": ["RESOURCE_PROVIDER_CONTRACT_INVALID"],
+        }
+    if not provider.can_produce(task):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"],
+        }
+    try:
+        produced_resource = provider.produce(task)
+    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+        error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_PROVIDER_ERROR:{exc}"
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [error_code],
+        }
+    return {
+        "status": "PRODUCED",
+        "tool_id": tool.tool_id,
+        "result": produced_resource,
+        "errors": [],
+    }
+
+
 def execute_resource_generation(
     task: TaskPacket,
     tool: ToolCandidate,
@@ -87,28 +150,4 @@ def execute_resource_generation(
         }
 
     provider = FunctionResourceProvider(generator)
-    if not provider.can_produce(task):
-        return {
-            "status": "HUMAN_HANDOFF",
-            "tool_id": tool.tool_id,
-            "result": None,
-            "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"],
-        }
-
-    try:
-        produced_resource = provider.produce(task)
-    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
-        error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_GENERATOR_ERROR:{exc}"
-        return {
-            "status": "HUMAN_HANDOFF",
-            "tool_id": tool.tool_id,
-            "result": None,
-            "errors": [error_code],
-        }
-
-    return {
-        "status": "PRODUCED",
-        "tool_id": tool.tool_id,
-        "result": produced_resource,
-        "errors": [],
-    }
+    return execute_resource_provider(task, tool, provider)
