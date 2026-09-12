@@ -62,7 +62,7 @@ class ResourceDecisionVerticalSliceTests(unittest.TestCase):
             generators={"test-generator": self._generator()},
         )
 
-        self.assertEqual(result.status, "READY")
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
         self.assertIsNotNone(result.resource_decision)
         self.assertEqual(result.resource_decision.action, "CREATE")
         self.assertEqual(result.resource_decision.resource_type, "audio")
