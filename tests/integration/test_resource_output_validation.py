@@ -28,6 +28,7 @@ def test_vertical_slice_accepts_valid_produced_resource():
     assert result.resource_validation.status == "READY"
     assert result.resource_validation.critical_failure is False
     assert result.resource_validation.score == 100.0
+    assert result.resource_handoff is None
 
 
 def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
@@ -139,8 +140,7 @@ def test_revision_round_trip_can_be_validated_again():
     assert second_result.resource_validation is not None
     assert second_result.resource_validation.status == "READY"
     assert second_result.resource_validation.score == 100.0
-    assert second_result.resource_handoff is not None
-    assert "return_contract" in second_result.resource_handoff
+    assert second_result.resource_handoff is None
 
 
 def test_repeated_revision_failure_triggers_redesign():
@@ -163,3 +163,53 @@ def test_repeated_revision_failure_triggers_redesign():
     assert result.resource_validation.critical_failure is False
     assert result.resource_handoff is None
     assert any("Redesign" in error for error in result.errors)
+
+
+def test_a2_listening_resource_lifecycle_is_end_to_end():
+    initial_result = run_lesson_planning(REQUEST)
+
+    assert initial_result.status == "PLANNED"
+    assert initial_result.resource_task is not None
+    assert initial_result.resource_handoff is not None
+    assert initial_result.resource_handoff["status"] == "HUMAN_HANDOFF"
+    assert initial_result.resource_handoff["workflow"] == "NotebookLM"
+
+    produced_resource = {
+        **VALID_RESOURCE,
+        "quality_criteria_addressed": [
+            "Directly support the stated learning objective.",
+        ],
+    }
+    first_qc = run_lesson_planning(
+        REQUEST,
+        produced_resource=produced_resource,
+    )
+
+    assert first_qc.status == "REVISION_REQUIRED"
+    assert first_qc.resource_validation is not None
+    assert first_qc.resource_validation.status == "REVISION_REQUIRED"
+    assert first_qc.resource_handoff is not None
+    assert first_qc.resource_handoff["workflow"] == "NotebookLM"
+    assert first_qc.resource_handoff["validation_id"] == first_qc.resource_validation.validation_id
+
+    revised_resource = {
+        **VALID_RESOURCE,
+        "quality_criteria_addressed": [
+            "Directly support the stated learning objective.",
+            "Match the approved learner level and audience.",
+            "Be usable within the planned lesson time.",
+            "Do not introduce unnecessary content or complexity.",
+        ],
+    }
+    final_qc = run_lesson_planning(
+        REQUEST,
+        produced_resource=revised_resource,
+        revision_count=1,
+    )
+
+    assert final_qc.status == "PLANNED"
+    assert final_qc.resource_validation is not None
+    assert final_qc.resource_validation.status == "READY"
+    assert final_qc.resource_validation.score == 100.0
+    assert final_qc.resource_validation.critical_failure is False
+    assert final_qc.resource_handoff is None
