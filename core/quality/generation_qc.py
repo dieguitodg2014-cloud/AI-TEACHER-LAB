@@ -128,7 +128,7 @@ def review_generated_lesson(
     )
     time_realism = not any(
         error in blocking_errors
-        for error in ("INVALID_DURATION", "DURATION_EXCEEDED")
+        for error in ("INVALID_DURATION", "DURATION_MISMATCH")
     )
     activity_presence = "MISSING_ACTIVITIES" not in blocking_errors
 
