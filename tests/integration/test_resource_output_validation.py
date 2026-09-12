@@ -129,7 +129,11 @@ def test_revision_round_trip_can_be_validated_again():
         ],
     }
 
-    second_result = run_lesson_planning(REQUEST, produced_resource=revised_resource)
+    second_result = run_lesson_planning(
+        REQUEST,
+        produced_resource=revised_resource,
+        revision_count=1,
+    )
 
     assert second_result.status == "PLANNED"
     assert second_result.resource_validation is not None
@@ -137,3 +141,25 @@ def test_revision_round_trip_can_be_validated_again():
     assert second_result.resource_validation.score == 100.0
     assert second_result.resource_handoff is not None
     assert "return_contract" in second_result.resource_handoff
+
+
+def test_repeated_revision_failure_triggers_redesign():
+    resource = {
+        **VALID_RESOURCE,
+        "quality_criteria_addressed": [
+            "Directly support the stated learning objective.",
+        ],
+    }
+
+    result = run_lesson_planning(
+        REQUEST,
+        produced_resource=resource,
+        revision_count=1,
+    )
+
+    assert result.status == "REJECT_AND_REDESIGN"
+    assert result.resource_validation is not None
+    assert result.resource_validation.status == "REJECT_AND_REDESIGN"
+    assert result.resource_validation.critical_failure is False
+    assert result.resource_handoff is None
+    assert any("Redesign" in error for error in result.errors)
