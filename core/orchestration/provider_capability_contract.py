@@ -11,6 +11,10 @@ SUPPORTED_PROVIDER_CAPABILITIES = frozenset(
     {
         "lesson_generation",
         "resource_generation",
+        "audio_generation",
+        "presentation_generation",
+        "source_based_resource_generation",
+        "visual_resource_generation",
     }
 )
 
