@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
@@ -51,7 +52,12 @@ def resource_tool_plan(
 
 
 def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: ResourceProvider) -> dict[str, Any]:
-    """Execute an already-selected ResourceProvider against an approved task."""
+    """Execute an already-selected ResourceProvider against an approved task.
+
+    Providers receive defensive copies because TaskPacket contains mutable lists
+    even though the dataclass itself is frozen. The authoritative task remains
+    untouched and is the only task used by downstream QC and acceptance.
+    """
     capability_errors = validate_provider_capabilities(tool.capabilities)
     if capability_errors:
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": capability_errors}
@@ -59,10 +65,11 @@ def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: R
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": [f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"]}
     if not isinstance(provider, ResourceProvider):
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CONTRACT_INVALID"]}
-    if not provider.can_produce(task):
+    provider_task = deepcopy(task)
+    if not provider.can_produce(provider_task):
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"]}
     try:
-        produced_resource = provider.produce(task)
+        produced_resource = provider.produce(deepcopy(provider_task))
     except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
         error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_PROVIDER_ERROR:{exc}"
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": [error_code]}
