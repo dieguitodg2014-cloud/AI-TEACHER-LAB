@@ -54,7 +54,8 @@
       "properties": {
         "decision_id": {"type": "string", "minLength": 1}, "action": {"type": "string", "enum": ["CREATE", "REUSE", "ADAPT", "OMIT", "NO_RESOURCE_REQUIRED"]},
         "resource_type": {"type": "string"}, "purpose": {"type": "string", "minLength": 1}, "reason": {"type": "string"},
-        "required": {"type": "boolean"}, "source_based": {"type": "boolean"}, "visual": {"type": "boolean"}
+        "required": {"type": "boolean"}, "source_based": {"type": "boolean"}, "visual": {"type": "boolean"},
+        "preferred_tool": {"type": "string"}, "fallback_tool": {"type": "string"}
       }
     },
     "ToolDecision": {
