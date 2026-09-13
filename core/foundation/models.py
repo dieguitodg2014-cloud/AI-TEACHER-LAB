@@ -79,6 +79,8 @@ class ResourceDecision:
     required: bool = False
     source_based: bool = False
     visual: bool = False
+    preferred_tool: str = ""
+    fallback_tool: str = ""
 
 
 @dataclass(frozen=True)
