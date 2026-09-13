@@ -5,7 +5,11 @@ from __future__ import annotations
 from core.foundation.models import TaskPacket
 from core.orchestration.capability_matrix import capabilities_for_resource
 from core.orchestration.tool_selector import ToolCandidate, select_tool
-from tools.registry.config_loader import resource_provider_priority
+from tools.registry.config_loader import (
+    DEFAULT_TOOL_CONFIG,
+    load_tool_registry_config,
+    resource_provider_priority,
+)
 
 
 def select_resource_provider(
@@ -47,11 +51,8 @@ def select_resource_provider(
         if hint and hint in by_id:
             return by_id[hint]
 
-    priority = tuple(provider_priority) or resource_provider_priority(None)
-    if not provider_priority:
-        from pathlib import Path
-        from tools.registry.config_loader import load_tool_registry_config, DEFAULT_TOOL_CONFIG
-
+    priority = tuple(provider_priority)
+    if not priority:
         _, policy = load_tool_registry_config(DEFAULT_TOOL_CONFIG)
         priority = resource_provider_priority(policy)
 
