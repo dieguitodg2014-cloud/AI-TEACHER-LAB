@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from core.foundation.models import TaskPacket
 from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
+from core.orchestration.resource_orchestrator import execute_resource_provider
 from core.orchestration.resource_provider import ResourceProvider
 from core.orchestration.tool_selector import ToolCandidate
 
@@ -42,10 +43,10 @@ def make_task(**overrides):
     return TaskPacket(**values)
 
 
-def make_tool(tool_id, *, quality=0.0, reliability=0.0):
+def make_tool(tool_id, *, quality=0.0, reliability=0.0, capabilities=None):
     return ToolCandidate(
         tool_id=tool_id,
-        capabilities=frozenset({"resource_generation"}),
+        capabilities=frozenset(capabilities or {"resource_generation", "audio_generation"}),
         quality=quality,
         reliability=reliability,
         accessibility=1.0,
@@ -203,3 +204,26 @@ def test_fallback_hint_is_used_after_preferred_provider_fails():
     assert result.tool_id == "provider-b"
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
     assert third.calls == 0
+
+
+def test_direct_provider_execution_enforces_audio_capability():
+    task = make_task(required_output="audio")
+    tool = make_tool("provider-a", capabilities={"resource_generation"})
+    provider = StubProvider(result={"resource_type": "audio"})
+
+    result = execute_resource_provider(task, tool, provider)
+
+    assert result["status"] == "HUMAN_HANDOFF"
+    assert result["errors"] == ["PROVIDER_NOT_ELIGIBLE_FOR_TASK:provider-a:RESOURCE_PRODUCTION"]
+    assert provider.calls == 0
+
+
+def test_direct_provider_execution_enforces_source_based_capability():
+    task = make_task(required_output="worksheet", source_based=True)
+    tool = make_tool("provider-a")
+    provider = StubProvider(result={"resource_type": "worksheet"})
+
+    result = execute_resource_provider(task, tool, provider)
+
+    assert result["status"] == "HUMAN_HANDOFF"
+    assert provider.calls == 0
