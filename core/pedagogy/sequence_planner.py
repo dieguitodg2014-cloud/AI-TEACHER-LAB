@@ -10,6 +10,7 @@ from .pattern_registry import (
     Interaction,
     Level,
     Pattern,
+    PatternFilter,
     PatternRegistry,
     SequenceRole,
 )
@@ -69,7 +70,7 @@ class SequencePlanner:
     )
 
     _PREFERRED_BY_ROLE = {
-        SequenceRole.EXPOSURE: ("VISUAL_NOTICING", "MODEL_AND_REPEAT"),
+        SequenceRole.EXPOSURE: ("MODEL_AND_REPEAT", "VISUAL_NOTICING"),
         SequenceRole.NOTICING: ("VISUAL_NOTICING", "MODEL_AND_REPEAT"),
         SequenceRole.CONTROLLED_PRACTICE: ("CONTROLLED_PRACTICE", "MATCHING"),
         SequenceRole.GUIDED_PRODUCTION: ("GUIDED_PRODUCTION", "INTERVIEW", "PICTURE_DESCRIPTION"),
@@ -89,22 +90,19 @@ class SequencePlanner:
     def plan(self, request: SequenceRequest) -> SequencePlan:
         level = Level(request.level)
         interaction = Interaction(request.interaction)
-        skill = request.primary_skill.upper()
+        primary_skill = request.primary_skill.upper()
 
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
+        # Do not hard-filter on the primary skill. A speaking lesson can need a
+        # visual-noticing pattern, and a reading lesson can need speaking output.
+        # Skill fit is therefore evaluated when choosing each pattern.
         candidates = self.registry.filter(
-            type("Filter", (), {
-                "level": level.value,
-                "interaction": interaction.value,
-                "skill": skill,
-                "requires_student_output": None,
-                "sequence_role": None,
-            })()
+            PatternFilter(level=level.value, interaction=interaction.value)
         )
-
         candidate_ids = {pattern.pattern_id for pattern in candidates}
+
         selected: list[PlannedPattern] = []
         selected_ids: set[str] = set()
 
@@ -126,7 +124,9 @@ class SequencePlanner:
         for role in self._ROLE_ORDER:
             if role not in required_roles:
                 continue
-            pattern = self._choose_pattern(role, candidate_ids, selected_ids, level)
+            pattern = self._choose_pattern(
+                role, candidate_ids, selected_ids, level, primary_skill
+            )
             if pattern is None:
                 continue
             selected.append(
@@ -177,12 +177,20 @@ class SequencePlanner:
         candidate_ids: set[str],
         selected_ids: set[str],
         level: Level,
+        primary_skill: str,
     ) -> Pattern | None:
         for pattern_id in self._PREFERRED_BY_ROLE[role]:
-            if pattern_id in candidate_ids and pattern_id not in selected_ids:
-                pattern = self.registry.get(pattern_id)
-                if pattern.supports_level(level.value):
-                    return pattern
+            if pattern_id not in candidate_ids or pattern_id in selected_ids:
+                continue
+            pattern = self.registry.get(pattern_id)
+            if not pattern.supports_level(level.value):
+                continue
+            # Input/noticing may support a different skill while preparing the
+            # primary skill. Later output roles should align directly to it.
+            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING):
+                if primary_skill not in pattern.skills:
+                    continue
+            return pattern
         return None
 
     @staticmethod
@@ -204,7 +212,6 @@ class SequencePlanner:
         if not items:
             return items
 
-        # Reduce optional time first while respecting each pattern's minimum.
         total = sum(item.timing_minutes for item in items)
         if total <= duration_minutes:
             return items
