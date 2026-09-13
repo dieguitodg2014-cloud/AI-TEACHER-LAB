@@ -49,18 +49,16 @@ class ResourceRevisionEngine:
         if max_revisions < 0:
             raise ValueError("max_revisions must be non-negative")
 
-        resource = initial_resource
+        # Keep the engine's current resource isolated from a reviser. A provider
+        # must return a new state rather than mutate the state owned by the loop.
+        resource = deepcopy(initial_resource)
         revisions = 0
-        last_validation: ResourceValidationResult | None = None
-        last_acceptance: ResourceAcceptanceResult | None = None
         feedback: list[str] = []
         authorized_task = deepcopy(task)
 
         while True:
             validation = validate_resource_output(task, resource, revision_count=revisions)
             acceptance = self.acceptance_gate.evaluate(task, validation)
-            last_validation = validation
-            last_acceptance = acceptance
 
             if acceptance.decision == "ACCEPT":
                 return ResourceRevisionResult(
@@ -103,10 +101,12 @@ class ResourceRevisionEngine:
 
             feedback.extend(acceptance.reasons)
             revision_task = deepcopy(task)
-            revised = reviser(revision_task, resource, validation)
+            revision_input = deepcopy(resource)
+            revised = reviser(revision_task, revision_input, validation)
 
             # The reviser is downstream of the pedagogical decision. It gets a
-            # defensive TaskPacket copy and cannot mutate the authoritative task.
+            # defensive TaskPacket copy and a defensive resource copy, so it
+            # cannot mutate authoritative state owned by the engine.
             if not task_packet_unchanged(authorized_task, revision_task):
                 handoff = ResourceAcceptanceResult(
                     decision="HUMAN_HANDOFF",
