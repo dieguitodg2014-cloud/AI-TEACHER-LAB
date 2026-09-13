@@ -88,6 +88,28 @@ class TestResourceRegressionGuard(unittest.TestCase):
         self.assertIn("RESOURCE_REGRESSION:TASK_PACKET_MUTATED_BY_REVISER", result.acceptance.reasons)
         self.assertEqual(self.task.constraints, ["Keep the resource under 3 minutes."])
 
+    def test_reviser_cannot_mutate_engine_owned_resource(self):
+        initial = self._resource(
+            objective="Students will practice listening.",
+            metadata={"attempt": 1},
+        )
+        initial_snapshot = {**initial, "metadata": dict(initial["metadata"])}
+
+        def reviser(task, resource, validation):
+            resource["resource_type"] = "video"
+            resource["metadata"]["attempt"] = 999
+            return self._resource(
+                objective=task.objective,
+                content="Revised listening content.",
+            )
+
+        result = ResourceRevisionEngine().run(self.task, initial, reviser)
+
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(initial, initial_snapshot)
+        self.assertEqual(result.resource["resource_type"], "audio")
+        self.assertEqual(result.resource["objective"], self.task.objective)
+
     def test_revision_can_change_a_failing_level_to_the_authorized_level(self):
         initial = self._resource(
             level="B1",
