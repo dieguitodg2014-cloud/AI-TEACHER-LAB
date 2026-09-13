@@ -11,6 +11,7 @@ from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
 from core.foundation.models import AssessmentDecision, Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
+from core.orchestration.canva_provider import CanvaResourceProvider
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.notebooklm_provider import NotebookLMResourceProvider
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
@@ -51,19 +52,12 @@ def run_lesson_planning(
     tools: list[ToolCandidate] | None = None,
     generators: dict[str, Callable] | None = None,
     notebooklm_executor: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    canva_executor: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
 ) -> VerticalSliceResult:
-    """Run context, pedagogy, assessment, resources, validation and generation.
-
-    ``produced_resource`` is optional so an external provider can return a
-    resource into the existing validation boundary. ``generators`` and the
-    optional ``notebooklm_executor`` provide executable resource providers;
-    both use the same fallback, QC, revision, and acceptance path. The
-    NotebookLM adapter receives only an approved TaskPacket and contains no
-    pedagogical decision logic.
-    """
+    """Run context, pedagogy, assessment, resources, validation and generation."""
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
 
@@ -105,34 +99,16 @@ def run_lesson_planning(
         if resource_validation.status != "READY":
             revision_handoff = None
             if resource_validation.status == "REVISION_REQUIRED" and resource_task is not None:
-                revision_handoff = build_resource_revision_handoff(
-                    context_result.context,
-                    resource_task,
-                    resource_validation,
-                )
-
+                revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_validation)
             return VerticalSliceResult(
-                resource_validation.status,
-                context_result.context,
-                level_decision,
-                learning_plan,
-                assessment_decision,
-                resource_decision,
-                resource_task,
-                None,
-                revision_handoff,
-                resource_validation,
-                None,
-                [],
+                resource_validation.status, context_result.context, level_decision, learning_plan,
+                assessment_decision, resource_decision, resource_task, None, revision_handoff,
+                resource_validation, None, [],
                 list(resource_validation.blocking_errors) + list(resource_validation.feedback),
             )
 
-    if tools is None and generators is None and notebooklm_executor is None:
-        resource_handoff = (
-            build_resource_handoff(context_result.context, resource_task)
-            if resource_task is not None and produced_resource is None
-            else None
-        )
+    if tools is None and generators is None and notebooklm_executor is None and canva_executor is None:
+        resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and produced_resource is None else None
         return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
 
     free_first = True
@@ -148,104 +124,36 @@ def run_lesson_planning(
         return VerticalSliceResult("FAILED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, None, resource_validation, None, [], [f"TOOL_REGISTRY_ERROR:{exc}"])
 
     resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
-    resource_handoff = (
-        build_resource_handoff(context_result.context, resource_task)
-        if resource_task is not None and resource_tool is None and produced_resource is None
-        else None
-    )
+    resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool is None and produced_resource is None else None
 
-    if resource_task is not None and (generators is not None or notebooklm_executor is not None):
+    if resource_task is not None and (generators is not None or notebooklm_executor is not None or canva_executor is not None):
         if resource_tool is None:
-            return VerticalSliceResult(
-                "HUMAN_HANDOFF",
-                context_result.context,
-                level_decision,
-                learning_plan,
-                assessment_decision,
-                resource_decision,
-                resource_task,
-                None,
-                resource_handoff or build_resource_handoff(context_result.context, resource_task),
-                resource_validation,
-                None,
-                [],
-                ["NO_SUITABLE_RESOURCE_TOOL"],
-            )
+            return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_validation, None, [], ["NO_SUITABLE_RESOURCE_TOOL"])
 
-        providers = {
-            tool_id: FunctionResourceProvider(generator)
-            for tool_id, generator in (generators or {}).items()
-            if callable(generator)
-        }
+        providers = {tool_id: FunctionResourceProvider(generator) for tool_id, generator in (generators or {}).items() if callable(generator)}
         if notebooklm_executor is not None:
             providers["notebooklm"] = NotebookLMResourceProvider(notebooklm_executor)
+        if canva_executor is not None:
+            providers["canva"] = CanvaResourceProvider(canva_executor)
 
-        resource_execution = execute_resource_production_with_fallback(
-            resource_task,
-            selected_tools,
-            providers,
-            max_revisions=max(0, 1 - revision_count),
-            free_first=free_first,
-        )
-        resource_tool = next(
-            (tool for tool in selected_tools if tool.tool_id == resource_execution.get("tool_id")),
-            resource_tool,
-        )
+        resource_execution = execute_resource_production_with_fallback(resource_task, selected_tools, providers, max_revisions=max(0, 1 - revision_count), free_first=free_first)
+        resource_tool = next((tool for tool in selected_tools if tool.tool_id == resource_execution.get("tool_id")), resource_tool)
 
         if resource_execution["status"] not in {"ACCEPTED", "READY"}:
             revision_handoff = None
             if resource_execution.get("validation") is not None and resource_execution["status"] == "REVISION_REQUIRED":
-                revision_handoff = build_resource_revision_handoff(
-                    context_result.context,
-                    resource_task,
-                    resource_execution["validation"],
-                )
-            return VerticalSliceResult(
-                resource_execution["status"],
-                context_result.context,
-                level_decision,
-                learning_plan,
-                assessment_decision,
-                resource_decision,
-                resource_task,
-                resource_tool,
-                revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task),
-                resource_execution.get("validation"),
-                resource_execution,
-                [],
-                list(resource_execution.get("errors", [])),
-            )
+                revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_execution["validation"])
+            return VerticalSliceResult(resource_execution["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_execution.get("validation"), resource_execution, [], list(resource_execution.get("errors", [])))
 
-        resource_validation = resource_execution.get("validation")
-        return VerticalSliceResult(
-            "READY",
-            context_result.context,
-            level_decision,
-            learning_plan,
-            assessment_decision,
-            resource_decision,
-            resource_task,
-            resource_tool,
-            None,
-            resource_validation,
-            resource_execution,
-            [],
-            [],
-        )
+        return VerticalSliceResult("READY", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, resource_execution.get("validation"), resource_execution, [], [])
 
     if generators is None:
-        has_resource_capability = any(
-            "resource_generation" in tool.capabilities for tool in selected_tools
-        )
+        has_resource_capability = any("resource_generation" in tool.capabilities for tool in selected_tools)
         if resource_task is not None or has_resource_capability:
             return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, None, [], [])
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
 
-    generation_request = build_generation_request(
-        learning_plan,
-        asdict(context_result.context),
-        assessment_decision,
-    )
+    generation_request = build_generation_request(learning_plan, asdict(context_result.context), assessment_decision)
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request, free_first=free_first)
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
