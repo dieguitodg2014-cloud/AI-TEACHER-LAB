@@ -74,7 +74,7 @@ def test_production_pipeline_revises_then_accepts():
     assert result["revision_feedback"]
 
 
-def test_production_pipeline_hands_off_when_revision_does_not_fix_output():
+def test_production_pipeline_rejects_after_revision_does_not_fix_output():
     task = make_task()
     tool = make_tool()
     provider = FunctionResourceProvider(
@@ -97,10 +97,10 @@ def test_production_pipeline_hands_off_when_revision_does_not_fix_output():
         max_revisions=1,
     )
 
-    assert result["status"] == "HUMAN_HANDOFF"
+    assert result["status"] == "REJECT_AND_REDESIGN"
     assert result["result"] is None
     assert result["attempts"] == 2
-    assert result["acceptance"].decision == "REVISION_REQUIRED"
+    assert result["acceptance"].decision == "REJECT_AND_REDESIGN"
     assert result["errors"]
 
 
