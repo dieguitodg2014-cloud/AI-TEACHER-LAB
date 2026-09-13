@@ -23,23 +23,15 @@ def select_resource_tool(
     *,
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
-    source_based: bool = False,
-    visual: bool = False,
 ) -> ToolCandidate | None:
-    """Select a resource tool using the capability matrix."""
+    """Select a resource tool from the capabilities frozen in the TaskPacket."""
     if task is None:
         return None
     eligible = [
         tool for tool in tools
         if blocked_tools is None or tool.tool_id not in blocked_tools
     ]
-    return select_resource_provider(
-        task,
-        eligible,
-        source_based=source_based,
-        visual=visual,
-        free_first=free_first,
-    )
+    return select_resource_provider(task, eligible, free_first=free_first)
 
 
 def resource_tool_plan(
@@ -47,16 +39,14 @@ def resource_tool_plan(
     tools: list[ToolCandidate],
     *,
     free_first: bool = True,
-    source_based: bool = False,
-    visual: bool = False,
+    blocked_tools: set[str] | None = None,
 ) -> dict[str, Any]:
     """Return an execution plan without executing the provider."""
     tool = select_resource_tool(
         task,
         tools,
         free_first=free_first,
-        source_based=source_based,
-        visual=visual,
+        blocked_tools=blocked_tools,
     )
     if task is None:
         return {"status": "NOT_REQUIRED", "tool_id": None, "task_id": None}
