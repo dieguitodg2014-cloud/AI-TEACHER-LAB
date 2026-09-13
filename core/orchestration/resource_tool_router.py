@@ -5,6 +5,7 @@ from __future__ import annotations
 from core.foundation.models import TaskPacket
 from core.orchestration.capability_matrix import capabilities_for_resource
 from core.orchestration.tool_selector import ToolCandidate, select_tool
+from tools.registry.config_loader import resource_provider_priority
 
 
 def select_resource_provider(
@@ -19,7 +20,8 @@ def select_resource_provider(
 
     Provider priority is an execution policy only. It cannot override the
     capabilities required by the authoritative TaskPacket and never changes
-    the pedagogical decision.
+    the pedagogical decision. When no explicit priority is supplied, the
+    runtime tool policy provides the specialized-resource order.
     """
     if task is None:
         return None
@@ -45,7 +47,15 @@ def select_resource_provider(
         if hint and hint in by_id:
             return by_id[hint]
 
-    for tool_id in provider_priority:
+    priority = tuple(provider_priority) or resource_provider_priority(None)
+    if not provider_priority:
+        from pathlib import Path
+        from tools.registry.config_loader import load_tool_registry_config, DEFAULT_TOOL_CONFIG
+
+        _, policy = load_tool_registry_config(DEFAULT_TOOL_CONFIG)
+        priority = resource_provider_priority(policy)
+
+    for tool_id in priority:
         if tool_id in by_id:
             return by_id[tool_id]
 
