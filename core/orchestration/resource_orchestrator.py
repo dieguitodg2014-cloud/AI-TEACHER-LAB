@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
+from core.orchestration.capability_matrix import capabilities_for_resource
 from core.orchestration.provider_capability_contract import (
     provider_supports_capabilities,
     validate_provider_capabilities,
@@ -62,8 +63,23 @@ def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: R
     capability_errors = validate_provider_capabilities(tool.capabilities)
     if capability_errors:
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": capability_errors}
-    if not provider_supports_capabilities(tool.capabilities, {RESOURCE_CAPABILITY}):
-        return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": [f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"]}
+
+    required_capabilities = set(
+        capabilities_for_resource(
+            task.required_output,
+            source_based=task.source_based,
+            visual=task.visual,
+        )
+    )
+    if not provider_supports_capabilities(tool.capabilities, required_capabilities):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [
+                f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"
+            ],
+        }
     if not isinstance(provider, ResourceProvider):
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CONTRACT_INVALID"]}
     provider_task = deepcopy(task)
@@ -215,7 +231,7 @@ def execute_resource_generation(
 ) -> dict[str, Any]:
     """Execute an eligible resource provider against the approved TaskPacket."""
     generator = generators.get(tool.tool_id)
-    eligibility_errors = validate_provider_task_eligibility(tool, "RESOURCE_PRODUCTION", generator, required_capabilities={RESOURCE_CAPABILITY})
+    eligibility_errors = validate_provider_task_eligibility(tool, "RESOURCE_PRODUCTION", generator, required_capabilities=set(capabilities_for_resource(task.required_output, source_based=task.source_based, visual=task.visual)))
     if eligibility_errors:
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": eligibility_errors}
     provider = FunctionResourceProvider(generator)
