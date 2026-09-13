@@ -3,6 +3,7 @@ import unittest
 from core.foundation.models import TaskPacket
 from core.orchestration.notebooklm_provider import NotebookLMResourceProvider
 from core.orchestration.resource_orchestrator import execute_resource_production_with_fallback
+from core.orchestration.resource_provider import FunctionResourceProvider
 from core.orchestration.tool_selector import ToolCandidate
 
 
@@ -66,7 +67,8 @@ class NotebookLMProviderIntegrationTests(unittest.TestCase):
         self.assertEqual(result["tool_id"], "notebooklm")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["provider"], "notebooklm")
-        self.assertEqual(calls[0]["task"].task_id, task.task_id)
+        self.assertEqual(calls[0]["task"]["task_id"], task.task_id)
+        self.assertEqual(calls[0]["task"]["source_based"], True)
         self.assertEqual(task.objective, "Students identify the main idea in a short listening text.")
         self.assertEqual(task.level, "A2")
         self.assertEqual(task.required_output, "audio")
@@ -78,7 +80,7 @@ class NotebookLMProviderIntegrationTests(unittest.TestCase):
             calls.append("notebooklm")
             raise RuntimeError("NOTEBOOKLM_TEMPORARY_FAILURE")
 
-        def fallback_executor(payload):
+        def fallback_generator(task):
             calls.append("fallback")
             return self.valid_audio()
 
@@ -86,7 +88,7 @@ class NotebookLMProviderIntegrationTests(unittest.TestCase):
         tools = [self.make_tool("notebooklm"), self.make_tool("fallback")]
         providers = {
             "notebooklm": NotebookLMResourceProvider(notebooklm_executor),
-            "fallback": NotebookLMResourceProvider(fallback_executor),
+            "fallback": FunctionResourceProvider(fallback_generator),
         }
 
         result = execute_resource_production_with_fallback(
