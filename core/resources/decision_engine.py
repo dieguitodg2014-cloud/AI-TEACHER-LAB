@@ -20,6 +20,12 @@ def _execution_hint(constraints: list[str], prefix: str) -> str:
     )
 
 
+def _boolean_hint(constraints: list[str], prefix: str) -> bool:
+    """Read an explicit boolean modality requirement from request constraints."""
+    value = _execution_hint(constraints, prefix).lower()
+    return value in {"1", "true", "yes", "y"}
+
+
 def _resource_hints(constraints: list[str]) -> tuple[str, str]:
     return (
         _execution_hint(constraints, "PREFERRED_RESOURCE_TOOL:"),
@@ -48,6 +54,8 @@ def decide_resource(
         for part in (context.objective, context.topic)
         if part
     )
+    source_based = _boolean_hint(constraints, "RESOURCE_SOURCE_BASED:")
+    visual_hint = _boolean_hint(constraints, "RESOURCE_VISUAL:")
 
     explicit = next(
         (
@@ -59,6 +67,7 @@ def decide_resource(
     )
     if explicit:
         resource_type = explicit or "classroom resource"
+        visual = visual_hint or resource_type.lower() in {"presentation", "slides", "video", "video_or_visual"}
         return ResourceDecision(
             decision_id=f"resource-{uuid4().hex[:12]}",
             action="CREATE",
@@ -66,6 +75,8 @@ def decide_resource(
             resource_type=resource_type,
             reason="The request explicitly requires a resource.",
             required=True,
+            source_based=source_based,
+            visual=visual,
             preferred_tool=preferred_tool,
             fallback_tool=fallback_tool,
         )
@@ -78,6 +89,8 @@ def decide_resource(
             resource_type="audio",
             reason="The objective or topic requires listening or auditory input that cannot be supplied by lesson text alone.",
             required=True,
+            source_based=source_based,
+            visual=visual_hint,
             preferred_tool=preferred_tool,
             fallback_tool=fallback_tool,
         )
@@ -90,6 +103,8 @@ def decide_resource(
             resource_type="video_or_visual",
             reason="The objective or topic explicitly requires audiovisual or visual input.",
             required=True,
+            source_based=source_based,
+            visual=True,
             preferred_tool=preferred_tool,
             fallback_tool=fallback_tool,
         )
@@ -100,6 +115,8 @@ def decide_resource(
         purpose="Deliver the learning objective using the lesson plan and teacher-led interaction.",
         reason="No specialized resource is currently justified by the learning objective or topic.",
         required=False,
+        source_based=source_based,
+        visual=visual_hint,
         preferred_tool=preferred_tool,
         fallback_tool=fallback_tool,
     )
