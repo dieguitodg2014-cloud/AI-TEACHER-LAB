@@ -10,6 +10,7 @@ from core.orchestration.provider_capability_contract import (
     provider_supports_capabilities,
     validate_provider_capabilities,
 )
+from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
 from core.orchestration.resource_provider import FunctionResourceProvider, ResourceProvider
 from core.orchestration.resource_tool_router import select_resource_provider
@@ -137,6 +138,56 @@ def execute_resource_production_pipeline(
         "attempts": revision_result.attempts,
         "revision_feedback": revision_result.revision_feedback,
         "errors": errors,
+    }
+
+
+def execute_resource_production_with_fallback(
+    task: TaskPacket,
+    tools: list[ToolCandidate],
+    providers: dict[str, ResourceProvider],
+    *,
+    reviser: Callable[[TaskPacket, dict[str, Any], ResourceValidationResult], dict[str, Any]] | None = None,
+    max_revisions: int = 1,
+    acceptance_gate: ResourceAcceptanceGate | None = None,
+    free_first: bool = True,
+) -> dict[str, Any]:
+    """Run provider fallback first, then send only successful output to QC/revision.
+
+    Provider fallback is a technical execution concern. QC, revision, and
+    acceptance run exactly once on the successful provider output and the same
+    authoritative TaskPacket.
+    """
+    policy = ProviderExecutionPolicy(free_first=free_first)
+    execution = policy.execute(
+        task,
+        tools,
+        providers,
+        executor=execute_resource_provider,
+    )
+    if execution.status != "PRODUCED":
+        return {
+            "status": execution.status,
+            "task_id": execution.task_id,
+            "tool_id": execution.tool_id,
+            "result": None,
+            "provider_attempts": execution.attempts,
+            "errors": execution.errors,
+        }
+
+    production_pipeline = execute_resource_production_pipeline(
+        task,
+        ToolCandidate(
+            tool_id=execution.tool_id or "",
+            capabilities=frozenset({RESOURCE_CAPABILITY}),
+        ),
+        providers[execution.tool_id or ""],
+        reviser=reviser,
+        max_revisions=max_revisions,
+        acceptance_gate=acceptance_gate,
+    )
+    return {
+        **production_pipeline,
+        "provider_attempts": execution.attempts,
     }
 
 
