@@ -49,7 +49,7 @@ def test_configured_notebooklm_uses_specialized_resource_provider_path(tmp_path,
     assert len(calls) == 1
     assert calls[0]["provider"] == "notebooklm"
     assert calls[0]["task"]["task_type"] == "RESOURCE_PRODUCTION"
-    assert calls[0]["task"]["resource_type"] == "audio"
+    assert calls[0]["task"]["required_output"] == "audio"
     assert calls[0]["task"]["objective"] == result.resource_task.objective
     assert calls[0]["task"]["level"] == result.resource_task.level
 
@@ -72,7 +72,7 @@ def test_configured_canva_uses_specialized_resource_provider_path(tmp_path, monk
     assert len(calls) == 1
     assert calls[0]["provider"] == "canva"
     assert calls[0]["task"]["task_type"] == "RESOURCE_PRODUCTION"
-    assert calls[0]["task"]["resource_type"] == "presentation"
+    assert calls[0]["task"]["required_output"] == "presentation"
     assert calls[0]["task"]["objective"] == result.resource_task.objective
     assert calls[0]["task"]["level"] == result.resource_task.level
 
@@ -80,8 +80,8 @@ def test_configured_canva_uses_specialized_resource_provider_path(tmp_path, monk
 def test_configured_notebooklm_failure_falls_back_to_canva_and_passes_acceptance(tmp_path, monkeypatch):
     config_path = tmp_path / "tools.json"
     config_path.write_text(json.dumps({"tools": [
-        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "presentation_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
-        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
+        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "presentation_generation", "visual_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
+        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation", "visual_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
     ], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["notebooklm", "canva"]}}}), encoding="utf-8")
     calls = []
 
