@@ -47,6 +47,7 @@
       "primary_provider": "chatgpt",
       "secondary_provider": "gemini",
       "specialized_resource_creators": ["notebooklm", "canva"],
+      "resource_provider_priority": ["notebooklm", "canva"],
       "fallback_providers": ["gemma_local"],
       "fallback_rule": "Fallback providers may execute an approved task but may not redefine the pedagogical decision."
     }
