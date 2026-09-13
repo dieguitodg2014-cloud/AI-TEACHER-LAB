@@ -14,22 +14,41 @@ def select_resource_provider(
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
 ) -> ToolCandidate | None:
-    """Select a provider from explicit capabilities frozen into the TaskPacket.
+    """Select an eligible provider while treating tool hints as preferences.
 
-    The pedagogical/resource decision establishes the flags before this layer.
-    The router only translates those approved requirements into capabilities.
-    Blocked providers are excluded for the current execution attempt.
+    ``preferred_tool`` and ``fallback_tool`` never override capability
+    requirements. A preferred provider is selected when eligible; after it is
+    blocked or unavailable, the fallback hint gets the next opportunity. If
+    neither hint is usable, normal capability-based scoring selects the best
+    remaining provider.
     """
     if task is None:
         return None
-    required = capabilities_for_resource(
-        task.required_output,
-        source_based=task.source_based,
-        visual=task.visual,
+
+    required = set(
+        capabilities_for_resource(
+            task.required_output,
+            source_based=task.source_based,
+            visual=task.visual,
+        )
     )
+    blocked = blocked_tools or set()
+    eligible = [
+        tool
+        for tool in tools
+        if tool.tool_id not in blocked and required.issubset(tool.capabilities)
+    ]
+    if not eligible:
+        return None
+
+    by_id = {tool.tool_id: tool for tool in eligible}
+    for hint in (task.preferred_tool, task.fallback_tool):
+        if hint and hint in by_id:
+            return by_id[hint]
+
     return select_tool(
-        tools,
-        set(required),
+        eligible,
+        required,
         free_first=free_first,
-        blocked_tools=blocked_tools,
+        blocked_tools=blocked,
     )
