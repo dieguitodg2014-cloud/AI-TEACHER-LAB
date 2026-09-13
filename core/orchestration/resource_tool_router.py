@@ -12,11 +12,13 @@ def select_resource_provider(
     tools: list[ToolCandidate],
     *,
     free_first: bool = True,
+    blocked_tools: set[str] | None = None,
 ) -> ToolCandidate | None:
     """Select a provider from explicit capabilities frozen into the TaskPacket.
 
     The pedagogical/resource decision establishes the flags before this layer.
     The router only translates those approved requirements into capabilities.
+    Blocked providers are excluded for the current execution attempt.
     """
     if task is None:
         return None
@@ -25,4 +27,9 @@ def select_resource_provider(
         source_based=task.source_based,
         visual=task.visual,
     )
-    return select_tool(tools, set(required), free_first=free_first)
+    return select_tool(
+        tools,
+        set(required),
+        free_first=free_first,
+        blocked_tools=blocked_tools,
+    )
