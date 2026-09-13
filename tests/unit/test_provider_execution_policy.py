@@ -26,8 +26,8 @@ class StubProvider:
         return self.result
 
 
-def make_task():
-    return TaskPacket(
+def make_task(**overrides):
+    values = dict(
         task_id="task-fallback-1",
         task_type="RESOURCE_PRODUCTION",
         objective="Practice listening for past experiences.",
@@ -38,6 +38,8 @@ def make_task():
         lesson_id="lesson-1",
         audience="adult ESL learners",
     )
+    values.update(overrides)
+    return TaskPacket(**values)
 
 
 def make_tool(tool_id, *, quality=0.0, reliability=0.0):
@@ -125,8 +127,6 @@ def test_provider_task_mutation_isolated_during_fallback():
         {"provider-a": mutating, "provider-b": working},
     )
 
-    # The orchestrator gives providers defensive copies, so the mutation cannot
-    # alter the authoritative TaskPacket or block a valid fallback.
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-a"
     assert task == before
@@ -151,3 +151,55 @@ def test_provider_without_required_capability_is_skipped():
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-b"
     assert ineligible.calls == 0
+
+
+def test_preferred_tool_is_selected_when_capable():
+    task = make_task(preferred_tool="provider-b")
+    preferred = StubProvider(result={"resource_type": "audio"})
+    higher_scored = StubProvider(result={"resource_type": "audio"})
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.1)],
+        {"provider-a": higher_scored, "provider-b": preferred},
+    )
+
+    assert result.tool_id == "provider-b"
+    assert [a.tool_id for a in result.attempts] == ["provider-b"]
+    assert higher_scored.calls == 0
+
+
+def test_unusable_preferred_tool_does_not_override_capabilities():
+    task = make_task(preferred_tool="provider-a")
+    preferred_but_incompatible = ToolCandidate(
+        tool_id="provider-a",
+        capabilities=frozenset({"image_generation"}),
+        quality=10.0,
+    )
+    working = StubProvider(result={"resource_type": "audio"})
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [preferred_but_incompatible, make_tool("provider-b", quality=0.5)],
+        {"provider-a": StubProvider(result={"resource_type": "audio"}), "provider-b": working},
+    )
+
+    assert result.tool_id == "provider-b"
+    assert working.calls == 2
+
+
+def test_fallback_hint_is_used_after_preferred_provider_fails():
+    task = make_task(preferred_tool="provider-a", fallback_tool="provider-b")
+    preferred = StubProvider(error="preferred unavailable")
+    fallback = StubProvider(result={"resource_type": "audio"})
+    third = StubProvider(result={"resource_type": "audio"})
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.1), make_tool("provider-c", quality=0.9)],
+        {"provider-a": preferred, "provider-b": fallback, "provider-c": third},
+    )
+
+    assert result.tool_id == "provider-b"
+    assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
+    assert third.calls == 0
