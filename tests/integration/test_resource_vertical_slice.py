@@ -163,6 +163,48 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(result.generation)
         self.assertEqual(result.generation["status"], "PRODUCED")
 
+    def test_notebooklm_executor_runs_through_same_resource_qc_boundary(self):
+        tools = [
+            ToolCandidate(
+                tool_id="notebooklm",
+                capabilities=frozenset({"resource_generation", "audio_generation"}),
+                quality=1.0,
+                reliability=1.0,
+                accessibility=0.8,
+                speed=0.7,
+                cost=0.0,
+            )
+        ]
+        calls = []
+
+        def notebooklm_executor(payload):
+            calls.append(payload)
+            task = payload["task"]
+            return {
+                "resource_type": "audio",
+                "level": task["level"],
+                "objective": task["objective"],
+                "content": "A short A2 listening conversation produced by the connector.",
+                "quality_criteria_addressed": task["quality_criteria"],
+            }
+
+        result = run_lesson_planning(
+            REQUEST,
+            tools=tools,
+            notebooklm_executor=notebooklm_executor,
+        )
+
+        self.assertEqual(result.status, "READY")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["provider"], "notebooklm")
+        self.assertEqual(calls[0]["task"]["task_type"], "RESOURCE_PRODUCTION")
+        self.assertIsNotNone(result.resource_validation)
+        self.assertEqual(result.resource_validation.status, "READY")
+        self.assertEqual(result.resource_validation.score, 100.0)
+        self.assertIsNotNone(result.generation)
+        self.assertEqual(result.generation["status"], "PRODUCED")
+        self.assertEqual(result.resource_tool.tool_id, "notebooklm")
+
 
 if __name__ == "__main__":
     unittest.main()
