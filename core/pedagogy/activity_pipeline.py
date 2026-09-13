@@ -2,7 +2,8 @@
 
 The pipeline makes the pedagogical contract the boundary between planning and
 content generation. A generator can produce content, but acceptance remains the
-responsibility of ActivityValidator.
+responsibility of ActivityValidator. Rejected output is converted into a
+provider-neutral revision contract rather than silently accepted.
 """
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
@@ -18,6 +19,16 @@ from .sequence_planner import PlannedPattern
 
 
 @dataclass(frozen=True)
+class RevisionContract:
+    """Deterministic instructions for correcting rejected generated output."""
+
+    activity_id: str
+    source_contract: ActivityGenerationContract
+    failures: tuple[str, ...]
+    preserve: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ActivityPipelineResult:
     """Complete result for one planned activity."""
 
@@ -25,6 +36,7 @@ class ActivityPipelineResult:
     contract_validation: ContractValidationResult
     activity: Mapping[str, Any] | None
     validation: ActivityValidationResult | None
+    revision_contract: RevisionContract | None = None
 
     @property
     def accepted(self) -> bool:
@@ -102,7 +114,7 @@ class ActivityContractFactory:
 
 
 class ActivityPipeline:
-    """Run contract validation, generation, and observable activity validation."""
+    """Run contract validation, generation, validation, and revision handoff."""
 
     def __init__(
         self,
@@ -123,4 +135,32 @@ class ActivityPipeline:
 
         activity = generator(contract)
         validation = self.activity_validator.validate(dict(activity), contract)
-        return ActivityPipelineResult(contract, contract_result, activity, validation)
+
+        revision_contract = None
+        if validation.status == "REJECT":
+            revision_contract = RevisionContract(
+                activity_id=contract.activity_id,
+                source_contract=contract,
+                failures=validation.failures,
+                preserve=(
+                    "level",
+                    "objective_ids",
+                    "skill",
+                    "language_target",
+                    "interaction",
+                    "cognitive_demand",
+                    "duration_minutes",
+                    "scaffolding",
+                    "must_include",
+                    "must_not_include",
+                    "evidence_expected",
+                ),
+            )
+
+        return ActivityPipelineResult(
+            contract,
+            contract_result,
+            activity,
+            validation,
+            revision_contract,
+        )
