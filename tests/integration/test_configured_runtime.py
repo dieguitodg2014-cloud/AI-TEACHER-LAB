@@ -124,3 +124,67 @@ def test_provider_cannot_redefine_approved_pedagogical_objective(tmp_path, monke
     assert result.status != "READY"
     assert result.generation["tool_id"] == "test-generator"
     assert result.generation["result"]["qc"] is not None
+
+
+def test_configured_notebooklm_uses_specialized_resource_provider_path(tmp_path, monkeypatch):
+    config_path = tmp_path / "tools.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "tools": [
+                    {
+                        "tool_id": "notebooklm",
+                        "connector": "notebooklm",
+                        "capabilities": ["resource_generation", "audio_generation"],
+                        "quality": 1.0,
+                        "reliability": 1.0,
+                        "accessibility": 0.8,
+                        "speed": 0.7,
+                        "cost": 0.0,
+                    }
+                ],
+                "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["notebooklm"]}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls = []
+
+    def notebooklm_executor(payload):
+        calls.append(payload)
+        task = payload["task"]
+        return {
+            "resource_type": "audio",
+            "level": task["level"],
+            "objective": task["objective"],
+            "content": "A short A2 listening conversation produced by the configured NotebookLM boundary.",
+            "quality_criteria_addressed": task["quality_criteria"],
+        }
+
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "notebooklm", lambda: notebooklm_executor)
+
+    result = run_configured_lesson_planning(
+        {
+            "level": "A2",
+            "audience": "adult ESL learners",
+            "duration_minutes": 90,
+            "objective": "Practice listening to short conversations.",
+            "topic": "Everyday conversations",
+            "constraints": [],
+        },
+        tool_config_path=config_path,
+    )
+
+    assert result.status == "READY"
+    assert result.resource_tool.tool_id == "notebooklm"
+    assert result.resource_validation.status == "READY"
+    assert len(calls) == 1
+    assert calls[0]["provider"] == "notebooklm"
+    assert calls[0]["task"]["task_type"] == "RESOURCE_PRODUCTION"
+    assert calls[0]["task"]["resource_type"] == "audio"
+
+    # The connector sees an execution envelope; it never receives authority to
+    # redefine the pedagogical task.
+    assert calls[0]["task"]["objective"] == result.resource_task.objective
+    assert calls[0]["task"]["level"] == result.resource_task.level
