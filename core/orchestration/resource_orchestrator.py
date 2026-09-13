@@ -103,6 +103,38 @@ def validate_and_accept_resource(
     }
 
 
+def process_produced_resource(
+    task: TaskPacket,
+    produced_resource: dict[str, Any],
+    *,
+    reviser: Callable[[TaskPacket, dict[str, Any], ResourceValidationResult], dict[str, Any]] | None = None,
+    max_revisions: int = 1,
+    acceptance_gate: ResourceAcceptanceGate | None = None,
+) -> dict[str, Any]:
+    """Run one already-produced resource through QC, bounded revision, and acceptance."""
+    revision_engine = ResourceRevisionEngine(acceptance_gate=acceptance_gate)
+    revision_result: ResourceRevisionResult = revision_engine.run(
+        task,
+        produced_resource,
+        reviser=reviser,
+        max_revisions=max_revisions,
+    )
+
+    errors = []
+    if revision_result.acceptance is not None and not revision_result.accepted:
+        errors = list(revision_result.acceptance.reasons)
+
+    return {
+        "status": revision_result.status,
+        "result": revision_result.resource if revision_result.accepted else None,
+        "validation": revision_result.validation,
+        "acceptance": revision_result.acceptance,
+        "attempts": revision_result.attempts,
+        "revision_feedback": revision_result.revision_feedback,
+        "errors": errors,
+    }
+
+
 def execute_resource_production_pipeline(
     task: TaskPacket,
     tool: ToolCandidate,
@@ -117,28 +149,14 @@ def execute_resource_production_pipeline(
     if production["status"] != "PRODUCED":
         return production
 
-    revision_engine = ResourceRevisionEngine(acceptance_gate=acceptance_gate)
-    revision_result: ResourceRevisionResult = revision_engine.run(
+    processed = process_produced_resource(
         task,
         production["result"],
         reviser=reviser,
         max_revisions=max_revisions,
+        acceptance_gate=acceptance_gate,
     )
-
-    errors = []
-    if revision_result.acceptance is not None and not revision_result.accepted:
-        errors = list(revision_result.acceptance.reasons)
-
-    return {
-        **production,
-        "status": revision_result.status,
-        "result": revision_result.resource if revision_result.accepted else None,
-        "validation": revision_result.validation,
-        "acceptance": revision_result.acceptance,
-        "attempts": revision_result.attempts,
-        "revision_feedback": revision_result.revision_feedback,
-        "errors": errors,
-    }
+    return {**production, **processed}
 
 
 def execute_resource_production_with_fallback(
@@ -151,12 +169,7 @@ def execute_resource_production_with_fallback(
     acceptance_gate: ResourceAcceptanceGate | None = None,
     free_first: bool = True,
 ) -> dict[str, Any]:
-    """Run provider fallback first, then send only successful output to QC/revision.
-
-    Provider fallback is a technical execution concern. QC, revision, and
-    acceptance run exactly once on the successful provider output and the same
-    authoritative TaskPacket.
-    """
+    """Fallback between providers, then QC the first successful output exactly once."""
     policy = ProviderExecutionPolicy(free_first=free_first)
     execution = policy.execute(
         task,
@@ -174,20 +187,24 @@ def execute_resource_production_with_fallback(
             "errors": execution.errors,
         }
 
-    production_pipeline = execute_resource_production_pipeline(
+    processed = process_produced_resource(
         task,
-        ToolCandidate(
-            tool_id=execution.tool_id or "",
-            capabilities=frozenset({RESOURCE_CAPABILITY}),
-        ),
-        providers[execution.tool_id or ""],
+        execution.result or {},
         reviser=reviser,
         max_revisions=max_revisions,
         acceptance_gate=acceptance_gate,
     )
     return {
-        **production_pipeline,
+        "status": processed["status"],
+        "task_id": task.task_id,
+        "tool_id": execution.tool_id,
+        "result": processed["result"],
+        "validation": processed["validation"],
+        "acceptance": processed["acceptance"],
+        "attempts": processed["attempts"],
+        "revision_feedback": processed["revision_feedback"],
         "provider_attempts": execution.attempts,
+        "errors": processed["errors"],
     }
 
 
