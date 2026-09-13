@@ -7,9 +7,10 @@ rejects revisions that introduce new validation failures.
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
+from .activity_acceptance import AcceptanceResult, ActivityAcceptanceGate
 from .activity_pipeline import ActivityPipeline, RevisionContract
 from .activity_contract import ActivityGenerationContract
-from .regression_guard import ActivityRegressionGuard
+from .regression_guard import ActivityRegressionGuard, RegressionResult
 
 
 @dataclass(frozen=True)
@@ -25,13 +26,14 @@ class RevisionAttempt:
 
 @dataclass(frozen=True)
 class ActivityRevisionResult:
-    """Bounded revision outcome."""
+    """Bounded revision outcome, including the final acceptance decision."""
 
     accepted: bool
     activity: Mapping[str, Any] | None
     attempts: tuple[RevisionAttempt, ...]
     revision_contract: RevisionContract | None
     stop_reason: str
+    acceptance: AcceptanceResult | None = None
 
 
 class ActivityRevisionEngine:
@@ -41,13 +43,32 @@ class ActivityRevisionEngine:
         self,
         pipeline: ActivityPipeline | None = None,
         regression_guard: ActivityRegressionGuard | None = None,
+        acceptance_gate: ActivityAcceptanceGate | None = None,
         max_attempts: int = 3,
     ):
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
         self.pipeline = pipeline or ActivityPipeline()
         self.regression_guard = regression_guard or ActivityRegressionGuard()
+        self.acceptance_gate = acceptance_gate or ActivityAcceptanceGate()
         self.max_attempts = max_attempts
+
+    def _acceptance(
+        self,
+        contract: ActivityGenerationContract,
+        activity: Mapping[str, Any] | None,
+        *,
+        attempts: int,
+        regression: RegressionResult | None = None,
+    ) -> AcceptanceResult:
+        """Evaluate the final state through the single acceptance authority."""
+        return self.acceptance_gate.evaluate(
+            contract,
+            activity,
+            regression=regression,
+            attempts=attempts,
+            max_attempts=self.max_attempts,
+        )
 
     def run(
         self,
@@ -64,9 +85,13 @@ class ActivityRevisionEngine:
                 result = self.pipeline.run(contract, generator)
             else:
                 if reviser is None or revision_contract is None:
+                    acceptance = AcceptanceResult(
+                        "HUMAN_HANDOFF",
+                        ("Revision provider is required.",),
+                    )
                     return ActivityRevisionResult(
                         False, current_activity, tuple(attempts), revision_contract,
-                        "REVISION_PROVIDER_REQUIRED",
+                        "REVISION_PROVIDER_REQUIRED", acceptance,
                     )
                 revised_activity = reviser(revision_contract)
                 if current_activity is not None:
@@ -84,12 +109,19 @@ class ActivityRevisionEngine:
                                 failures,
                             )
                         )
+                        acceptance = self._acceptance(
+                            contract,
+                            revised_activity,
+                            attempts=attempt_number,
+                            regression=regression,
+                        )
                         return ActivityRevisionResult(
                             False,
                             revised_activity,
                             tuple(attempts),
                             revision_contract,
                             "REGRESSION_DETECTED",
+                            acceptance,
                         )
                 result = self.pipeline.run(contract, lambda _: revised_activity)
 
@@ -97,8 +129,16 @@ class ActivityRevisionEngine:
                 attempts.append(
                     RevisionAttempt(attempt_number, result.validation.status)
                 )
+                acceptance = self._acceptance(
+                    contract,
+                    result.activity,
+                    attempts=attempt_number,
+                )
+                accepted = acceptance.decision == "ACCEPT"
                 return ActivityRevisionResult(
-                    True, result.activity, tuple(attempts), None, "ACCEPTED"
+                    accepted, result.activity, tuple(attempts), None,
+                    "ACCEPTED" if accepted else acceptance.decision,
+                    acceptance,
                 )
 
             failures = (
@@ -111,18 +151,33 @@ class ActivityRevisionEngine:
             revision_contract = result.revision_contract
 
             if revision_contract is None:
+                acceptance = self._acceptance(
+                    contract,
+                    current_activity,
+                    attempts=attempt_number,
+                )
                 return ActivityRevisionResult(
                     False, current_activity, tuple(attempts), None,
-                    "CONTRACT_INVALID",
+                    "CONTRACT_INVALID", acceptance,
                 )
 
             if attempt_number == self.max_attempts:
+                acceptance = self._acceptance(
+                    contract,
+                    current_activity,
+                    attempts=attempt_number,
+                )
                 return ActivityRevisionResult(
                     False, current_activity, tuple(attempts), revision_contract,
-                    "MAX_ATTEMPTS_REACHED",
+                    "MAX_ATTEMPTS_REACHED", acceptance,
                 )
 
+        acceptance = self._acceptance(
+            contract,
+            current_activity,
+            attempts=len(attempts),
+        )
         return ActivityRevisionResult(
             False, current_activity, tuple(attempts), revision_contract,
-            "REVISION_STOPPED",
+            "REVISION_STOPPED", acceptance,
         )
