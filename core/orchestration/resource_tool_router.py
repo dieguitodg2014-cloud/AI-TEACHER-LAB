@@ -13,14 +13,13 @@ def select_resource_provider(
     *,
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
+    provider_priority: list[str] | tuple[str, ...] = (),
 ) -> ToolCandidate | None:
-    """Select an eligible provider while treating tool hints as preferences.
+    """Select an eligible provider using hints, policy priority, then scoring.
 
-    ``preferred_tool`` and ``fallback_tool`` never override capability
-    requirements. A preferred provider is selected when eligible; after it is
-    blocked or unavailable, the fallback hint gets the next opportunity. If
-    neither hint is usable, normal capability-based scoring selects the best
-    remaining provider.
+    Provider priority is an execution policy only. It cannot override the
+    capabilities required by the authoritative TaskPacket and never changes
+    the pedagogical decision.
     """
     if task is None:
         return None
@@ -45,6 +44,10 @@ def select_resource_provider(
     for hint in (task.preferred_tool, task.fallback_tool):
         if hint and hint in by_id:
             return by_id[hint]
+
+    for tool_id in provider_priority:
+        if tool_id in by_id:
+            return by_id[tool_id]
 
     return select_tool(
         eligible,
