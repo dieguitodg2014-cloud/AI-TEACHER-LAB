@@ -54,6 +54,87 @@ def test_configured_notebooklm_uses_specialized_resource_provider_path(tmp_path,
     assert calls[0]["task"]["level"] == result.resource_task.level
 
 
+def test_capability_filter_skips_incompatible_canva_for_audio(tmp_path, monkeypatch):
+    config_path = tmp_path / "tools.json"
+    config_path.write_text(json.dumps({"tools": [
+        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation", "visual_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
+        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "audio_generation"], "quality": 0.9, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
+    ], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["canva", "notebooklm"]}}}), encoding="utf-8")
+    calls = []
+
+    def canva_executor(payload):
+        calls.append("canva")
+        raise AssertionError("incompatible Canva provider must be skipped before execution")
+
+    def notebooklm_executor(payload):
+        calls.append("notebooklm")
+        task = payload["task"]
+        return {"resource_type": "audio", "level": task["level"], "objective": task["objective"], "content": "Audio resource.", "quality_criteria_addressed": task["quality_criteria"]}
+
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "canva", lambda: canva_executor)
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "notebooklm", lambda: notebooklm_executor)
+    result = run_configured_lesson_planning({"level": "A2", "audience": "adult ESL learners", "duration_minutes": 60, "objective": "Practice listening.", "topic": "Daily routines", "constraints": ["RESOURCE_REQUIRED:audio", "PREFERRED_RESOURCE_TOOL:canva", "FALLBACK_RESOURCE_TOOL:notebooklm"]}, tool_config_path=config_path)
+    assert result.status == "READY"
+    assert result.resource_tool.tool_id == "notebooklm"
+    assert calls == ["notebooklm"]
+    excluded = result.generation["provider_execution_trace"]["excluded_tools"]
+    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in excluded
+
+
+def test_capability_filter_skips_notebooklm_for_visual_presentation(tmp_path, monkeypatch):
+    config_path = tmp_path / "tools.json"
+    config_path.write_text(json.dumps({"tools": [
+        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "presentation_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
+        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation", "visual_resource_generation"], "quality": 0.9, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
+    ], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["notebooklm", "canva"]}}}), encoding="utf-8")
+    calls = []
+
+    def notebooklm_executor(payload):
+        calls.append("notebooklm")
+        raise AssertionError("NotebookLM must be skipped when visual presentation capability is required")
+
+    def canva_executor(payload):
+        calls.append("canva")
+        task = payload["task"]
+        return {"resource_type": "presentation", "level": task["level"], "objective": task["objective"], "content": "Visual presentation.", "quality_criteria_addressed": task["quality_criteria"]}
+
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "notebooklm", lambda: notebooklm_executor)
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "canva", lambda: canva_executor)
+    result = run_configured_lesson_planning({"level": "A1", "audience": "children", "duration_minutes": 60, "objective": "Practice greetings with visual prompts.", "topic": "Greetings", "constraints": ["RESOURCE_REQUIRED:presentation", "PREFERRED_RESOURCE_TOOL:notebooklm", "FALLBACK_RESOURCE_TOOL:canva"]}, tool_config_path=config_path)
+    assert result.status == "READY"
+    assert result.resource_tool.tool_id == "canva"
+    assert calls == ["canva"]
+    excluded = result.generation["provider_execution_trace"]["excluded_tools"]
+    assert ("notebooklm", "MISSING_REQUIRED_CAPABILITIES:visual_resource_generation,resource_generation") in excluded
+
+
+def test_capability_filter_skips_canva_for_source_based_resource(tmp_path, monkeypatch):
+    config_path = tmp_path / "tools.json"
+    config_path.write_text(json.dumps({"tools": [
+        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "visual_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
+        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "source_based_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
+    ], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["canva", "notebooklm"]}}}), encoding="utf-8")
+    calls = []
+
+    def canva_executor(payload):
+        calls.append("canva")
+        raise AssertionError("Canva must be skipped for source-based resources")
+
+    def notebooklm_executor(payload):
+        calls.append("notebooklm")
+        task = payload["task"]
+        return {"resource_type": "worksheet", "level": task["level"], "objective": task["objective"], "content": "Source-based worksheet.", "quality_criteria_addressed": task["quality_criteria"]}
+
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "canva", lambda: canva_executor)
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "notebooklm", lambda: notebooklm_executor)
+    result = run_configured_lesson_planning({"level": "B1", "audience": "adult ESL learners", "duration_minutes": 60, "objective": "Use information from provided sources.", "topic": "Travel", "constraints": ["RESOURCE_REQUIRED:worksheet", "RESOURCE_SOURCE_BASED:true", "PREFERRED_RESOURCE_TOOL:canva", "FALLBACK_RESOURCE_TOOL:notebooklm"]}, tool_config_path=config_path)
+    assert result.status == "READY"
+    assert result.resource_tool.tool_id == "notebooklm"
+    assert calls == ["notebooklm"]
+    excluded = result.generation["provider_execution_trace"]["excluded_tools"]
+    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:source_based_resource_generation,resource_generation") in excluded
+
+
 def test_configured_canva_uses_specialized_resource_provider_path(tmp_path, monkeypatch):
     config_path = tmp_path / "tools.json"
     config_path.write_text(json.dumps({"tools": [{"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation", "visual_resource_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0}], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["canva"]}}}), encoding="utf-8")
