@@ -98,4 +98,5 @@ def test_b1_interview_is_rejected_when_generator_becomes_one_sided():
 
     assert not result.accepted
     assert result.validation.status == "REJECT"
-    assert any("two learners" in failure for failure in result.validation.failures)
+    assert result.revision_contract is not None
+    assert any("two learners" in failure for failure in result.revision_contract.failures)
