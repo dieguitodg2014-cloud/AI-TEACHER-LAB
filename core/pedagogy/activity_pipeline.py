@@ -5,7 +5,7 @@ content generation. A generator can produce content, but acceptance remains the
 responsibility of ActivityValidator.
 """
 from dataclasses import dataclass
-from typing import Callable, Mapping, Any
+from typing import Any, Callable, Mapping
 
 from .activity_contract import (
     ActivityContractValidator,
@@ -76,6 +76,12 @@ class ActivityContractFactory:
                 f"{pattern.timing_min}-{pattern.timing_max}"
             )
 
+        interaction = planned.interaction or pattern.interaction[0].value
+        if not pattern.supports_interaction(interaction):
+            raise ValueError(
+                f"Pattern {planned.pattern_id} does not support interaction {interaction}"
+            )
+
         return ActivityGenerationContract(
             activity_id=activity_id,
             pattern_id=planned.pattern_id,
@@ -84,7 +90,7 @@ class ActivityContractFactory:
             skill=skill.upper(),
             language_target=language_target,
             vocabulary=vocabulary,
-            interaction=pattern.interaction[0].value,
+            interaction=interaction,
             cognitive_demand=pattern.cognitive_demand[0].value,
             scaffolding=scaffolding,
             duration_minutes=planned.timing_minutes,
