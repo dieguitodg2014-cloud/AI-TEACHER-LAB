@@ -38,15 +38,16 @@ class ProviderExecutionResult:
 
 
 class ProviderExecutionPolicy:
-    """Execute providers with technical fallback while preserving the TaskPacket.
+    """Execute providers with technical fallback while preserving the TaskPacket."""
 
-    The policy only decides which eligible provider gets an execution attempt.
-    It never changes pedagogical requirements. The executor may be injected by
-    the caller; the default is resolved lazily to avoid a module import cycle.
-    """
-
-    def __init__(self, *, free_first: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        free_first: bool = True,
+        provider_priority: list[str] | tuple[str, ...] = (),
+    ) -> None:
         self.free_first = free_first
+        self.provider_priority = tuple(provider_priority)
 
     def execute(
         self,
@@ -70,6 +71,7 @@ class ProviderExecutionPolicy:
                 tools,
                 free_first=self.free_first,
                 blocked_tools=blocked,
+                provider_priority=self.provider_priority,
             )
             if tool is None:
                 return ProviderExecutionResult(
