@@ -52,3 +52,20 @@ def test_create_resource_decision_creates_production_task_packet():
     assert packet.level == "A2"
     assert packet.required_output == "audio"
     assert packet.status == "PENDING"
+
+
+def test_resource_decision_hints_are_copied_to_task_packet():
+    decision = ResourceDecision(
+        decision_id="resource-3",
+        action="CREATE",
+        purpose="Provide listening input.",
+        resource_type="audio",
+        preferred_tool="notebooklm",
+        fallback_tool="audio-provider",
+    )
+
+    packet = build_resource_task_packet(_context(), _plan(), decision)
+
+    assert packet is not None
+    assert packet.preferred_tool == "notebooklm"
+    assert packet.fallback_tool == "audio-provider"
