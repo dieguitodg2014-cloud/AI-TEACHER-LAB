@@ -12,6 +12,7 @@ from core.context.request_interpreter import interpret_request
 from core.foundation.models import AssessmentDecision, Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
+from core.orchestration.notebooklm_provider import NotebookLMResourceProvider
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
 from core.orchestration.resource_orchestrator import execute_resource_production_with_fallback, select_resource_tool
 from core.orchestration.resource_provider import FunctionResourceProvider
@@ -49,6 +50,7 @@ def run_lesson_planning(
     *,
     tools: list[ToolCandidate] | None = None,
     generators: dict[str, Callable] | None = None,
+    notebooklm_executor: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
@@ -56,11 +58,11 @@ def run_lesson_planning(
     """Run context, pedagogy, assessment, resources, validation and generation.
 
     ``produced_resource`` is optional so an external provider can return a
-    resource into the existing validation boundary. When ``generators`` are
-    supplied, resource-generation providers execute through the same fallback,
-    QC, revision, and acceptance path used by the resource orchestration layer.
-    ``revision_count`` records revisions already attempted and enforces the
-    resource revision policy.
+    resource into the existing validation boundary. ``generators`` and the
+    optional ``notebooklm_executor`` provide executable resource providers;
+    both use the same fallback, QC, revision, and acceptance path. The
+    NotebookLM adapter receives only an approved TaskPacket and contains no
+    pedagogical decision logic.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -125,7 +127,7 @@ def run_lesson_planning(
                 list(resource_validation.blocking_errors) + list(resource_validation.feedback),
             )
 
-    if tools is None and generators is None:
+    if tools is None and generators is None and notebooklm_executor is None:
         resource_handoff = (
             build_resource_handoff(context_result.context, resource_task)
             if resource_task is not None and produced_resource is None
@@ -152,7 +154,7 @@ def run_lesson_planning(
         else None
     )
 
-    if resource_task is not None and generators is not None:
+    if resource_task is not None and (generators is not None or notebooklm_executor is not None):
         if resource_tool is None:
             return VerticalSliceResult(
                 "HUMAN_HANDOFF",
@@ -172,9 +174,12 @@ def run_lesson_planning(
 
         providers = {
             tool_id: FunctionResourceProvider(generator)
-            for tool_id, generator in generators.items()
+            for tool_id, generator in (generators or {}).items()
             if callable(generator)
         }
+        if notebooklm_executor is not None:
+            providers["notebooklm"] = NotebookLMResourceProvider(notebooklm_executor)
+
         resource_execution = execute_resource_production_with_fallback(
             resource_task,
             selected_tools,
