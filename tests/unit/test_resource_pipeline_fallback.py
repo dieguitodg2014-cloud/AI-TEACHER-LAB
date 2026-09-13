@@ -73,6 +73,7 @@ def test_fallback_pipeline_qcs_successful_provider_only_once():
     assert result["tool_id"] == "provider-b"
     assert result["result"]["resource_type"] == "audio"
     assert [a.tool_id for a in result["provider_attempts"]] == ["provider-a", "provider-b"]
+    assert ("provider-a", "BLOCKED_AFTER_EXECUTION_FAILURE") in result["provider_execution_trace"]["excluded_tools"]
     assert failing.calls == 1
     assert working.calls == 2
     assert task == before
@@ -93,6 +94,7 @@ def test_fallback_pipeline_does_not_change_pedagogical_requirements():
     assert result["status"] == "ACCEPTED"
     assert result["validation"].checks["level_alignment"] is True
     assert result["validation"].checks["objective_alignment"] is True
+    assert result["provider_execution_trace"]["attempts"] == result["provider_attempts"]
     assert task == before
 
 
@@ -111,5 +113,6 @@ def test_all_provider_failures_handoff_without_qc_or_revision():
     assert result["result"] is None
     assert "validation" not in result
     assert len(result["provider_attempts"]) == 2
+    assert len(result["provider_execution_trace"]["attempts"]) == 2
     assert first.calls == 1
     assert second.calls == 1
