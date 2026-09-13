@@ -3,7 +3,6 @@ from copy import deepcopy
 from core.foundation.models import TaskPacket
 from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
 from core.orchestration.resource_orchestrator import execute_resource_provider
-from core.orchestration.resource_provider import ResourceProvider
 from core.orchestration.tool_selector import ToolCandidate
 
 
@@ -84,6 +83,7 @@ def test_failed_provider_falls_back_to_next_eligible_provider():
     assert result.tool_id == "provider-b"
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
     assert result.attempts[0].errors == ("RESOURCE_PROVIDER_ERROR:temporary failure",)
+    assert ("provider-a", "BLOCKED_AFTER_EXECUTION_FAILURE") in result.excluded_tools
 
 
 def test_failed_provider_is_not_retried():
@@ -99,6 +99,8 @@ def test_failed_provider_is_not_retried():
     assert result.status == "HUMAN_HANDOFF"
     assert len(result.attempts) == 2
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
+    assert ("provider-a", "BLOCKED_AFTER_EXECUTION_FAILURE") in result.excluded_tools
+    assert ("provider-b", "BLOCKED_AFTER_EXECUTION_FAILURE") in result.excluded_tools
 
 
 def test_fallback_preserves_authoritative_task_packet():
@@ -152,6 +154,7 @@ def test_provider_without_required_capability_is_skipped():
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-b"
     assert ineligible.calls == 0
+    assert ("provider-a", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in result.excluded_tools
 
 
 def test_preferred_tool_is_selected_when_capable():
@@ -187,6 +190,7 @@ def test_unusable_preferred_tool_does_not_override_capabilities():
 
     assert result.tool_id == "provider-b"
     assert working.calls == 2
+    assert ("provider-a", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in result.excluded_tools
 
 
 def test_fallback_hint_is_used_after_preferred_provider_fails():
