@@ -91,8 +91,8 @@ def test_fallback_pipeline_does_not_change_pedagogical_requirements():
     )
 
     assert result["status"] == "ACCEPTED"
-    assert result["validation"].level_alignment is True
-    assert result["validation"].objective_alignment is True
+    assert result["validation"].checks["level_alignment"] is True
+    assert result["validation"].checks["objective_alignment"] is True
     assert task == before
 
 
