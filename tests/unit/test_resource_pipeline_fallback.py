@@ -2,7 +2,6 @@ from copy import deepcopy
 
 from core.foundation.models import TaskPacket
 from core.orchestration.resource_orchestrator import execute_resource_production_with_fallback
-from core.orchestration.resource_provider import ResourceProvider
 from core.orchestration.tool_selector import ToolCandidate
 
 
@@ -110,7 +109,7 @@ def test_all_provider_failures_handoff_without_qc_or_revision():
 
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["result"] is None
-    assert result["validation"] if "validation" in result else True
+    assert "validation" not in result
     assert len(result["provider_attempts"]) == 2
     assert first.calls == 1
     assert second.calls == 1
