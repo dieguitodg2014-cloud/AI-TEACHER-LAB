@@ -19,7 +19,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="resource-tool",
-                capabilities=frozenset({"lesson_generation", "resource_generation"}),
+                capabilities=frozenset({"lesson_generation", "resource_generation", "audio_generation"}),
                 quality=0.8,
                 reliability=0.9,
                 accessibility=1.0,
@@ -75,7 +75,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="mock-resource-provider",
-                capabilities=frozenset({"resource_generation"}),
+                capabilities=frozenset({"resource_generation", "audio_generation"}),
                 quality=1.0,
                 reliability=1.0,
                 accessibility=1.0,
@@ -101,7 +101,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
             generators={"mock-resource-provider": mock_resource_provider},
         )
 
-        self.assertEqual(result.status, "PLANNED")
+        self.assertEqual(result.status, "READY")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["task_type"], "RESOURCE_PRODUCTION")
         self.assertIsNotNone(result.resource_tool)
@@ -138,7 +138,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="mock-resource-provider",
-                capabilities=frozenset({"resource_generation"}),
+                capabilities=frozenset({"resource_generation", "audio_generation"}),
             )
         ]
 
@@ -204,6 +204,50 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(result.generation)
         self.assertEqual(result.generation["status"], "PRODUCED")
         self.assertEqual(result.resource_tool.tool_id, "notebooklm")
+
+    def test_canva_executor_runs_through_same_resource_qc_boundary(self):
+        tools = [
+            ToolCandidate(
+                tool_id="canva",
+                capabilities=frozenset({"resource_generation", "presentation_generation", "visual_resource_generation"}),
+                quality=1.0,
+                reliability=1.0,
+                accessibility=0.85,
+                speed=0.8,
+                cost=0.0,
+            )
+        ]
+        calls = []
+
+        def canva_executor(payload):
+            calls.append(payload)
+            task = payload["task"]
+            return {
+                "resource_type": "presentation",
+                "level": task["level"],
+                "objective": task["objective"],
+                "content": "A short visual presentation for classroom greetings.",
+                "quality_criteria_addressed": task["quality_criteria"],
+            }
+
+        result = run_lesson_planning(
+            {
+                **REQUEST,
+                "objective": "Practice greetings with visual prompts.",
+            },
+            tools=tools,
+            canva_executor=canva_executor,
+        )
+
+        self.assertEqual(result.status, "READY")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["provider"], "canva")
+        self.assertEqual(calls[0]["task"]["task_type"], "RESOURCE_PRODUCTION")
+        self.assertEqual(calls[0]["task"]["resource_type"], "presentation")
+        self.assertIsNotNone(result.resource_validation)
+        self.assertEqual(result.resource_validation.status, "READY")
+        self.assertEqual(result.resource_validation.score, 100.0)
+        self.assertEqual(result.resource_tool.tool_id, "canva")
 
 
 if __name__ == "__main__":
