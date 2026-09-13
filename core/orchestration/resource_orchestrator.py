@@ -1,22 +1,26 @@
-"""Orchestration boundary for resource production, QC, revision, and acceptance."""
+"""Capability-based orchestration for optional instructional resources."""
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from copy import deepcopy
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
-from core.orchestration.provider_capability_contract import provider_supports_capabilities
+from core.orchestration.capability_matrix import capabilities_for_resource
+from core.orchestration.provider_capability_contract import (
+    provider_supports_capabilities,
+    validate_provider_capabilities,
+)
 from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
 from core.orchestration.resource_provider import FunctionResourceProvider, ResourceProvider
 from core.orchestration.resource_tool_router import select_resource_provider
-from core.orchestration.task_packets import build_resource_task_packet
-from core.orchestration.tool_selector import ToolCandidate, select_tool
-from core.orchestration.capability_matrix import capabilities_for_resource
-from core.resources.acceptance_gate import ResourceAcceptanceGate, ResourceAcceptanceResult
+from core.orchestration.tool_selector import ToolCandidate
+from core.resources.acceptance_gate import ResourceAcceptanceResult, ResourceAcceptanceGate
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
 from core.resources.revision_engine import ResourceRevisionEngine, ResourceRevisionResult
+
+RESOURCE_CAPABILITY = "resource_generation"
 
 
 def select_resource_tool(
@@ -24,19 +28,42 @@ def select_resource_tool(
     tools: list[ToolCandidate],
     *,
     free_first: bool = True,
+    blocked_tools: set[str] | None = None,
 ) -> ToolCandidate | None:
-    """Select an eligible resource tool without overriding capability requirements."""
+    """Select a resource tool from the capabilities frozen in the TaskPacket."""
     if task is None:
         return None
-    return select_resource_provider(task, tools, free_first=free_first)
+    eligible = [tool for tool in tools if blocked_tools is None or tool.tool_id not in blocked_tools]
+    return select_resource_provider(task, eligible, free_first=free_first)
 
 
-def execute_resource_provider(
-    task: TaskPacket,
-    tool: ToolCandidate,
-    provider: ResourceProvider,
+def resource_tool_plan(
+    task: TaskPacket | None,
+    tools: list[ToolCandidate],
+    *,
+    free_first: bool = True,
+    blocked_tools: set[str] | None = None,
 ) -> dict[str, Any]:
-    """Execute one provider against a defensive TaskPacket copy."""
+    """Return an execution plan without executing the provider."""
+    tool = select_resource_tool(task, tools, free_first=free_first, blocked_tools=blocked_tools)
+    if task is None:
+        return {"status": "NOT_REQUIRED", "tool_id": None, "task_id": None}
+    if tool is None:
+        return {"status": "HUMAN_HANDOFF", "tool_id": None, "task_id": task.task_id, "reason": "NO_ELIGIBLE_RESOURCE_TOOL"}
+    return {"status": "READY", "tool_id": tool.tool_id, "task_id": task.task_id, "capability": RESOURCE_CAPABILITY}
+
+
+def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: ResourceProvider) -> dict[str, Any]:
+    """Execute an already-selected ResourceProvider against an approved task.
+
+    Providers receive defensive copies because TaskPacket contains mutable lists
+    even though the dataclass itself is frozen. The authoritative task remains
+    untouched and is the only task used by downstream QC and acceptance.
+    """
+    capability_errors = validate_provider_capabilities(tool.capabilities)
+    if capability_errors:
+        return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": capability_errors}
+
     required_capabilities = set(
         capabilities_for_resource(
             task.required_output,
@@ -49,44 +76,19 @@ def execute_resource_provider(
             "status": "HUMAN_HANDOFF",
             "tool_id": tool.tool_id,
             "result": None,
-            "errors": [f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:{task.task_type}"],
+            "errors": [f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"],
         }
-
     if not isinstance(provider, ResourceProvider):
-        return {
-            "status": "HUMAN_HANDOFF",
-            "tool_id": tool.tool_id,
-            "result": None,
-            "errors": [f"RESOURCE_PROVIDER_INVALID:{tool.tool_id}"],
-        }
-
-    provider_task = asdict(task)
+        return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CONTRACT_INVALID"]}
+    provider_task = deepcopy(task)
+    if not provider.can_produce(provider_task):
+        return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"]}
     try:
-        provider_task_packet = TaskPacket(**provider_task)
-        if not provider.can_produce(provider_task_packet):
-            return {
-                "status": "HUMAN_HANDOFF",
-                "tool_id": tool.tool_id,
-                "result": None,
-                "errors": [f"PROVIDER_CANNOT_PRODUCE:{tool.tool_id}:{task.task_type}"],
-            }
-        result = provider.produce(TaskPacket(**provider_task))
-    except Exception as exc:
-        return {
-            "status": "HUMAN_HANDOFF",
-            "tool_id": tool.tool_id,
-            "result": None,
-            "errors": [f"RESOURCE_PROVIDER_ERROR:{exc}"],
-        }
-
-    if not isinstance(result, dict):
-        return {
-            "status": "HUMAN_HANDOFF",
-            "tool_id": tool.tool_id,
-            "result": None,
-            "errors": ["RESOURCE_OUTPUT_NOT_OBJECT"],
-        }
-    return {"status": "PRODUCED", "tool_id": tool.tool_id, "result": result, "errors": []}
+        produced_resource = provider.produce(deepcopy(provider_task))
+    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+        error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_PROVIDER_ERROR:{exc}"
+        return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": [error_code]}
+    return {"status": "PRODUCED", "tool_id": tool.tool_id, "result": produced_resource, "errors": []}
 
 
 def validate_and_accept_resource(
@@ -183,16 +185,8 @@ def execute_resource_production_with_fallback(
 ) -> dict[str, Any]:
     """Fallback between providers, then QC the first successful output exactly once."""
     policy = ProviderExecutionPolicy(free_first=free_first)
-    execution = policy.execute(
-        task,
-        tools,
-        providers,
-        executor=execute_resource_provider,
-    )
-    execution_trace = {
-        "attempts": execution.attempts,
-        "excluded_tools": execution.excluded_tools,
-    }
+    execution = policy.execute(task, tools, providers, executor=execute_resource_provider)
+    execution_trace = {"attempts": execution.attempts, "excluded_tools": execution.excluded_tools}
     if execution.status != "PRODUCED":
         return {
             "status": execution.status,
