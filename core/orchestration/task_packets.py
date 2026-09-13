@@ -33,6 +33,8 @@ def build_resource_task_packet(
         ],
         lesson_id=learning_plan.plan_id,
         audience=context.audience,
+        source_based=resource_decision.source_based,
+        visual=resource_decision.visual,
         status="PENDING",
     )
 
