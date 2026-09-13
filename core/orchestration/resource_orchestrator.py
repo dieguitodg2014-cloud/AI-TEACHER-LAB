@@ -11,8 +11,8 @@ from core.orchestration.provider_capability_contract import (
 )
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
 from core.orchestration.resource_provider import FunctionResourceProvider, ResourceProvider
-from core.orchestration.tool_selector import ToolCandidate, select_tool
-
+from core.orchestration.resource_tool_router import select_resource_provider
+from core.orchestration.tool_selector import ToolCandidate
 
 RESOURCE_CAPABILITY = "resource_generation"
 
@@ -23,15 +23,22 @@ def select_resource_tool(
     *,
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
+    source_based: bool = False,
+    visual: bool = False,
 ) -> ToolCandidate | None:
-    """Select a tool for a resource task without naming a provider."""
+    """Select a resource tool using the capability matrix."""
     if task is None:
         return None
-    return select_tool(
-        tools,
-        {RESOURCE_CAPABILITY},
+    eligible = [
+        tool for tool in tools
+        if blocked_tools is None or tool.tool_id not in blocked_tools
+    ]
+    return select_resource_provider(
+        task,
+        eligible,
+        source_based=source_based,
+        visual=visual,
         free_first=free_first,
-        blocked_tools=blocked_tools,
     )
 
 
@@ -40,13 +47,17 @@ def resource_tool_plan(
     tools: list[ToolCandidate],
     *,
     free_first: bool = True,
+    source_based: bool = False,
+    visual: bool = False,
 ) -> dict[str, Any]:
-    """Return a small execution plan for a resource task.
-
-    This does not execute the provider. If no capable connector exists, the
-    caller can hand the task to a human or external workflow such as NotebookLM.
-    """
-    tool = select_resource_tool(task, tools, free_first=free_first)
+    """Return an execution plan without executing the provider."""
+    tool = select_resource_tool(
+        task,
+        tools,
+        free_first=free_first,
+        source_based=source_based,
+        visual=visual,
+    )
     if task is None:
         return {"status": "NOT_REQUIRED", "tool_id": None, "task_id": None}
     if tool is None:
@@ -54,7 +65,7 @@ def resource_tool_plan(
             "status": "HUMAN_HANDOFF",
             "tool_id": None,
             "task_id": task.task_id,
-            "reason": "NO_RESOURCE_GENERATION_TOOL",
+            "reason": "NO_ELIGIBLE_RESOURCE_TOOL",
         }
     return {
         "status": "READY",
@@ -69,11 +80,7 @@ def execute_resource_provider(
     tool: ToolCandidate,
     provider: ResourceProvider,
 ) -> dict[str, Any]:
-    """Execute an already-selected ResourceProvider against an approved task.
-
-    This is the provider-neutral boundary used by future connectors such as
-    NotebookLM. Provider selection and pedagogical decisions remain outside it.
-    """
+    """Execute an already-selected ResourceProvider against an approved task."""
     capability_errors = validate_provider_capabilities(tool.capabilities)
     if capability_errors:
         return {
@@ -128,12 +135,7 @@ def execute_resource_generation(
     tool: ToolCandidate,
     generators: dict[str, Callable[..., Any]],
 ) -> dict[str, Any]:
-    """Execute an eligible resource provider against the approved TaskPacket.
-
-    The legacy callable map is adapted to the minimal ResourceProvider
-    contract. Provider execution remains downstream of pedagogical decisions;
-    resource quality is validated by the resource QC boundary after execution.
-    """
+    """Execute an eligible resource provider against the approved TaskPacket."""
     generator = generators.get(tool.tool_id)
     eligibility_errors = validate_provider_task_eligibility(
         tool,
