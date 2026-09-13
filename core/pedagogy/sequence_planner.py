@@ -30,11 +30,12 @@ class SequenceRequest:
 
 @dataclass(frozen=True)
 class PlannedPattern:
-    """A selected pattern plus its planned time and sequence role."""
+    """A selected pattern plus its planned time, role, and interaction."""
 
     pattern_id: str
     sequence_role: str
     timing_minutes: int
+    interaction: str = ""
 
 
 @dataclass(frozen=True)
@@ -95,9 +96,6 @@ class SequencePlanner:
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
-        # Do not hard-filter on the primary skill. A speaking lesson can need a
-        # visual-noticing pattern, and a reading lesson can need speaking output.
-        # Skill fit is therefore evaluated when choosing each pattern.
         candidates = self.registry.filter(
             PatternFilter(level=level.value, interaction=interaction.value)
         )
@@ -116,8 +114,6 @@ class SequencePlanner:
         if request.requires_assessment:
             required_roles.append(SequenceRole.ASSESSMENT)
 
-        # Exposure/noticing are strongly preferred when time permits, especially
-        # for lower levels, but they are not allowed to crowd out practice/evidence.
         if request.duration_minutes >= 25:
             required_roles.insert(0, SequenceRole.NOTICING)
 
@@ -134,12 +130,11 @@ class SequencePlanner:
                     pattern_id=pattern.pattern_id,
                     sequence_role=role.value,
                     timing_minutes=self._initial_time(pattern, role),
+                    interaction=interaction.value,
                 )
             )
             selected_ids.add(pattern.pattern_id)
 
-        # Add model support for A0/A1 when it is available and useful, without
-        # forcing an extra activity when the lesson is short.
         if level in (Level.A0, Level.A1) and request.duration_minutes >= 40:
             if "MODEL_AND_REPEAT" in candidate_ids and "MODEL_AND_REPEAT" not in selected_ids:
                 selected.insert(
@@ -148,6 +143,7 @@ class SequencePlanner:
                         pattern_id="MODEL_AND_REPEAT",
                         sequence_role=SequenceRole.EXPOSURE.value,
                         timing_minutes=5,
+                        interaction=interaction.value,
                     ),
                 )
                 selected_ids.add("MODEL_AND_REPEAT")
@@ -185,8 +181,6 @@ class SequencePlanner:
             pattern = self.registry.get(pattern_id)
             if not pattern.supports_level(level.value):
                 continue
-            # Input/noticing may support a different skill while preparing the
-            # primary skill. Later output roles should align directly to it.
             if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING):
                 if primary_skill not in pattern.skills:
                     continue
@@ -225,6 +219,7 @@ class SequencePlanner:
                     pattern_id=item.pattern_id,
                     sequence_role=item.sequence_role,
                     timing_minutes=item.timing_minutes - reduction,
+                    interaction=item.interaction,
                 )
                 total -= reduction
             if total <= duration_minutes:

@@ -9,6 +9,35 @@
       "accessibility": 1.0,
       "speed": 0.7,
       "cost": 0.0
+    },
+    {
+      "tool_id": "notebooklm",
+      "connector": "notebooklm",
+      "capabilities": [
+        "resource_generation",
+        "source_based_resource_generation",
+        "audio_generation",
+        "presentation_generation"
+      ],
+      "quality": 0.95,
+      "reliability": 0.9,
+      "accessibility": 0.8,
+      "speed": 0.7,
+      "cost": 0.0
+    },
+    {
+      "tool_id": "canva",
+      "connector": "canva",
+      "capabilities": [
+        "resource_generation",
+        "visual_resource_generation",
+        "presentation_generation"
+      ],
+      "quality": 0.9,
+      "reliability": 0.9,
+      "accessibility": 0.85,
+      "speed": 0.8,
+      "cost": 0.0
     }
   ],
   "policy": {
@@ -17,7 +46,7 @@
       "pedagogical_authority": "chatgpt",
       "primary_provider": "chatgpt",
       "secondary_provider": "gemini",
-      "specialized_resource_creators": ["notebooklm"],
+      "specialized_resource_creators": ["notebooklm", "canva"],
       "fallback_providers": ["gemma_local"],
       "fallback_rule": "Fallback providers may execute an approved task but may not redefine the pedagogical decision."
     }
