@@ -19,8 +19,11 @@ def run_configured_lesson_planning(
 ) -> VerticalSliceResult:
     """Run the vertical slice using generators resolved from tool configuration.
 
-    ``produced_resource`` optionally carries a resource returned by an external
-    producer so the main workflow can validate it before continuing.
+    Specialized resource connectors are kept on their provider-specific path.
+    In particular, NotebookLM receives the approved TaskPacket through the
+    NotebookLMResourceProvider boundary rather than being treated as a generic
+    lesson generator. Other configured connectors remain available as generic
+    generators for their declared execution paths.
     """
     config_path = tool_config_path or DEFAULT_TOOL_CONFIG
     try:
@@ -42,9 +45,12 @@ def run_configured_lesson_planning(
             errors=[f"RUNTIME_CONNECTOR_ERROR:{exc}"],
         )
 
+    notebooklm_executor = generators.pop("notebooklm", None)
+
     return run_lesson_planning(
         request,
         generators=generators,
+        notebooklm_executor=notebooklm_executor,
         tool_config_path=config_path,
         produced_resource=produced_resource,
     )
