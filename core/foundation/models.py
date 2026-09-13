@@ -77,6 +77,8 @@ class ResourceDecision:
     resource_type: str = ""
     reason: str = ""
     required: bool = False
+    source_based: bool = False
+    visual: bool = False
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,8 @@ class TaskPacket:
     input_materials: list[str] = field(default_factory=list)
     preferred_tool: str = ""
     fallback_tool: str = ""
+    source_based: bool = False
+    visual: bool = False
     status: Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "HUMAN_HANDOFF"] = "PENDING"
 
 
