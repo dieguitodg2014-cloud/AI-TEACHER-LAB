@@ -15,6 +15,7 @@ from core.orchestration.resource_tool_router import select_resource_provider
 from core.orchestration.tool_selector import ToolCandidate
 from core.resources.acceptance_gate import ResourceAcceptanceResult, ResourceAcceptanceGate
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
+from core.resources.revision_engine import ResourceRevisionEngine, ResourceRevisionResult
 
 RESOURCE_CAPABILITY = "resource_generation"
 
@@ -99,25 +100,36 @@ def execute_resource_production_pipeline(
     tool: ToolCandidate,
     provider: ResourceProvider,
     *,
-    revision_count: int = 0,
+    reviser: Callable[[TaskPacket, dict[str, Any], ResourceValidationResult], dict[str, Any]] | None = None,
+    max_revisions: int = 1,
     acceptance_gate: ResourceAcceptanceGate | None = None,
 ) -> dict[str, Any]:
-    """Produce, QC, and accept a resource without allowing provider bypass."""
+    """Produce, QC, revise when allowed, and accept a resource without provider bypass."""
     production = execute_resource_provider(task, tool, provider)
     if production["status"] != "PRODUCED":
         return production
-    acceptance_result = validate_and_accept_resource(
+
+    revision_engine = ResourceRevisionEngine(acceptance_gate=acceptance_gate)
+    revision_result: ResourceRevisionResult = revision_engine.run(
         task,
         production["result"],
-        revision_count=revision_count,
-        acceptance_gate=acceptance_gate,
+        reviser=reviser,
+        max_revisions=max_revisions,
     )
+
+    errors = []
+    if revision_result.acceptance is not None and not revision_result.accepted:
+        errors = list(revision_result.acceptance.reasons)
+
     return {
         **production,
-        "status": acceptance_result["status"],
-        "result": acceptance_result["resource"],
-        "validation": acceptance_result["validation"],
-        "acceptance": acceptance_result["acceptance"],
+        "status": revision_result.status,
+        "result": revision_result.resource if revision_result.accepted else None,
+        "validation": revision_result.validation,
+        "acceptance": revision_result.acceptance,
+        "attempts": revision_result.attempts,
+        "revision_feedback": revision_result.revision_feedback,
+        "errors": errors,
     }
 
 
