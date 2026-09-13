@@ -75,3 +75,55 @@ def test_configured_canva_uses_specialized_resource_provider_path(tmp_path, monk
     assert calls[0]["task"]["resource_type"] == "presentation"
     assert calls[0]["task"]["objective"] == result.resource_task.objective
     assert calls[0]["task"]["level"] == result.resource_task.level
+
+
+def test_configured_notebooklm_failure_falls_back_to_canva_and_passes_acceptance(tmp_path, monkeypatch):
+    config_path = tmp_path / "tools.json"
+    config_path.write_text(json.dumps({"tools": [
+        {"tool_id": "notebooklm", "connector": "notebooklm", "capabilities": ["resource_generation", "presentation_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.8, "speed": 0.7, "cost": 0.0},
+        {"tool_id": "canva", "connector": "canva", "capabilities": ["resource_generation", "presentation_generation"], "quality": 1.0, "reliability": 1.0, "accessibility": 0.85, "speed": 0.8, "cost": 0.0},
+    ], "policy": {"free_first": True, "provider_policy": {"resource_provider_priority": ["notebooklm", "canva"]}}}), encoding="utf-8")
+    calls = []
+
+    def notebooklm_executor(payload):
+        calls.append(("notebooklm", payload))
+        raise RuntimeError("connector unavailable")
+
+    def canva_executor(payload):
+        calls.append(("canva", payload))
+        task = payload["task"]
+        return {
+            "resource_type": "presentation",
+            "level": task["level"],
+            "objective": task["objective"],
+            "content": "A classroom presentation for the approved objective.",
+            "quality_criteria_addressed": task["quality_criteria"],
+        }
+
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "notebooklm", lambda: notebooklm_executor)
+    monkeypatch.setitem(runtime_loader._CONNECTOR_FACTORIES, "canva", lambda: canva_executor)
+
+    result = run_configured_lesson_planning({
+        "level": "A1",
+        "audience": "children",
+        "duration_minutes": 60,
+        "objective": "Practice greetings with visual prompts.",
+        "topic": "Greetings",
+        "constraints": [
+            "RESOURCE_REQUIRED:presentation",
+            "PREFERRED_RESOURCE_TOOL:notebooklm",
+            "FALLBACK_RESOURCE_TOOL:canva",
+        ],
+    }, tool_config_path=config_path)
+
+    assert result.status == "READY"
+    assert result.resource_tool.tool_id == "canva"
+    assert result.resource_validation.status == "READY"
+    assert result.resource_validation.critical_failure is False
+    assert len(calls) == 2
+    assert [name for name, _ in calls] == ["notebooklm", "canva"]
+    assert calls[0][1]["task"] == calls[1][1]["task"]
+    assert calls[1][1]["task"]["objective"] == result.resource_task.objective
+    assert calls[1][1]["task"]["level"] == result.resource_task.level
+    assert calls[1][1]["task"]["required_output"] == result.resource_task.required_output
+    assert calls[1][1]["task"]["constraints"] == result.resource_task.constraints
