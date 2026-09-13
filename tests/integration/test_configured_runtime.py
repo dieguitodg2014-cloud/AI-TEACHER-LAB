@@ -127,3 +127,5 @@ def test_configured_notebooklm_failure_falls_back_to_canva_and_passes_acceptance
     assert calls[1][1]["task"]["level"] == result.resource_task.level
     assert calls[1][1]["task"]["required_output"] == result.resource_task.required_output
     assert calls[1][1]["task"]["constraints"] == result.resource_task.constraints
+    assert [attempt.tool_id for attempt in result.generation["provider_execution_trace"]["attempts"]] == ["notebooklm", "canva"]
+    assert ("notebooklm", "BLOCKED_AFTER_EXECUTION_FAILURE") in result.generation["provider_execution_trace"]["excluded_tools"]
