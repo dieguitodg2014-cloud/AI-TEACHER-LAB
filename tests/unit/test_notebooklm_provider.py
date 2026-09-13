@@ -25,13 +25,13 @@ class NotebookLMResourceProviderTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "NOTEBOOKLM_CONNECTOR_NOT_CONFIGURED"):
             provider.produce(self.make_task())
 
-    def test_executor_receives_provider_and_isolated_task(self) -> None:
+    def test_executor_receives_serialized_provider_and_isolated_task(self) -> None:
         original = self.make_task()
         received = {}
 
         def executor(payload):
             received.update(payload)
-            received["task"].constraints.append("CONNECTOR_MUTATION")
+            received["task"]["constraints"].append("CONNECTOR_MUTATION")
             return {
                 "resource_type": "audio",
                 "level": "A2",
@@ -44,7 +44,8 @@ class NotebookLMResourceProviderTests(unittest.TestCase):
         result = provider.produce(original)
 
         self.assertEqual(received["provider"], "notebooklm")
-        self.assertEqual(received["task"].task_id, original.task_id)
+        self.assertEqual(received["task"]["task_id"], original.task_id)
+        self.assertEqual(received["task"]["level"], "A2")
         self.assertEqual(result["resource_type"], "audio")
         self.assertEqual(original.constraints, ["CEFR A2", "3 minutes maximum"])
 
