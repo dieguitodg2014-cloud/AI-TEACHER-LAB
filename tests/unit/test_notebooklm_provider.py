@@ -31,7 +31,7 @@ class NotebookLMResourceProviderTests(unittest.TestCase):
 
         def executor(payload):
             received.update(payload)
-            received["task"].objective = "MUTATED"
+            received["task"].constraints.append("CONNECTOR_MUTATION")
             return {
                 "resource_type": "audio",
                 "level": "A2",
@@ -46,7 +46,7 @@ class NotebookLMResourceProviderTests(unittest.TestCase):
         self.assertEqual(received["provider"], "notebooklm")
         self.assertEqual(received["task"].task_id, original.task_id)
         self.assertEqual(result["resource_type"], "audio")
-        self.assertEqual(original.objective, "Students identify the main idea in a short listening text.")
+        self.assertEqual(original.constraints, ["CEFR A2", "3 minutes maximum"])
 
     def test_executor_must_return_object(self) -> None:
         provider = NotebookLMResourceProvider(lambda payload: "invalid")
