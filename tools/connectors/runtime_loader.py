@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Callable
 
+from tools.connectors.canva import create_canva_generator
 from tools.connectors.local_openai_compatible import create_local_openai_compatible_generator
 from tools.connectors.notebooklm import create_notebooklm_generator
 
@@ -13,6 +14,7 @@ from tools.connectors.notebooklm import create_notebooklm_generator
 _CONNECTOR_FACTORIES: dict[str, Callable[[], Callable]] = {
     "local_openai_compatible": create_local_openai_compatible_generator,
     "notebooklm": create_notebooklm_generator,
+    "canva": create_canva_generator,
 }
 
 
