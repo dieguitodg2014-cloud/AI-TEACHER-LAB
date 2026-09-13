@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
+from core.orchestration.capability_matrix import capabilities_for_resource
 from core.orchestration.resource_provider import ResourceProvider
 from core.orchestration.resource_tool_router import select_resource_provider
 from core.orchestration.tool_selector import ToolCandidate
@@ -35,6 +36,26 @@ class ProviderExecutionResult:
     result: dict[str, Any] | None
     attempts: tuple[ProviderAttempt, ...]
     errors: tuple[str, ...] = ()
+    excluded_tools: tuple[tuple[str, str], ...] = ()
+
+
+def _excluded_tools(
+    tools: list[ToolCandidate],
+    required: set[str],
+    blocked: set[str],
+) -> tuple[tuple[str, str], ...]:
+    """Explain why configured providers were not eligible for execution."""
+    excluded: list[tuple[str, str]] = []
+    for tool in tools:
+        if tool.tool_id in blocked:
+            excluded.append((tool.tool_id, "BLOCKED_AFTER_EXECUTION_FAILURE"))
+            continue
+        missing = sorted(required - set(tool.capabilities))
+        if missing:
+            excluded.append(
+                (tool.tool_id, f"MISSING_REQUIRED_CAPABILITIES:{','.join(missing)}")
+            )
+    return tuple(excluded)
 
 
 class ProviderExecutionPolicy:
@@ -64,6 +85,13 @@ class ProviderExecutionPolicy:
 
         blocked: set[str] = set()
         attempts: list[ProviderAttempt] = []
+        required = set(
+            capabilities_for_resource(
+                task.required_output,
+                source_based=task.source_based,
+                visual=task.visual,
+            )
+        )
 
         while True:
             tool = select_resource_provider(
@@ -73,6 +101,7 @@ class ProviderExecutionPolicy:
                 blocked_tools=blocked,
                 provider_priority=self.provider_priority,
             )
+            excluded_tools = _excluded_tools(tools, required, blocked)
             if tool is None:
                 return ProviderExecutionResult(
                     status="HUMAN_HANDOFF",
@@ -81,6 +110,7 @@ class ProviderExecutionPolicy:
                     result=None,
                     attempts=tuple(attempts),
                     errors=("NO_ELIGIBLE_RESOURCE_TOOL_AFTER_FALLBACK",),
+                    excluded_tools=excluded_tools,
                 )
 
             provider = providers.get(tool.tool_id)
@@ -110,6 +140,7 @@ class ProviderExecutionPolicy:
                     result=outcome["result"],
                     attempts=tuple(attempts),
                     errors=(),
+                    excluded_tools=_excluded_tools(tools, required, blocked),
                 )
 
             blocked.add(tool.tool_id)
