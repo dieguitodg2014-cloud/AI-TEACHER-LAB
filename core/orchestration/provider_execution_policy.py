@@ -41,8 +41,8 @@ class ProviderExecutionPolicy:
     """Execute providers with technical fallback while preserving the TaskPacket.
 
     The policy only decides which eligible provider gets an execution attempt.
-    It never changes pedagogical requirements. The executor is injected so this
-    policy remains independent from the resource QC/revision pipeline.
+    It never changes pedagogical requirements. The executor may be injected by
+    the caller; the default is resolved lazily to avoid a module import cycle.
     """
 
     def __init__(self, *, free_first: bool = True) -> None:
@@ -54,8 +54,13 @@ class ProviderExecutionPolicy:
         tools: list[ToolCandidate],
         providers: dict[str, ResourceProvider],
         *,
-        executor: ProviderExecutor,
+        executor: ProviderExecutor | None = None,
     ) -> ProviderExecutionResult:
+        if executor is None:
+            from core.orchestration.resource_orchestrator import execute_resource_provider
+
+            executor = execute_resource_provider
+
         blocked: set[str] = set()
         attempts: list[ProviderAttempt] = []
 
