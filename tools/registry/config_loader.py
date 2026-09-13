@@ -8,6 +8,8 @@ from pathlib import Path
 from core.orchestration.provider_capability_contract import validate_provider_capabilities
 from core.orchestration.tool_selector import ToolCandidate
 
+DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
+
 
 def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], dict]:
     config_path = Path(path)
@@ -43,3 +45,18 @@ def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], di
     if not isinstance(policy, dict):
         raise ValueError("INVALID_TOOL_CONFIG:policy")
     return tools, policy
+
+
+def resource_provider_priority(policy: dict | None) -> tuple[str, ...]:
+    """Return configured specialized resource providers in priority order."""
+    if not isinstance(policy, dict):
+        return ()
+    provider_policy = policy.get("provider_policy", {})
+    if not isinstance(provider_policy, dict):
+        return ()
+    configured = provider_policy.get("resource_provider_priority")
+    if configured is None:
+        configured = provider_policy.get("specialized_resource_creators", [])
+    if not isinstance(configured, list):
+        return ()
+    return tuple(item for item in configured if isinstance(item, str))
