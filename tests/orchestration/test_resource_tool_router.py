@@ -3,7 +3,7 @@ from core.orchestration.resource_tool_router import select_resource_provider
 from core.orchestration.tool_selector import ToolCandidate
 
 
-def task(output):
+def task(output, *, source_based=False, visual=False):
     return TaskPacket(
         task_id="TASK-ROUTE-001",
         task_type="RESOURCE_PRODUCTION",
@@ -13,6 +13,8 @@ def task(output):
         constraints=[],
         quality_criteria=["Match the approved task."],
         audience="English learners",
+        source_based=source_based,
+        visual=visual,
     )
 
 
@@ -24,26 +26,17 @@ def test_audio_source_task_routes_only_to_capable_provider():
             "audio_generation",
             "source_based_resource_generation",
         }),
-        quality=0.95,
-        reliability=0.9,
-        accessibility=0.8,
-        speed=0.7,
-        cost=0.0,
+        quality=0.95, reliability=0.9, accessibility=0.8, speed=0.7, cost=0.0,
     )
     canva = ToolCandidate(
         tool_id="canva",
         capabilities=frozenset({"resource_generation", "visual_resource_generation"}),
-        quality=0.9,
-        reliability=0.9,
-        accessibility=0.85,
-        speed=0.8,
-        cost=0.0,
+        quality=0.9, reliability=0.9, accessibility=0.85, speed=0.8, cost=0.0,
     )
 
     selected = select_resource_provider(
-        task("audio"),
+        task("audio", source_based=True),
         [canva, notebooklm],
-        source_based=True,
     )
 
     assert selected is not None
@@ -58,16 +51,11 @@ def test_visual_presentation_can_route_to_canva():
             "visual_resource_generation",
             "presentation_generation",
         }),
-        quality=0.9,
-        reliability=0.9,
-        accessibility=0.85,
-        speed=0.8,
-        cost=0.0,
+        quality=0.9, reliability=0.9, accessibility=0.85, speed=0.8, cost=0.0,
     )
     selected = select_resource_provider(
-        task("presentation"),
+        task("presentation", visual=True),
         [canva],
-        visual=True,
     )
     assert selected is not None
     assert selected.tool_id == "canva"
