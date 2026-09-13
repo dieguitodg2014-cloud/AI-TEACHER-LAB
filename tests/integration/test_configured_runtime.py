@@ -78,7 +78,7 @@ def test_capability_filter_skips_incompatible_canva_for_audio(tmp_path, monkeypa
     assert result.resource_tool.tool_id == "notebooklm"
     assert calls == ["notebooklm"]
     excluded = result.generation["provider_execution_trace"]["excluded_tools"]
-    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in excluded
+    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:audio_generation") in excluded
 
 
 def test_capability_filter_skips_notebooklm_for_visual_presentation(tmp_path, monkeypatch):
@@ -105,7 +105,7 @@ def test_capability_filter_skips_notebooklm_for_visual_presentation(tmp_path, mo
     assert result.resource_tool.tool_id == "canva"
     assert calls == ["canva"]
     excluded = result.generation["provider_execution_trace"]["excluded_tools"]
-    assert ("notebooklm", "MISSING_REQUIRED_CAPABILITIES:visual_resource_generation,resource_generation") in excluded
+    assert ("notebooklm", "MISSING_REQUIRED_CAPABILITIES:visual_resource_generation") in excluded
 
 
 def test_capability_filter_skips_canva_for_source_based_resource(tmp_path, monkeypatch):
@@ -132,7 +132,7 @@ def test_capability_filter_skips_canva_for_source_based_resource(tmp_path, monke
     assert result.resource_tool.tool_id == "notebooklm"
     assert calls == ["notebooklm"]
     excluded = result.generation["provider_execution_trace"]["excluded_tools"]
-    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:source_based_resource_generation,resource_generation") in excluded
+    assert ("canva", "MISSING_REQUIRED_CAPABILITIES:source_based_resource_generation") in excluded
 
 
 def test_configured_canva_uses_specialized_resource_provider_path(tmp_path, monkeypatch):
