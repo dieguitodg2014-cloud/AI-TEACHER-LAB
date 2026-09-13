@@ -1,0 +1,59 @@
+from core.foundation.models import TaskPacket
+from core.resources.acceptance_gate import ResourceAcceptanceGate
+from core.resources.output_validator import validate_resource_output
+
+
+def make_task():
+    return TaskPacket(
+        task_id="TASK-ACCEPT-001",
+        task_type="RESOURCE_PRODUCTION",
+        objective="Practice listening for key details.",
+        level="A2",
+        required_output="audio",
+        constraints=["Keep language appropriate for the approved level."],
+        quality_criteria=["Support the stated learning objective."],
+        audience="English learners",
+    )
+
+
+def make_resource():
+    return {
+        "resource_type": "audio",
+        "level": "A2",
+        "objective": "Practice listening for key details.",
+        "content": "Listen to the short conversation and identify two key details.",
+    }
+
+
+def test_ready_qc_must_cross_acceptance_gate():
+    task = make_task()
+    validation = validate_resource_output(task, make_resource())
+
+    assert validation.status == "READY"
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
+    assert acceptance.decision == "ACCEPT"
+    assert acceptance.blocking is False
+
+
+def test_revision_required_does_not_cross_acceptance_boundary():
+    task = make_task()
+    resource = make_resource()
+    resource["quality_criteria_addressed"] = []
+    validation = validate_resource_output(task, resource)
+
+    assert validation.status == "REVISION_REQUIRED"
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
+    assert acceptance.decision == "REVISION_REQUIRED"
+    assert acceptance.blocking is True
+
+
+def test_provider_ready_field_cannot_bypass_qc():
+    task = make_task()
+    resource = make_resource()
+    resource["production_status"] = "READY"
+    resource["resource_type"] = "worksheet"
+    validation = validate_resource_output(task, resource)
+
+    assert validation.status == "REJECT"
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
+    assert acceptance.decision == "HUMAN_HANDOFF"
