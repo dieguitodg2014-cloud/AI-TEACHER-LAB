@@ -13,7 +13,8 @@ from core.foundation.models import AssessmentDecision, Context, LearningPlanDeci
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
-from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool
+from core.orchestration.resource_orchestrator import execute_resource_production_with_fallback, select_resource_tool
+from core.orchestration.resource_provider import FunctionResourceProvider
 from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
@@ -56,9 +57,10 @@ def run_lesson_planning(
 
     ``produced_resource`` is optional so an external provider can return a
     resource into the existing validation boundary. When ``generators`` are
-    supplied, a selected resource-generation provider can now execute the
-    Resource TaskPacket directly before resource QC. ``revision_count`` records
-    revisions already attempted and enforces the resource revision policy.
+    supplied, resource-generation providers execute through the same fallback,
+    QC, revision, and acceptance path used by the resource orchestration layer.
+    ``revision_count`` records revisions already attempted and enforces the
+    resource revision policy.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -168,43 +170,33 @@ def run_lesson_planning(
                 ["NO_SUITABLE_RESOURCE_TOOL"],
             )
 
-        resource_generation = execute_resource_generation(
+        providers = {
+            tool_id: FunctionResourceProvider(generator)
+            for tool_id, generator in generators.items()
+            if callable(generator)
+        }
+        resource_execution = execute_resource_production_with_fallback(
             resource_task,
+            selected_tools,
+            providers,
+            max_revisions=max(0, 1 - revision_count),
+            free_first=free_first,
+        )
+        resource_tool = next(
+            (tool for tool in selected_tools if tool.tool_id == resource_execution.get("tool_id")),
             resource_tool,
-            generators,
         )
-        if resource_generation["status"] != "PRODUCED":
-            return VerticalSliceResult(
-                "HUMAN_HANDOFF",
-                context_result.context,
-                level_decision,
-                learning_plan,
-                assessment_decision,
-                resource_decision,
-                resource_task,
-                resource_tool,
-                build_resource_handoff(context_result.context, resource_task),
-                resource_validation,
-                resource_generation,
-                [],
-                resource_generation.get("errors", []),
-            )
 
-        resource_validation = validate_resource_output(
-            resource_task,
-            resource_generation["result"],
-            revision_count=revision_count,
-        )
-        if resource_validation.status != "READY":
+        if resource_execution["status"] not in {"ACCEPTED", "READY"}:
             revision_handoff = None
-            if resource_validation.status == "REVISION_REQUIRED":
+            if resource_execution.get("validation") is not None and resource_execution["status"] == "REVISION_REQUIRED":
                 revision_handoff = build_resource_revision_handoff(
                     context_result.context,
                     resource_task,
-                    resource_validation,
+                    resource_execution["validation"],
                 )
             return VerticalSliceResult(
-                resource_validation.status,
+                resource_execution["status"],
                 context_result.context,
                 level_decision,
                 learning_plan,
@@ -212,15 +204,16 @@ def run_lesson_planning(
                 resource_decision,
                 resource_task,
                 resource_tool,
-                revision_handoff,
-                resource_validation,
-                resource_generation,
+                revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task),
+                resource_execution.get("validation"),
+                resource_execution,
                 [],
-                list(resource_validation.blocking_errors) + list(resource_validation.feedback),
+                list(resource_execution.get("errors", [])),
             )
 
+        resource_validation = resource_execution.get("validation")
         return VerticalSliceResult(
-            "PLANNED",
+            "READY",
             context_result.context,
             level_decision,
             learning_plan,
@@ -230,7 +223,7 @@ def run_lesson_planning(
             resource_tool,
             None,
             resource_validation,
-            resource_generation,
+            resource_execution,
             [],
             [],
         )
