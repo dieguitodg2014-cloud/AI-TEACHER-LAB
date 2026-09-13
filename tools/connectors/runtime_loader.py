@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from tools.connectors.local_openai_compatible import create_local_openai_compatible_generator
+from tools.connectors.notebooklm import create_notebooklm_generator
 
 
 _CONNECTOR_FACTORIES: dict[str, Callable[[], Callable]] = {
     "local_openai_compatible": create_local_openai_compatible_generator,
+    "notebooklm": create_notebooklm_generator,
 }
 
 
