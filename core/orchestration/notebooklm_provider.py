@@ -9,6 +9,7 @@ through ``executor`` when one is available. Until then, the existing
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import asdict
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
@@ -20,9 +21,9 @@ NotebookLMExecutor = Callable[[dict[str, Any]], dict[str, Any]]
 class NotebookLMResourceProvider:
     """Provider adapter that executes an already-approved task in NotebookLM.
 
-    NotebookLM receives a defensive copy of the TaskPacket serialized as a
-    dictionary. The authoritative task remains owned by Bionic and cannot be
-    mutated by the external connector.
+    NotebookLM receives a defensive serialized copy of the TaskPacket. The
+    authoritative task remains owned by Bionic and cannot be mutated by the
+    external connector.
     """
 
     tool_id = "notebooklm"
@@ -44,7 +45,7 @@ class NotebookLMResourceProvider:
         if self._executor is None:
             raise RuntimeError("NOTEBOOKLM_CONNECTOR_NOT_CONFIGURED")
 
-        payload = deepcopy(task_packet)
+        payload = asdict(deepcopy(task_packet))
         result = self._executor({
             "task": payload,
             "provider": self.tool_id,
