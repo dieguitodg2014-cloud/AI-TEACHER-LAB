@@ -51,6 +51,29 @@ class ResourceDecisionTests(unittest.TestCase):
         self.assertEqual(decision.resource_type, "role-play cards")
         self.assertTrue(decision.required)
 
+    def test_provider_hints_are_carried_without_changing_pedagogical_decision(self):
+        context, plan = self._plan(
+            "Understand and respond to a short listening text.",
+            [
+                "PREFERRED_RESOURCE_TOOL:notebooklm",
+                "FALLBACK_RESOURCE_TOOL:audio-provider",
+            ],
+        )
+        decision = decide_resource(context, plan)
+
+        self.assertEqual(decision.action, "CREATE")
+        self.assertEqual(decision.resource_type, "audio")
+        self.assertEqual(decision.preferred_tool, "notebooklm")
+        self.assertEqual(decision.fallback_tool, "audio-provider")
+
+    def test_task_packet_receives_hints_but_router_can_still_ignore_unusable_hint(self):
+        context, plan = self._plan(
+            "Understand and respond to a short listening text.",
+            ["PREFERRED_RESOURCE_TOOL:visual-only-tool"],
+        )
+        decision = decide_resource(context, plan)
+        self.assertEqual(decision.preferred_tool, "visual-only-tool")
+
 
 if __name__ == "__main__":
     unittest.main()
