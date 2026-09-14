@@ -81,8 +81,8 @@ class ResourceRevisionEngine:
                 )
 
             if revisions >= max_revisions or reviser is None:
-                handoff = ResourceAcceptanceResult(
-                    decision="HUMAN_HANDOFF",
+                terminal = ResourceAcceptanceResult(
+                    decision="REJECT_AND_REDESIGN",
                     reasons=acceptance.reasons + (
                         "Resource revision could not be completed within the approved revision boundary.",
                     ),
@@ -90,12 +90,12 @@ class ResourceRevisionEngine:
                     validation_id=validation.validation_id,
                 )
                 return ResourceRevisionResult(
-                    status="HUMAN_HANDOFF",
+                    status="REJECT_AND_REDESIGN",
                     accepted=False,
                     attempts=revisions + 1,
                     resource=resource,
                     validation=validation,
-                    acceptance=handoff,
+                    acceptance=terminal,
                     revision_feedback=tuple(feedback) + acceptance.reasons,
                 )
 
@@ -105,8 +105,8 @@ class ResourceRevisionEngine:
             revised = reviser(revision_task, revision_input, validation)
 
             if not task_packet_unchanged(authorized_task, revision_task):
-                handoff = ResourceAcceptanceResult(
-                    decision="HUMAN_HANDOFF",
+                terminal = ResourceAcceptanceResult(
+                    decision="REJECT",
                     reasons=(
                         "RESOURCE_REGRESSION:TASK_PACKET_MUTATED_BY_REVISER",
                         "The authorized TaskPacket must remain unchanged during resource revision.",
@@ -115,48 +115,48 @@ class ResourceRevisionEngine:
                     validation_id=validation.validation_id,
                 )
                 return ResourceRevisionResult(
-                    status="HUMAN_HANDOFF",
+                    status="REJECT",
                     accepted=False,
                     attempts=revisions + 1,
                     resource=resource,
                     validation=validation,
-                    acceptance=handoff,
-                    revision_feedback=tuple(feedback) + handoff.reasons,
+                    acceptance=terminal,
+                    revision_feedback=tuple(feedback) + terminal.reasons,
                 )
 
             if not isinstance(revised, dict):
-                handoff = ResourceAcceptanceResult(
-                    decision="HUMAN_HANDOFF",
+                terminal = ResourceAcceptanceResult(
+                    decision="REJECT",
                     reasons=("RESOURCE_REVISER_RETURNED_INVALID_OUTPUT",),
                     blocking=True,
                     validation_id=validation.validation_id,
                 )
                 return ResourceRevisionResult(
-                    status="HUMAN_HANDOFF",
+                    status="REJECT",
                     accepted=False,
                     attempts=revisions + 1,
                     resource=resource,
                     validation=validation,
-                    acceptance=handoff,
-                    revision_feedback=tuple(feedback) + handoff.reasons,
+                    acceptance=terminal,
+                    revision_feedback=tuple(feedback) + terminal.reasons,
                 )
 
             revised = _normalize_external_resource_shape(revised)
             regression = check_resource_revision_regression(task, validation, revised)
             if not regression.passed:
-                handoff = ResourceAcceptanceResult(
-                    decision="HUMAN_HANDOFF",
+                terminal = ResourceAcceptanceResult(
+                    decision="REJECT",
                     reasons=regression.errors,
                     blocking=True,
                     validation_id=validation.validation_id,
                 )
                 return ResourceRevisionResult(
-                    status="HUMAN_HANDOFF",
+                    status="REJECT",
                     accepted=False,
                     attempts=revisions + 1,
                     resource=resource,
                     validation=validation,
-                    acceptance=handoff,
+                    acceptance=terminal,
                     revision_feedback=tuple(feedback) + regression.errors,
                 )
 
