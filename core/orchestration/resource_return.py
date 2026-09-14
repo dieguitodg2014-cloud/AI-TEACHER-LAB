@@ -2,7 +2,8 @@
 
 This module closes the production loop without making any provider responsible
 for pedagogical decisions. A returned resource is validated against the exact
-Resource TaskPacket that authorized its production.
+Resource TaskPacket that authorized its production, then crosses the final
+acceptance boundary before it can be considered deliverable.
 """
 
 from __future__ import annotations
@@ -12,12 +13,13 @@ from typing import Any
 
 from core.foundation.models import Context, TaskPacket
 from core.orchestration.resource_handoff import build_resource_revision_handoff
+from core.resources.acceptance_gate import ResourceAcceptanceGate
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
 
 
 @dataclass(frozen=True)
 class ResourceReturnResult:
-    """Normalized result of receiving and validating a produced resource."""
+    """Normalized result of receiving and accepting a produced resource."""
 
     status: str
     task_id: str
@@ -33,11 +35,11 @@ def receive_resource(
     *,
     revision_count: int = 0,
 ) -> ResourceReturnResult:
-    """Receive an external resource and route it through the Resource QC gate.
+    """Receive an external resource and route it through QC and acceptance.
 
+    ``READY`` is a QC result, not delivery authorization. A returned resource
+    reaches ``ACCEPTED`` only when the ResourceAcceptanceGate authorizes it.
     The return boundary does not generate, repair, or reinterpret the resource.
-    It only validates the returned artifact against the approved TaskPacket and,
-    when appropriate, creates the next revision handoff.
     """
     if produced_resource is None:
         validation = ResourceValidationResult(
@@ -55,21 +57,28 @@ def receive_resource(
             revision_count=revision_count,
         )
 
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
     revision_handoff = None
-    if validation.status == "REVISION_REQUIRED":
+    if acceptance.decision == "REVISION_REQUIRED":
         revision_handoff = build_resource_revision_handoff(
             context,
             task,
             validation,
         )
 
-    errors = list(validation.blocking_errors) + list(validation.feedback)
+    status = {
+        "ACCEPT": "ACCEPTED",
+        "REVISION_REQUIRED": "REVISION_REQUIRED",
+        "REJECT_AND_REDESIGN": "REJECT_AND_REDESIGN",
+        "HUMAN_HANDOFF": "HUMAN_HANDOFF",
+    }[acceptance.decision]
+
     return ResourceReturnResult(
-        status=validation.status,
+        status=status,
         task_id=task.task_id,
         validation=validation,
         revision_handoff=revision_handoff,
-        errors=errors,
+        errors=list(acceptance.reasons),
     )
 
 
