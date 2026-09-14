@@ -18,21 +18,24 @@ class TeacherInterfaceTests(unittest.TestCase):
             )
         ]
 
-    def test_natural_language_request_becomes_teacher_ready_result(self):
+    def test_natural_language_request_preserves_complete_generated_lesson(self):
+        generated_lesson = {
+            "level": "A2",
+            "objective": "Students will give recommendations using should and shouldn't.",
+            "duration_minutes": 60,
+            "topic": "recommendations",
+            "teacher_notes": "Monitor accuracy after the role-play.",
+            "activities": [
+                {
+                    "name": "Recommendation role-play",
+                    "student_production": "Students give advice using should and shouldn't.",
+                    "assessment_link": "Teacher listens for appropriate recommendations.",
+                }
+            ],
+        }
+
         def generator(request, errors):
-            return {
-                "level": request["level"],
-                "objective": request["objective"],
-                "duration_minutes": request["duration_minutes"],
-                "topic": request["topic"],
-                "activities": [
-                    {
-                        "name": "Recommendation role-play",
-                        "student_production": "Students give advice using should and shouldn't.",
-                        "assessment_link": "Teacher listens for appropriate recommendations.",
-                    }
-                ],
-            }
+            return generated_lesson
 
         result = plan_for_teacher(
             "Create an A2 lesson for adult ESL learners for 60 minutes. "
@@ -46,9 +49,17 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertEqual(result.level, "A2")
         self.assertEqual(result.duration_minutes, 60)
         self.assertEqual(result.title, "recommendations")
+        self.assertEqual(result.lesson, generated_lesson)
+        self.assertEqual(result.lesson["teacher_notes"], generated_lesson["teacher_notes"])
         self.assertEqual(len(result.activities), 1)
         self.assertIsNotNone(result.assessment)
         self.assertEqual(result.assessment["type"], "PERFORMANCE")
+
+        payload = teacher_result_to_dict(result)
+        self.assertIn("lesson", payload)
+        self.assertNotIn("TaskPacket", str(payload))
+        self.assertNotIn("capability_validation", str(payload))
+        self.assertNotIn("provider_revision", str(payload))
 
     def test_planning_without_provider_is_still_useful(self):
         result = plan_for_teacher(
@@ -96,6 +107,7 @@ class TeacherInterfaceTests(unittest.TestCase):
                 "audience",
                 "duration_minutes",
                 "objective",
+                "lesson",
                 "activities",
                 "assessment",
                 "resource",
