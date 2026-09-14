@@ -17,12 +17,18 @@ class Context:
     audience: str
     duration_minutes: int
     objective: str
-    constraints: list[str] = field(default_factory=list)
+    constraints: tuple[str, ...] = ()
     group_size: int | None = None
     topic: str | None = None
-    prior_knowledge: list[str] = field(default_factory=list)
-    technology: list[str] = field(default_factory=list)
+    prior_knowledge: tuple[str, ...] = ()
+    technology: tuple[str, ...] = ()
     teacher_preferences: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Normalize context sequences to immutable tuples at the boundary."""
+        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
+        object.__setattr__(self, "technology", tuple(self.technology))
 
 
 @dataclass(frozen=True)
