@@ -50,6 +50,16 @@ def _excluded_tools(
         if tool.tool_id in blocked:
             excluded.append((tool.tool_id, "BLOCKED_AFTER_EXECUTION_FAILURE"))
             continue
+        not_validated = sorted(
+            capability
+            for capability in required
+            if tool.validation_status(capability) == "not_validated"
+        )
+        if not_validated:
+            excluded.append(
+                (tool.tool_id, f"CAPABILITY_NOT_VALIDATED:{','.join(not_validated)}")
+            )
+            continue
         missing = sorted(required - set(tool.capabilities))
         if missing:
             excluded.append(
