@@ -18,6 +18,17 @@ from core.foundation.models import TaskPacket
 NotebookLMExecutor = Callable[[dict[str, Any]], dict[str, Any]]
 
 
+def _externalize(value: Any) -> Any:
+    """Convert immutable internal collections to connector-safe JSON shapes."""
+    if isinstance(value, tuple):
+        return [_externalize(item) for item in value]
+    if isinstance(value, list):
+        return [_externalize(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _externalize(item) for key, item in value.items()}
+    return value
+
+
 class NotebookLMResourceProvider:
     """Provider adapter that executes an already-approved task in NotebookLM.
 
@@ -45,7 +56,7 @@ class NotebookLMResourceProvider:
         if self._executor is None:
             raise RuntimeError("NOTEBOOKLM_CONNECTOR_NOT_CONFIGURED")
 
-        payload = asdict(deepcopy(task_packet))
+        payload = _externalize(asdict(deepcopy(task_packet)))
         result = self._executor({
             "task": payload,
             "provider": self.tool_id,
