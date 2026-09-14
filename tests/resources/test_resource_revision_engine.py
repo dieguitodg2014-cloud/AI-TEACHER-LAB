@@ -41,7 +41,7 @@ def test_engine_revises_then_accepts():
     def reviser(task, resource, validation):
         calls.append(validation.validation_id)
         revised = dict(resource)
-        revised["quality_criteria_addressed"] = task.quality_criteria
+        revised["quality_criteria_addressed"] = list(task.quality_criteria)
         return revised
 
     result = ResourceRevisionEngine().run(make_task(), bad, reviser)
@@ -58,15 +58,15 @@ def test_engine_revision_cannot_change_approved_resource_type():
 
     def invalid_reviser(task, resource, validation):
         revised = dict(resource)
-        revised["quality_criteria_addressed"] = task.quality_criteria
+        revised["quality_criteria_addressed"] = list(task.quality_criteria)
         revised["resource_type"] = "worksheet"
         return revised
 
     result = ResourceRevisionEngine().run(make_task(), bad, invalid_reviser)
     assert result.accepted is False
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.acceptance is not None
-    assert result.acceptance.decision == "HUMAN_HANDOFF"
+    assert result.acceptance.decision == "REJECT"
     assert any("RESOURCE_REGRESSION" in reason for reason in result.acceptance.reasons)
 
 
@@ -76,15 +76,15 @@ def test_engine_revision_cannot_change_approved_level():
 
     def invalid_reviser(task, resource, validation):
         revised = dict(resource)
-        revised["quality_criteria_addressed"] = task.quality_criteria
+        revised["quality_criteria_addressed"] = list(task.quality_criteria)
         revised["level"] = "B1"
         return revised
 
     result = ResourceRevisionEngine().run(make_task(), bad, invalid_reviser)
     assert result.accepted is False
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.acceptance is not None
-    assert result.acceptance.decision == "HUMAN_HANDOFF"
+    assert result.acceptance.decision == "REJECT"
     assert any("RESOURCE_REGRESSION" in reason for reason in result.acceptance.reasons)
 
 
@@ -94,19 +94,19 @@ def test_engine_revision_cannot_change_approved_objective():
 
     def invalid_reviser(task, resource, validation):
         revised = dict(resource)
-        revised["quality_criteria_addressed"] = task.quality_criteria
+        revised["quality_criteria_addressed"] = list(task.quality_criteria)
         revised["objective"] = "A different pedagogical objective."
         return revised
 
     result = ResourceRevisionEngine().run(make_task(), bad, invalid_reviser)
     assert result.accepted is False
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.acceptance is not None
-    assert result.acceptance.decision == "HUMAN_HANDOFF"
+    assert result.acceptance.decision == "REJECT"
     assert any("RESOURCE_REGRESSION" in reason for reason in result.acceptance.reasons)
 
 
-def test_engine_hands_off_after_revision_budget():
+def test_engine_rejects_after_revision_budget():
     bad = valid_resource()
     bad["quality_criteria_addressed"] = []
 
@@ -115,14 +115,14 @@ def test_engine_hands_off_after_revision_budget():
 
     result = ResourceRevisionEngine().run(make_task(), bad, non_fixing_reviser)
     assert result.accepted is False
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT_AND_REDESIGN"
     assert result.attempts == 2
     assert result.acceptance is not None
-    assert result.acceptance.decision == "HUMAN_HANDOFF"
+    assert result.acceptance.decision == "REJECT_AND_REDESIGN"
 
 
 def test_engine_never_accepts_without_validation():
     result = ResourceRevisionEngine().run(make_task(), {})
     assert result.accepted is False
     assert result.acceptance is not None
-    assert result.acceptance.decision == "HUMAN_HANDOFF"
+    assert result.acceptance.decision == "REJECT"
