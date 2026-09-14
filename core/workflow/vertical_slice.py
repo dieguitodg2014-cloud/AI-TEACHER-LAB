@@ -135,8 +135,24 @@ def run_lesson_planning(
                 acceptance.reasons,
             )
 
+        return VerticalSliceResult(
+            "ACCEPTED",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            None,
+            None,
+            resource_validation,
+            {"status": "ACCEPTED", "tool_id": None, "result": produced_resource, "errors": []},
+            [],
+            [],
+        )
+
     if tools is None and generators is None and notebooklm_executor is None and canva_executor is None:
-        resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and produced_resource is None else None
+        resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None else None
         return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
 
     free_first = True
@@ -157,7 +173,7 @@ def run_lesson_planning(
         free_first=free_first,
         validation_registry=validation_registry,
     )
-    resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool is None and produced_resource is None else None
+    resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool is None else None
 
     if resource_task is not None and (generators is not None or notebooklm_executor is not None or canva_executor is not None):
         providers = {tool_id: FunctionResourceProvider(generator) for tool_id, generator in (generators or {}).items() if callable(generator)}
