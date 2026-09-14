@@ -14,9 +14,9 @@ class ResourceProviderContractTests(unittest.TestCase):
             objective="Create a short listening resource.",
             level="A2",
             audience="adult learners",
-            duration_minutes=90,
             required_output="audio",
             constraints=["English"],
+            quality_criteria=["Support the objective."],
         )
 
     def _tool(self, capabilities=("resource_generation",)):
@@ -44,6 +44,7 @@ class ResourceProviderContractTests(unittest.TestCase):
         self.assertFalse(provider.can_produce(self._task("LESSON_GENERATION")))
         self.assertEqual(provider.produce(self._task())["resource_type"], "audio")
         self.assertEqual(captured["task"]["task_type"], "RESOURCE_PRODUCTION")
+        self.assertIsInstance(captured["task"]["constraints"], list)
 
     def test_provider_rejects_non_object_output(self):
         provider = FunctionResourceProvider(lambda task: ["not", "a", "resource"])
