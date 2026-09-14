@@ -29,6 +29,7 @@ class TestResourceRegressionGuard(unittest.TestCase):
             "level": "A2",
             "objective": self.task.objective,
             "content": "A short listening script and its produced audio.",
+            "quality_criteria_addressed": list(self.task.quality_criteria),
         }
         resource.update(overrides)
         return resource
@@ -73,7 +74,7 @@ class TestResourceRegressionGuard(unittest.TestCase):
         from core.resources.revision_engine import ResourceRevisionEngine
         result = ResourceRevisionEngine().run(self.task, initial, reviser)
 
-        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(result.status, "REJECT")
         self.assertIn("RESOURCE_REGRESSION:level", result.acceptance.reasons)
 
     def test_revision_is_blocked_when_it_breaks_previously_valid_resource_type(self):
@@ -85,7 +86,7 @@ class TestResourceRegressionGuard(unittest.TestCase):
         from core.resources.revision_engine import ResourceRevisionEngine
         result = ResourceRevisionEngine().run(self.task, initial, reviser)
 
-        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(result.status, "REJECT")
         self.assertIn("RESOURCE_REGRESSION:resource_type", result.acceptance.reasons)
 
     def test_reviser_cannot_mutate_authorized_task_packet(self):
