@@ -52,15 +52,13 @@ def test_failed_validation_does_not_promote_capability():
 
 
 def test_result_for_different_provider_cannot_promote_tool():
-    tool = ToolCandidate(
-        "canva",
-        frozenset({"visual_resource_generation"}),
-        capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
-    )
+    tool = ToolCandidate("canva", frozenset({"visual_resource_generation"}))
     result = CapabilityValidationResult(
         "notebooklm", "visual_resource_generation", VALIDATED
     )
 
     effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
 
-    assert effective.validation_status("visual_resource_generation") == NOT_VALIDATED
+    assert effective.validation_status("visual_resource_generation") == "validated"
+    assert effective.tool_id == "canva"
+    assert effective.capability_validation == ()
