@@ -66,10 +66,19 @@ def _assessment_output(decision: Any) -> dict[str, Any] | None:
 
 
 def _generated_lesson(result: VerticalSliceResult) -> dict[str, Any] | None:
+    """Expose the actual generated lesson, not its orchestration envelope."""
     if not result.generation:
         return None
     generated = result.generation.get("result")
-    return deepcopy(generated) if isinstance(generated, dict) else None
+    if not isinstance(generated, dict):
+        return None
+    # GenerationOrchestrator returns an execution envelope. The teacher
+    # contract exposes its lesson payload while keeping the internal envelope
+    # out of the classroom-facing result.
+    lesson = generated.get("lesson")
+    if isinstance(lesson, dict):
+        return deepcopy(lesson)
+    return deepcopy(generated)
 
 
 def _accepted_resource(result: VerticalSliceResult) -> dict[str, Any] | None:
@@ -143,72 +152,39 @@ def _format_value(value: Any) -> str:
 
 
 def render_teacher_result(result: TeacherLessonResult) -> str:
-    """Render the stable teacher contract as concise, classroom-readable text."""
+    """Render a concise classroom-readable representation."""
     lines = [
-        result.title,
-        "=" * len(result.title),
-        f"Status: {_format_value(result.status)}",
+        f"Title: {result.title}",
+        f"Status: {result.status}",
         f"Level: {_format_value(result.level)}",
         f"Audience: {_format_value(result.audience)}",
         f"Duration: {_format_value(result.duration_minutes)} minutes",
-        "",
-        "Learning objective",
-        "------------------",
-        _format_value(result.objective),
     ]
-
+    if result.objective:
+        lines.extend(["", "Learning objective", result.objective])
     if result.activities:
-        lines.extend(["", "Lesson activities", "-----------------"])
+        lines.extend(["", "Lesson activities"])
         for index, activity in enumerate(result.activities, start=1):
             purpose = activity.get("purpose") or activity.get("name") or "Activity"
-            lines.append(f"{index}. {purpose} ({_format_value(activity.get('minutes'))} min)")
-            for key, label in (
-                ("interaction", "Interaction"),
-                ("student_production", "Student production"),
-                ("assessment_link", "Assessment link"),
-            ):
-                value = activity.get(key)
-                if value:
-                    lines.append(f"   {label}: {value}")
-
+            lines.append(f"{index}. {purpose} ({activity.get('minutes', '?')} min, {activity.get('interaction', 'class')})")
+            if activity.get("student_production"):
+                lines.append(f"   Student production: {activity['student_production']}")
     if result.assessment:
-        assessment = result.assessment
-        lines.extend(["", "Assessment", "----------"])
-        lines.append(f"Type: {_format_value(assessment.get('type'))}")
-        lines.append(f"Target: {_format_value(assessment.get('target'))}")
-        lines.append(f"Evidence: {_format_value(assessment.get('evidence'))}")
-        criteria = assessment.get("success_criteria") or []
-        if criteria:
-            lines.append("Success criteria:")
-            lines.extend(f"- {criterion}" for criterion in criteria)
-
-    if result.lesson:
-        teacher_notes = result.lesson.get("teacher_notes")
-        if teacher_notes:
-            lines.extend(["", "Teacher notes", "-------------", str(teacher_notes)])
-
+        lines.extend(["", "Assessment", _format_value(result.assessment)])
+    if result.lesson and result.lesson.get("teacher_notes"):
+        lines.extend(["", "Teacher notes", str(result.lesson["teacher_notes"])])
     if result.resource:
-        resource = result.resource
-        lines.extend(["", "Resource", "--------"])
-        lines.append(f"Action: {_format_value(resource.get('action'))}")
-        lines.append(f"Type: {_format_value(resource.get('type'))}")
-        lines.append(f"Purpose: {_format_value(resource.get('purpose'))}")
-        lines.append(f"Required: {_format_value(resource.get('required'))}")
-        output = resource.get("output")
-        if isinstance(output, dict):
-            content = output.get("content")
-            if content:
-                lines.extend(["", "Accepted resource", "-----------------", str(content)])
-
+        lines.extend(["", "Resource", _format_value({k: v for k, v in result.resource.items() if k != "output"})])
+        if isinstance(result.resource.get("output"), dict):
+            output = result.resource["output"]
+            lines.extend(["", "Accepted resource"])
+            if output.get("content") is not None:
+                lines.append(str(output["content"]))
+            else:
+                lines.append(_format_value(output))
     if result.handoff:
-        lines.extend(["", "Next action", "----------"])
-        for key in ("reason", "action", "message"):
-            value = result.handoff.get(key)
-            if value:
-                lines.append(f"{key.replace('_', ' ').title()}: {value}")
-
+        lines.extend(["", "Next action", _format_value(result.handoff)])
     if result.errors:
-        lines.extend(["", "Issues", "------"])
+        lines.extend(["", "Issues"])
         lines.extend(f"- {error}" for error in result.errors)
-
     return "\n".join(lines)
