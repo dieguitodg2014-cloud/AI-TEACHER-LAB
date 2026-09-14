@@ -263,3 +263,30 @@ def test_direct_provider_execution_blocks_unvalidated_source_capability():
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["CAPABILITY_NOT_VALIDATED:source_based_resource_generation"]
     assert provider.calls == 0
+
+
+def test_capability_rejection_does_not_trigger_technical_fallback():
+    task = make_task()
+    rejected = StubProvider(result={"resource_type": "audio"})
+    fallback = StubProvider(result={"resource_type": "audio"})
+
+    def reject_capability(_task, _tool, _provider):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "result": None,
+            "errors": ["CAPABILITY_NOT_VALIDATED:audio_generation"],
+        }
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
+        {"provider-a": rejected, "provider-b": fallback},
+        executor=reject_capability,
+    )
+
+    assert result.status == "HUMAN_HANDOFF"
+    assert result.tool_id == "provider-a"
+    assert result.errors == ("CAPABILITY_NOT_VALIDATED:audio_generation",)
+    assert [attempt.tool_id for attempt in result.attempts] == ["provider-a"]
+    assert rejected.calls == 0
+    assert fallback.calls == 0
