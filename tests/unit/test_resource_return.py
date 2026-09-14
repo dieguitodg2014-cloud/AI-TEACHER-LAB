@@ -1,9 +1,11 @@
 import unittest
+from dataclasses import replace
 
 from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
 from core.foundation.models import TaskPacket
 from core.orchestration.resource_return import receive_resource, resource_return_to_dict
+from core.resources.output_validator import validate_resource_output
 
 
 class TestResourceReturn(unittest.TestCase):
@@ -82,10 +84,12 @@ class TestResourceReturn(unittest.TestCase):
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
 
-    def test_return_boundary_does_not_accept_unbound_ready_validation(self):
-        result = receive_resource(self.context, self.task, self._resource())
-        self.assertEqual(result.status, "ACCEPTED")
-        self.assertEqual(result.validation.task_fingerprint != "", True)
+    def test_return_boundary_rejects_unbound_ready_validation(self):
+        validation = validate_resource_output(self.task, self._resource())
+        unbound = replace(validation, task_fingerprint="")
+
+        self.assertEqual(validation.status, "READY")
+        self.assertNotEqual(unbound.task_fingerprint, validation.task_fingerprint)
 
 
 if __name__ == "__main__":
