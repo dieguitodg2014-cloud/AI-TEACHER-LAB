@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
@@ -21,7 +21,7 @@ from core.resources.regression_guard import (
 
 @dataclass(frozen=True)
 class ResourceRevisionResult:
-    """Terminal result of the resource QC/revision/acceptance loop."""
+    """Immutable terminal result of the resource QC/revision/acceptance loop."""
 
     status: str
     accepted: bool
@@ -29,7 +29,7 @@ class ResourceRevisionResult:
     resource: dict[str, Any] | None
     validation: ResourceValidationResult | None
     acceptance: ResourceAcceptanceResult | None
-    revision_feedback: list[str] = field(default_factory=list)
+    revision_feedback: tuple[str, ...] = ()
 
 
 class ResourceRevisionEngine:
@@ -49,8 +49,6 @@ class ResourceRevisionEngine:
         if max_revisions < 0:
             raise ValueError("max_revisions must be non-negative")
 
-        # Keep the engine's current resource isolated from a reviser. A provider
-        # must return a new state rather than mutate the state owned by the loop.
         resource = deepcopy(initial_resource)
         revisions = 0
         feedback: list[str] = []
@@ -68,7 +66,7 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=acceptance,
-                    revision_feedback=feedback,
+                    revision_feedback=tuple(feedback),
                 )
 
             if acceptance.decision != "REVISION_REQUIRED":
@@ -79,13 +77,15 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=acceptance,
-                    revision_feedback=feedback + acceptance.reasons,
+                    revision_feedback=tuple(feedback) + acceptance.reasons,
                 )
 
             if revisions >= max_revisions or reviser is None:
                 handoff = ResourceAcceptanceResult(
                     decision="HUMAN_HANDOFF",
-                    reasons=acceptance.reasons + ["Resource revision could not be completed within the approved revision boundary."],
+                    reasons=acceptance.reasons + (
+                        "Resource revision could not be completed within the approved revision boundary.",
+                    ),
                     blocking=True,
                     validation_id=validation.validation_id,
                 )
@@ -96,7 +96,7 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=handoff,
-                    revision_feedback=feedback + acceptance.reasons,
+                    revision_feedback=tuple(feedback) + acceptance.reasons,
                 )
 
             feedback.extend(acceptance.reasons)
@@ -104,16 +104,13 @@ class ResourceRevisionEngine:
             revision_input = deepcopy(resource)
             revised = reviser(revision_task, revision_input, validation)
 
-            # The reviser is downstream of the pedagogical decision. It gets a
-            # defensive TaskPacket copy and a defensive resource copy, so it
-            # cannot mutate authoritative state owned by the engine.
             if not task_packet_unchanged(authorized_task, revision_task):
                 handoff = ResourceAcceptanceResult(
                     decision="HUMAN_HANDOFF",
-                    reasons=[
+                    reasons=(
                         "RESOURCE_REGRESSION:TASK_PACKET_MUTATED_BY_REVISER",
                         "The authorized TaskPacket must remain unchanged during resource revision.",
-                    ],
+                    ),
                     blocking=True,
                     validation_id=validation.validation_id,
                 )
@@ -124,13 +121,13 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=handoff,
-                    revision_feedback=feedback + handoff.reasons,
+                    revision_feedback=tuple(feedback) + handoff.reasons,
                 )
 
             if not isinstance(revised, dict):
                 handoff = ResourceAcceptanceResult(
                     decision="HUMAN_HANDOFF",
-                    reasons=["RESOURCE_REVISER_RETURNED_INVALID_OUTPUT"],
+                    reasons=("RESOURCE_REVISER_RETURNED_INVALID_OUTPUT",),
                     blocking=True,
                     validation_id=validation.validation_id,
                 )
@@ -141,7 +138,7 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=handoff,
-                    revision_feedback=feedback + handoff.reasons,
+                    revision_feedback=tuple(feedback) + handoff.reasons,
                 )
 
             regression = check_resource_revision_regression(task, validation, revised)
@@ -159,7 +156,7 @@ class ResourceRevisionEngine:
                     resource=resource,
                     validation=validation,
                     acceptance=handoff,
-                    revision_feedback=feedback + regression.errors,
+                    revision_feedback=tuple(feedback) + regression.errors,
                 )
 
             resource = revised
