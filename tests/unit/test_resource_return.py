@@ -5,6 +5,7 @@ from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
 from core.foundation.models import TaskPacket
 from core.orchestration.resource_return import receive_resource, resource_return_to_dict
+from core.resources.acceptance_gate import ResourceAcceptanceGate
 from core.resources.output_validator import validate_resource_output
 
 
@@ -76,6 +77,13 @@ class TestResourceReturn(unittest.TestCase):
         self.assertTrue(result.validation.critical_failure)
         self.assertTrue(result.errors)
 
+    def test_return_result_errors_are_immutable(self):
+        result = receive_resource(self.context, self.task, None)
+
+        self.assertIsInstance(result.errors, tuple)
+        with self.assertRaises(AttributeError):
+            result.errors.append("unexpected mutation")
+
     def test_return_result_is_serializable(self):
         result = receive_resource(self.context, self.task, self._resource())
         payload = resource_return_to_dict(result)
@@ -83,13 +91,16 @@ class TestResourceReturn(unittest.TestCase):
         self.assertEqual(payload["status"], "ACCEPTED")
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
+        self.assertEqual(payload["errors"], [])
 
     def test_return_boundary_rejects_unbound_ready_validation(self):
         validation = validate_resource_output(self.task, self._resource())
         unbound = replace(validation, task_fingerprint="")
+        acceptance = ResourceAcceptanceGate().evaluate(self.task, unbound)
 
         self.assertEqual(validation.status, "READY")
-        self.assertNotEqual(unbound.task_fingerprint, validation.task_fingerprint)
+        self.assertEqual(acceptance.decision, "HUMAN_HANDOFF")
+        self.assertIn("RESOURCE_VALIDATION_TASK_BINDING_MISSING", acceptance.reasons)
 
 
 if __name__ == "__main__":
