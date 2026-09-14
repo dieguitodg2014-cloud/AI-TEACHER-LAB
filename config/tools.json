@@ -13,6 +13,7 @@
     {
       "tool_id": "notebooklm",
       "connector": "notebooklm",
+      "provider_revision": "capability-contract-v1",
       "capabilities": [
         "resource_generation",
         "source_based_resource_generation",
@@ -31,6 +32,7 @@
     {
       "tool_id": "canva",
       "connector": "canva",
+      "provider_revision": "capability-contract-v1",
       "capabilities": [
         "resource_generation",
         "visual_resource_generation",
