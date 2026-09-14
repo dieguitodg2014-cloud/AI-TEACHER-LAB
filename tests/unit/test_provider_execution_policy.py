@@ -157,6 +157,38 @@ def test_provider_without_required_capability_is_skipped():
     assert ("provider-a", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in result.excluded_tools
 
 
+def test_all_providers_excluded_produce_handoff_without_attempts():
+    task = make_task()
+    first = StubProvider(result={"resource_type": "audio"})
+    second = StubProvider(result={"resource_type": "audio"})
+    first_tool = ToolCandidate(
+        tool_id="provider-a",
+        capabilities=frozenset({"resource_generation", "audio_generation"}),
+        capability_validation=(("audio_generation", "not_validated"),),
+    )
+    second_tool = ToolCandidate(
+        tool_id="provider-b",
+        capabilities=frozenset({"resource_generation"}),
+    )
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [first_tool, second_tool],
+        {"provider-a": first, "provider-b": second},
+    )
+
+    assert result.status == "HUMAN_HANDOFF"
+    assert result.tool_id is None
+    assert result.attempts == ()
+    assert result.errors == ("NO_ELIGIBLE_RESOURCE_TOOL_AFTER_FALLBACK",)
+    assert first.calls == 0
+    assert second.calls == 0
+    assert result.excluded_tools == (
+        ("provider-a", "CAPABILITY_NOT_VALIDATED:audio_generation"),
+        ("provider-b", "MISSING_REQUIRED_CAPABILITIES:audio_generation"),
+    )
+
+
 def test_preferred_tool_is_selected_when_capable():
     task = make_task(preferred_tool="provider-b")
     preferred = StubProvider(result={"resource_type": "audio"})
