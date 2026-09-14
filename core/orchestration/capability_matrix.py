@@ -1,4 +1,11 @@
-"""Capability requirements for pedagogically approved resource tasks."""
+"""Capability requirements for pedagogically approved resource tasks.
+
+A provider capability declaration is an execution contract for the current
+runtime configuration. If a capability is absent, the provider is not eligible
+for that task; this does not claim that the provider can never support that
+capability. New capabilities should be added only after they are intentionally
+validated for Teacher Lab's use cases.
+"""
 
 from __future__ import annotations
 
