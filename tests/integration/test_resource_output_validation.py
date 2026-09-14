@@ -22,12 +22,15 @@ VALID_RESOURCE = {
 def test_vertical_slice_accepts_valid_produced_resource():
     result = run_lesson_planning(REQUEST, produced_resource=VALID_RESOURCE)
 
-    assert result.status == "PLANNED"
+    assert result.status == "ACCEPTED"
     assert result.resource_task is not None
     assert result.resource_validation is not None
     assert result.resource_validation.status == "READY"
     assert result.resource_validation.critical_failure is False
     assert result.resource_validation.score == 100.0
+    assert result.generation is not None
+    assert result.generation["status"] == "ACCEPTED"
+    assert result.generation["result"] == VALID_RESOURCE
     assert result.resource_handoff is None
 
 
@@ -137,10 +140,13 @@ def test_revision_round_trip_can_be_validated_again():
         revision_count=1,
     )
 
-    assert second_result.status == "PLANNED"
+    assert second_result.status == "ACCEPTED"
     assert second_result.resource_validation is not None
     assert second_result.resource_validation.status == "READY"
     assert second_result.resource_validation.score == 100.0
+    assert second_result.generation is not None
+    assert second_result.generation["status"] == "ACCEPTED"
+    assert second_result.generation["result"] == revised_resource
     assert second_result.resource_handoff is None
 
 
@@ -208,9 +214,12 @@ def test_a2_listening_resource_lifecycle_is_end_to_end():
         revision_count=1,
     )
 
-    assert final_qc.status == "PLANNED"
+    assert final_qc.status == "ACCEPTED"
     assert final_qc.resource_validation is not None
     assert final_qc.resource_validation.status == "READY"
     assert final_qc.resource_validation.score == 100.0
     assert final_qc.resource_validation.critical_failure is False
+    assert final_qc.generation is not None
+    assert final_qc.generation["status"] == "ACCEPTED"
+    assert final_qc.generation["result"] == revised_resource
     assert final_qc.resource_handoff is None
