@@ -134,7 +134,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNone(result.resource_validation)
         self.assertIn("NO_SUITABLE_RESOURCE_TOOL", result.errors)
 
-    def test_resource_provider_output_failure_reaches_resource_qc(self):
+    def test_resource_provider_output_failure_reaches_resource_acceptance_boundary(self):
         tools = [
             ToolCandidate(
                 tool_id="mock-resource-provider",
@@ -156,12 +156,12 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
             generators={"mock-resource-provider": mock_resource_provider},
         )
 
-        self.assertEqual(result.status, "REJECT")
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
         self.assertIsNotNone(result.resource_validation)
         self.assertEqual(result.resource_validation.status, "REJECT")
         self.assertTrue(result.resource_validation.critical_failure)
-        self.assertIsNotNone(result.generation)
-        self.assertEqual(result.generation["status"], "PRODUCED")
+        self.assertIsNone(result.generation)
+        self.assertIn("resource_type mismatch", result.errors[0])
 
     def test_notebooklm_executor_runs_through_same_resource_qc_boundary(self):
         tools = [
