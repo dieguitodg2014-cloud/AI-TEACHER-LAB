@@ -163,6 +163,58 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNone(result.generation)
         self.assertIn("resource_type mismatch", result.errors[0])
 
+    def test_qc_rejection_does_not_trigger_provider_fallback(self):
+        tools = [
+            ToolCandidate(
+                tool_id="provider-a",
+                capabilities=frozenset({"resource_generation", "audio_generation"}),
+                quality=1.0,
+                reliability=1.0,
+            ),
+            ToolCandidate(
+                tool_id="provider-b",
+                capabilities=frozenset({"resource_generation", "audio_generation"}),
+                quality=0.9,
+                reliability=0.9,
+            ),
+        ]
+        calls = []
+
+        def rejected_provider(task_packet):
+            calls.append("provider-a")
+            return {
+                "resource_type": "presentation",
+                "level": task_packet["level"],
+                "objective": task_packet["objective"],
+                "content": "Wrong resource type.",
+            }
+
+        def fallback_provider(task_packet):
+            calls.append("provider-b")
+            return {
+                "resource_type": "audio",
+                "level": task_packet["level"],
+                "objective": task_packet["objective"],
+                "content": "A valid fallback audio resource.",
+                "quality_criteria_addressed": task_packet["quality_criteria"],
+            }
+
+        result = run_lesson_planning(
+            REQUEST,
+            tools=tools,
+            generators={
+                "provider-a": rejected_provider,
+                "provider-b": fallback_provider,
+            },
+        )
+
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(calls, ["provider-a"])
+        self.assertEqual(result.generation["tool_id"], "provider-a")
+        self.assertEqual(result.generation["status"], "HUMAN_HANDOFF")
+        self.assertEqual(result.resource_validation.status, "REJECT")
+        self.assertNotIn("provider-b", calls)
+
     def test_produced_resource_without_task_cannot_cross_acceptance_boundary(self):
         tools = [
             ToolCandidate(
