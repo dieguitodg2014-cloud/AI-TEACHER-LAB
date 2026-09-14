@@ -56,7 +56,7 @@ class ResourceRevisionEngine:
 
         while True:
             validation = validate_resource_output(task, resource, revision_count=revisions)
-            acceptance = self.acceptance_gate.evaluate(task, validation)
+            acceptance = self.acceptance_gate.evaluate(task, validation, resource)
 
             if acceptance.decision == "ACCEPT":
                 return ResourceRevisionResult(
