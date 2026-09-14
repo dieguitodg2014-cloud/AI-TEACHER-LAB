@@ -77,6 +77,17 @@ The workflow requires external/provider or human action. Internal provider detai
 
 The teacher should see the missing information or issue in a readable form and should not receive a misleading impression that a complete lesson is ready.
 
+## Presentation formats
+
+The stable card can be consumed without changing the workflow. The current CLI exposes:
+
+- `teacher-text` — concise classroom-readable text; default.
+- `teacher` — stable teacher-facing JSON.
+- `teacher-html` — dependency-free HTML generated from the UI-neutral Lesson Card.
+- `internal` — orchestration output retained for diagnostics and development.
+
+The HTML renderer is presentation-only and escapes teacher/request content before inserting it into the document. It does not perform pedagogical, provider, QC, or acceptance decisions.
+
 ## Design boundary
 
 The Lesson Card is intentionally a projection layer:
