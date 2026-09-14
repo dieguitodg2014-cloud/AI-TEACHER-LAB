@@ -38,6 +38,19 @@ def test_ready_qc_must_cross_acceptance_gate():
     assert acceptance.blocking is False
 
 
+def test_acceptance_rejects_ready_validation_without_produced_resource():
+    task = make_task()
+    resource = make_resource()
+    validation = validate_resource_output(task, resource)
+
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
+
+    assert validation.status == "READY"
+    assert acceptance.decision == "HUMAN_HANDOFF"
+    assert acceptance.blocking is True
+    assert acceptance.reasons == ("RESOURCE_VALIDATION_OUTPUT_MISSING",)
+
+
 def test_acceptance_rejects_resource_replaced_after_qc():
     task = make_task()
     validated_resource = make_resource()
