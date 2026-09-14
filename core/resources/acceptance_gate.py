@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from core.foundation.models import TaskPacket
@@ -19,10 +19,10 @@ AcceptanceDecision = Literal[
 
 @dataclass(frozen=True)
 class ResourceAcceptanceResult:
-    """Decision controlling whether a resource may cross the delivery boundary."""
+    """Immutable decision controlling whether a resource may cross delivery."""
 
     decision: AcceptanceDecision
-    reasons: list[str] = field(default_factory=list)
+    reasons: tuple[str, ...] = ()
     blocking: bool = False
     validation_id: str = ""
 
@@ -43,7 +43,7 @@ class ResourceAcceptanceGate:
         if validation is None:
             return ResourceAcceptanceResult(
                 decision="HUMAN_HANDOFF",
-                reasons=["RESOURCE_VALIDATION_MISSING"],
+                reasons=("RESOURCE_VALIDATION_MISSING",),
                 blocking=True,
             )
 
@@ -51,7 +51,7 @@ class ResourceAcceptanceGate:
         if not validation.task_fingerprint:
             return ResourceAcceptanceResult(
                 decision="HUMAN_HANDOFF",
-                reasons=["RESOURCE_VALIDATION_TASK_BINDING_MISSING"],
+                reasons=("RESOURCE_VALIDATION_TASK_BINDING_MISSING",),
                 blocking=True,
                 validation_id=validation.validation_id,
             )
@@ -59,7 +59,7 @@ class ResourceAcceptanceGate:
         if validation.task_fingerprint != expected_fingerprint:
             return ResourceAcceptanceResult(
                 decision="HUMAN_HANDOFF",
-                reasons=["RESOURCE_VALIDATION_TASK_BINDING_MISMATCH"],
+                reasons=("RESOURCE_VALIDATION_TASK_BINDING_MISMATCH",),
                 blocking=True,
                 validation_id=validation.validation_id,
             )
@@ -67,7 +67,7 @@ class ResourceAcceptanceGate:
         if validation.status == "READY" and not validation.critical_failure:
             return ResourceAcceptanceResult(
                 decision="ACCEPT",
-                reasons=["Resource passed the approved TaskPacket validation boundary."],
+                reasons=("Resource passed the approved TaskPacket validation boundary.",),
                 blocking=False,
                 validation_id=validation.validation_id,
             )
@@ -75,7 +75,7 @@ class ResourceAcceptanceGate:
         if validation.status == "REVISION_REQUIRED":
             return ResourceAcceptanceResult(
                 decision="REVISION_REQUIRED",
-                reasons=list(validation.feedback) or ["Resource requires revision before acceptance."],
+                reasons=tuple(validation.feedback) or ("Resource requires revision before acceptance.",),
                 blocking=True,
                 validation_id=validation.validation_id,
             )
@@ -83,14 +83,14 @@ class ResourceAcceptanceGate:
         if validation.status == "REJECT_AND_REDESIGN":
             return ResourceAcceptanceResult(
                 decision="REJECT_AND_REDESIGN",
-                reasons=list(validation.feedback) or list(validation.blocking_errors) or ["Resource must be redesigned."],
+                reasons=tuple(validation.feedback) or tuple(validation.blocking_errors) or ("Resource must be redesigned.",),
                 blocking=True,
                 validation_id=validation.validation_id,
             )
 
         return ResourceAcceptanceResult(
             decision="HUMAN_HANDOFF",
-            reasons=list(validation.blocking_errors) or ["Resource failed the acceptance boundary."],
+            reasons=tuple(validation.blocking_errors) or ("Resource failed the acceptance boundary.",),
             blocking=True,
             validation_id=validation.validation_id,
         )
