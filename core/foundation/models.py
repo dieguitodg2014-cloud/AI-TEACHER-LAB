@@ -1,12 +1,13 @@
-"""Core immutable decision and execution models."""
+"""Minimal typed models for the AI Teacher Lab MVP foundation.
 
-from __future__ import annotations
+The models mirror the executable contracts in data/schemas/mvp-contracts.schema.json.
+They intentionally contain no provider-specific or UI-specific logic.
+"""
 
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-
-Level = str
+Level = Literal["A0", "A1", "A2", "B1", "B2"]
 
 
 @dataclass(frozen=True)
@@ -17,11 +18,14 @@ class Context:
     duration_minutes: int
     objective: str
     constraints: tuple[str, ...] = ()
+    group_size: int | None = None
+    topic: str | None = None
     prior_knowledge: tuple[str, ...] = ()
     technology: tuple[str, ...] = ()
     teacher_preferences: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Normalize context sequences to immutable tuples at the boundary."""
         object.__setattr__(self, "constraints", tuple(self.constraints))
         object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
         object.__setattr__(self, "technology", tuple(self.technology))
@@ -31,11 +35,15 @@ class Context:
 class LevelDecision:
     decision_id: str
     level: Level
-    confidence: float
-    evidence: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "evidence", tuple(self.evidence))
+    linguistic_complexity: str
+    cognitive_demand: str
+    interaction_expectation: str
+    scaffolding: str
+    assessment_expectation: str
+    autonomy_expectation: str = ""
+    grammar_precision: str = ""
+    fluency_expectation: str = ""
+    register: str = ""
 
 
 @dataclass(frozen=True)
@@ -58,6 +66,7 @@ class LearningPlanDecision:
     resource_need: str = ""
 
     def __post_init__(self) -> None:
+        """Normalize the pedagogical sequence to an immutable tuple."""
         object.__setattr__(self, "sequence", tuple(self.sequence))
 
 
@@ -70,6 +79,7 @@ class AssessmentDecision:
     success_criteria: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        """Normalize assessment criteria to an immutable tuple."""
         object.__setattr__(self, "success_criteria", tuple(self.success_criteria))
 
 
@@ -139,12 +149,11 @@ class QCChecks:
 
 @dataclass(frozen=True)
 class QCResult:
-    status: str
+    qc_id: str
+    status: Literal["READY", "ACCEPTABLE", "REVISION_REQUIRED", "REJECT_AND_REDESIGN"]
     score: float
+    critical_failure: bool
     checks: QCChecks
-    feedback: tuple[str, ...] = ()
-    blocking_errors: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "feedback", tuple(self.feedback))
-        object.__setattr__(self, "blocking_errors", tuple(self.blocking_errors))
+    revision_required: bool = False
+    feedback: list[str] = field(default_factory=list)
+    blocking_errors: list[str] = field(default_factory=list)
