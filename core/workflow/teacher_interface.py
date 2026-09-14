@@ -34,6 +34,8 @@ class TeacherLessonResult:
     def __post_init__(self) -> None:
         object.__setattr__(self, "lesson", deepcopy(self.lesson) if self.lesson is not None else None)
         object.__setattr__(self, "activities", tuple(deepcopy(activity) for activity in self.activities))
+        object.__setattr__(self, "resource", deepcopy(self.resource) if self.resource is not None else None)
+        object.__setattr__(self, "handoff", deepcopy(self.handoff) if self.handoff is not None else None)
         object.__setattr__(self, "errors", tuple(self.errors))
 
 
@@ -70,6 +72,16 @@ def _generated_lesson(result: VerticalSliceResult) -> dict[str, Any] | None:
     return deepcopy(generated) if isinstance(generated, dict) else None
 
 
+def _accepted_resource(result: VerticalSliceResult) -> dict[str, Any] | None:
+    """Return only the exact resource that crossed the acceptance boundary."""
+    if result.status != "ACCEPTED" or not result.generation:
+        return None
+    resource = result.generation.get("result")
+    if not isinstance(resource, dict):
+        return None
+    return deepcopy(resource)
+
+
 def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
     """Translate an internal workflow result into a stable teacher contract."""
     context = result.context
@@ -90,6 +102,9 @@ def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
             "purpose": result.resource_decision.purpose,
             "required": result.resource_decision.required,
         }
+        accepted = _accepted_resource(result)
+        if accepted is not None:
+            resource["output"] = accepted
 
     title = (context.topic if context else None) or (plan.objective if plan else None) or "Lesson Plan"
     return TeacherLessonResult(
@@ -178,6 +193,12 @@ def render_teacher_result(result: TeacherLessonResult) -> str:
         lines.append(f"Type: {_format_value(resource.get('type'))}")
         lines.append(f"Purpose: {_format_value(resource.get('purpose'))}")
         lines.append(f"Required: {_format_value(resource.get('required'))}")
+        output = resource.get("output")
+        if isinstance(output, dict):
+            content = output.get("content")
+            if content:
+                lines.extend(["", "Accepted resource", "-----------------"])
+                lines.append(str(content))
 
     if result.handoff:
         lines.extend(["", "Next action", "----------"])
