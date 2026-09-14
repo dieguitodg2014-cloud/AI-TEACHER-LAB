@@ -92,17 +92,32 @@ def run_lesson_planning(
                 checks={"resource_task_exists": False},
                 blocking_errors=["A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."],
             )
-        else:
-            resource_validation = validate_resource_output(
+            return VerticalSliceResult(
+                "HUMAN_HANDOFF",
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
                 resource_task,
-                produced_resource,
-                revision_count=revision_count,
+                None,
+                None,
+                resource_validation,
+                None,
+                [],
+                ["RESOURCE_TASK_MISSING_FOR_ACCEPTANCE"],
             )
 
-        acceptance = ResourceAcceptanceGate().evaluate(resource_task, resource_validation) if resource_task is not None else ResourceAcceptanceGate().evaluate(resource_task, resource_validation)
+        resource_validation = validate_resource_output(
+            resource_task,
+            produced_resource,
+            revision_count=revision_count,
+        )
+
+        acceptance = ResourceAcceptanceGate().evaluate(resource_task, resource_validation)
         if acceptance.decision != "ACCEPT":
             revision_handoff = None
-            if acceptance.decision == "REVISION_REQUIRED" and resource_task is not None:
+            if acceptance.decision == "REVISION_REQUIRED":
                 revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_validation)
             return VerticalSliceResult(
                 acceptance.decision,
@@ -168,7 +183,7 @@ def run_lesson_planning(
                 else raw_resource_tool
             )
 
-        if resource_execution["status"] not in {"ACCEPTED", "READY"}:
+        if resource_execution["status"] != "ACCEPTED":
             revision_handoff = None
             if resource_execution.get("validation") is not None and resource_execution["status"] == "REVISION_REQUIRED":
                 revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_execution["validation"])
@@ -179,7 +194,7 @@ def run_lesson_planning(
         if final_acceptance.decision != "ACCEPT":
             return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], final_acceptance.reasons)
 
-        return VerticalSliceResult("READY", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, final_validation, resource_execution, [], [])
+        return VerticalSliceResult("ACCEPTED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, final_validation, resource_execution, [], [])
 
     if generators is None:
         has_resource_capability = any("resource_generation" in tool.capabilities for tool in selected_tools)
