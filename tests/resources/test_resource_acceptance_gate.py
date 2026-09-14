@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from core.foundation.models import TaskPacket
 from core.resources.acceptance_gate import ResourceAcceptanceGate
 from core.resources.output_validator import validate_resource_output
@@ -57,3 +59,28 @@ def test_provider_ready_field_cannot_bypass_qc():
     assert validation.status == "REJECT"
     acceptance = ResourceAcceptanceGate().evaluate(task, validation)
     assert acceptance.decision == "HUMAN_HANDOFF"
+
+
+def test_ready_validation_cannot_cross_gate_for_different_task():
+    approved_task = make_task()
+    validation = validate_resource_output(approved_task, make_resource())
+    changed_task = replace(approved_task, objective="Practice listening for specific information.")
+
+    assert validation.status == "READY"
+    acceptance = ResourceAcceptanceGate().evaluate(changed_task, validation)
+
+    assert acceptance.decision == "HUMAN_HANDOFF"
+    assert acceptance.blocking is True
+    assert acceptance.reasons == ["RESOURCE_VALIDATION_TASK_BINDING_MISMATCH"]
+
+
+def test_unbound_ready_validation_cannot_cross_gate():
+    task = make_task()
+    validation = validate_resource_output(task, make_resource())
+    unbound = replace(validation, task_fingerprint="")
+
+    acceptance = ResourceAcceptanceGate().evaluate(task, unbound)
+
+    assert acceptance.decision == "HUMAN_HANDOFF"
+    assert acceptance.blocking is True
+    assert acceptance.reasons == ["RESOURCE_VALIDATION_TASK_BINDING_MISSING"]
