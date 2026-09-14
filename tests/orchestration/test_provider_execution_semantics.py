@@ -99,4 +99,40 @@ def test_no_eligible_provider_reports_exclusion_without_attempt():
     assert result.status == "HUMAN_HANDOFF"
     assert result.attempts == ()
     assert result.errors == ("NO_ELIGIBLE_RESOURCE_TOOL_AFTER_FALLBACK",)
-    assert result.excluded_tools == ()
+    assert result.excluded_tools == (("provider-a", "RESOURCE_PROVIDER_NOT_CONFIGURED"),)
+
+
+def test_unconfigured_preferred_provider_is_excluded_and_fallback_executes():
+    calls = []
+
+    def executor(task, tool, provider):
+        calls.append(tool.tool_id)
+        return {
+            "status": "PRODUCED",
+            "tool_id": tool.tool_id,
+            "result": {"resource_type": task.required_output},
+            "errors": [],
+        }
+
+    task = TaskPacket(
+        task_id="task-unconfigured",
+        task_type="RESOURCE_PRODUCTION",
+        objective="Practice listening for key information.",
+        level="A2",
+        required_output="audio",
+        constraints=(),
+        quality_criteria=("Support the objective.",),
+        preferred_tool="provider-a",
+        fallback_tool="provider-b",
+    )
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [_tool("provider-a"), _tool("provider-b")],
+        {"provider-b": StubProvider()},
+        executor=executor,
+    )
+
+    assert result.status == "PRODUCED"
+    assert calls == ["provider-b"]
+    assert tuple(attempt.tool_id for attempt in result.attempts) == ("provider-b",)
+    assert ("provider-a", "RESOURCE_PROVIDER_NOT_CONFIGURED") in result.excluded_tools
