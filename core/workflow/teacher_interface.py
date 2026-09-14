@@ -116,3 +116,78 @@ def plan_for_teacher(request: dict[str, Any] | str, **workflow_kwargs: Any) -> T
 def teacher_result_to_dict(result: TeacherLessonResult) -> dict[str, Any]:
     """Serialize the teacher-facing contract for CLI, API, or UI use."""
     return asdict(result)
+
+
+def _format_value(value: Any) -> str:
+    if value is None:
+        return "Not available"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    return str(value)
+
+
+def render_teacher_result(result: TeacherLessonResult) -> str:
+    """Render the stable teacher contract as concise, classroom-readable text."""
+    lines = [
+        result.title,
+        "=" * len(result.title),
+        f"Status: {_format_value(result.status)}",
+        f"Level: {_format_value(result.level)}",
+        f"Audience: {_format_value(result.audience)}",
+        f"Duration: {_format_value(result.duration_minutes)} minutes",
+        "",
+        "Learning objective",
+        "------------------",
+        _format_value(result.objective),
+    ]
+
+    if result.activities:
+        lines.extend(["", "Lesson activities", "-----------------"])
+        for index, activity in enumerate(result.activities, start=1):
+            purpose = activity.get("purpose") or activity.get("name") or "Activity"
+            lines.append(f"{index}. {purpose} ({_format_value(activity.get('minutes'))} min)")
+            for key, label in (
+                ("interaction", "Interaction"),
+                ("student_production", "Student production"),
+                ("assessment_link", "Assessment link"),
+            ):
+                value = activity.get(key)
+                if value:
+                    lines.append(f"   {label}: {value}")
+
+    if result.assessment:
+        assessment = result.assessment
+        lines.extend(["", "Assessment", "----------"])
+        lines.append(f"Type: {_format_value(assessment.get('type'))}")
+        lines.append(f"Target: {_format_value(assessment.get('target'))}")
+        lines.append(f"Evidence: {_format_value(assessment.get('evidence'))}")
+        criteria = assessment.get("success_criteria") or []
+        if criteria:
+            lines.append("Success criteria:")
+            lines.extend(f"- {criterion}" for criterion in criteria)
+
+    if result.lesson:
+        teacher_notes = result.lesson.get("teacher_notes")
+        if teacher_notes:
+            lines.extend(["", "Teacher notes", "-------------", str(teacher_notes)])
+
+    if result.resource:
+        resource = result.resource
+        lines.extend(["", "Resource", "--------"])
+        lines.append(f"Action: {_format_value(resource.get('action'))}")
+        lines.append(f"Type: {_format_value(resource.get('type'))}")
+        lines.append(f"Purpose: {_format_value(resource.get('purpose'))}")
+        lines.append(f"Required: {_format_value(resource.get('required'))}")
+
+    if result.handoff:
+        lines.extend(["", "Next action", "----------"])
+        for key in ("reason", "action", "message"):
+            value = result.handoff.get(key)
+            if value:
+                lines.append(f"{key.replace('_', ' ').title()}: {value}")
+
+    if result.errors:
+        lines.extend(["", "Issues", "------"])
+        lines.extend(f"- {error}" for error in result.errors)
+
+    return "\n".join(lines)
