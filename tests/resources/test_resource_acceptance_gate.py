@@ -100,7 +100,8 @@ def test_provider_ready_field_cannot_bypass_qc():
 
     assert validation.status == "REJECT"
     acceptance = ResourceAcceptanceGate().evaluate(task, validation, resource)
-    assert acceptance.decision == "HUMAN_HANDOFF"
+    assert acceptance.decision == "REJECT"
+    assert acceptance.blocking is True
 
 
 def test_ready_validation_cannot_cross_gate_for_different_task():
