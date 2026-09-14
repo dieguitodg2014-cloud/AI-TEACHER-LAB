@@ -31,19 +31,31 @@ def validate_capability(
     passed: bool,
     evidence: tuple[str, ...] | list[str] = (),
 ) -> CapabilityValidationResult:
-    """Produce a validation result without mutating provider configuration."""
+    """Produce a validation result without mutating provider configuration.
+
+    A capability can only become validated when the caller supplies explicit
+    evidence. A successful flag without evidence is insufficient proof.
+    """
+    normalized_evidence = tuple(evidence)
     if capability not in tool.capabilities:
         return CapabilityValidationResult(
             tool_id=tool.tool_id,
             capability=capability,
             status=NOT_VALIDATED,
-            evidence=tuple(evidence),
+            evidence=normalized_evidence,
+        )
+    if not passed or not normalized_evidence:
+        return CapabilityValidationResult(
+            tool_id=tool.tool_id,
+            capability=capability,
+            status=NOT_VALIDATED,
+            evidence=normalized_evidence,
         )
     return CapabilityValidationResult(
         tool_id=tool.tool_id,
         capability=capability,
-        status=VALIDATED if passed else NOT_VALIDATED,
-        evidence=tuple(evidence),
+        status=VALIDATED,
+        evidence=normalized_evidence,
     )
 
 
@@ -58,6 +70,8 @@ def apply_validation_result(
         raise ValueError("CAPABILITY_VALIDATION_NOT_DECLARED")
     if result.status not in {VALIDATED, NOT_VALIDATED}:
         raise ValueError("INVALID_CAPABILITY_VALIDATION_STATUS")
+    if result.status == VALIDATED and not result.evidence:
+        raise ValueError("VALIDATED_CAPABILITY_REQUIRES_EVIDENCE")
 
     validation = dict(tool.capability_validation)
     validation[result.capability] = result.status
