@@ -92,7 +92,7 @@ class TestResourceReturn(unittest.TestCase):
         self.assertEqual(payload["status"], "ACCEPTED")
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
-        self.assertEqual(payload["errors"], [])
+        self.assertEqual(payload["errors"], ())
 
     def test_return_boundary_rejects_unbound_ready_validation(self):
         validation = validate_resource_output(self.task, self._resource())
