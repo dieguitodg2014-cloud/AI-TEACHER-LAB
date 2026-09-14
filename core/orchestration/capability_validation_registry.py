@@ -60,4 +60,5 @@ class CapabilityValidationRegistry:
             speed=tool.speed,
             cost=tool.cost,
             capability_validation=tuple(sorted(validation.items())),
+            provider_revision=tool.provider_revision,
         )
