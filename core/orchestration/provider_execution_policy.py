@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -171,7 +172,7 @@ class ProviderExecutionPolicy:
                 )
 
             try:
-                raw_outcome = executor(task, tool, providers[tool.tool_id])
+                raw_outcome = executor(deepcopy(task), tool, providers[tool.tool_id])
             except Exception as exc:
                 outcome = {
                     "status": "HUMAN_HANDOFF",
