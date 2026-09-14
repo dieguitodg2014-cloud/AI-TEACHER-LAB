@@ -100,17 +100,23 @@ class TaskPacket:
     objective: str
     level: Level
     required_output: str
-    constraints: list[str]
-    quality_criteria: list[str]
+    constraints: tuple[str, ...]
+    quality_criteria: tuple[str, ...]
     course_id: str = ""
     lesson_id: str = ""
     audience: str = ""
-    input_materials: list[str] = field(default_factory=list)
+    input_materials: tuple[str, ...] = ()
     preferred_tool: str = ""
     fallback_tool: str = ""
     source_based: bool = False
     visual: bool = False
     status: Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "HUMAN_HANDOFF"] = "PENDING"
+
+    def __post_init__(self) -> None:
+        """Deep-freeze mutable sequence inputs at the authoritative boundary."""
+        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "quality_criteria", tuple(self.quality_criteria))
+        object.__setattr__(self, "input_materials", tuple(self.input_materials))
 
 
 @dataclass(frozen=True)
