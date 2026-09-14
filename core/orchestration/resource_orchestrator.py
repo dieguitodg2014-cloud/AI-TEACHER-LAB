@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
 from core.orchestration.capability_matrix import capabilities_for_resource
+from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.provider_capability_contract import (
     provider_supports_capabilities,
     validate_provider_capabilities,
@@ -29,12 +30,18 @@ def select_resource_tool(
     *,
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
+    validation_registry: CapabilityValidationRegistry | None = None,
 ) -> ToolCandidate | None:
     """Select a resource tool from the capabilities frozen in the TaskPacket."""
     if task is None:
         return None
     eligible = [tool for tool in tools if blocked_tools is None or tool.tool_id not in blocked_tools]
-    return select_resource_provider(task, eligible, free_first=free_first)
+    return select_resource_provider(
+        task,
+        eligible,
+        free_first=free_first,
+        validation_registry=validation_registry,
+    )
 
 
 def resource_tool_plan(
@@ -43,9 +50,16 @@ def resource_tool_plan(
     *,
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
+    validation_registry: CapabilityValidationRegistry | None = None,
 ) -> dict[str, Any]:
     """Return an execution plan without executing the provider."""
-    tool = select_resource_tool(task, tools, free_first=free_first, blocked_tools=blocked_tools)
+    tool = select_resource_tool(
+        task,
+        tools,
+        free_first=free_first,
+        blocked_tools=blocked_tools,
+        validation_registry=validation_registry,
+    )
     if task is None:
         return {"status": "NOT_REQUIRED", "tool_id": None, "task_id": None}
     if tool is None:
@@ -182,10 +196,17 @@ def execute_resource_production_with_fallback(
     max_revisions: int = 1,
     acceptance_gate: ResourceAcceptanceGate | None = None,
     free_first: bool = True,
+    validation_registry: CapabilityValidationRegistry | None = None,
 ) -> dict[str, Any]:
     """Fallback between providers, then QC the first successful output exactly once."""
     policy = ProviderExecutionPolicy(free_first=free_first)
-    execution = policy.execute(task, tools, providers, executor=execute_resource_provider)
+    execution = policy.execute(
+        task,
+        tools,
+        providers,
+        executor=execute_resource_provider,
+        validation_registry=validation_registry,
+    )
     execution_trace = {"attempts": execution.attempts, "excluded_tools": execution.excluded_tools}
     if execution.status != "PRODUCED":
         return {
