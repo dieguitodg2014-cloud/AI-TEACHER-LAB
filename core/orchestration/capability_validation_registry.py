@@ -8,6 +8,7 @@ from core.orchestration.capability_validation import (
     NOT_VALIDATED,
     VALIDATED,
     CapabilityValidationResult,
+    capability_fingerprint,
 )
 from core.orchestration.tool_selector import ToolCandidate
 
@@ -36,13 +37,19 @@ class CapabilityValidationRegistry:
         return None
 
     def effective_tool(self, tool: ToolCandidate) -> ToolCandidate:
-        """Return a copy with only explicitly validated declared capabilities promoted."""
+        """Return a copy with only current, evidence-backed validations promoted."""
         validation = dict(tool.capability_validation)
+        current_fingerprint = capability_fingerprint(tool)
         for capability in tool.capabilities:
             result = self.get(tool.tool_id, capability)
-            if result is not None and result.status == VALIDATED:
-                validation[capability] = VALIDATED
-            elif result is not None and result.status == NOT_VALIDATED:
+            if result is None:
+                continue
+            if result.status == VALIDATED:
+                if result.tool_fingerprint == current_fingerprint and result.evidence:
+                    validation[capability] = VALIDATED
+                else:
+                    validation[capability] = NOT_VALIDATED
+            elif result.status == NOT_VALIDATED:
                 validation[capability] = NOT_VALIDATED
         return ToolCandidate(
             tool_id=tool.tool_id,
