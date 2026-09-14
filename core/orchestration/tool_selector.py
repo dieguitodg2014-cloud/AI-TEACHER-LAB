@@ -17,6 +17,7 @@ class ToolCandidate:
     speed: float = 0.0
     cost: float = 0.0
     capability_validation: tuple[tuple[str, str], ...] = ()
+    provider_revision: str = ""
 
     def validation_status(self, capability: str) -> str:
         """Return explicit validation state; legacy candidates default to validated."""
