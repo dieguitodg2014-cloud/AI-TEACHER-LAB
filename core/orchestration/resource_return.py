@@ -51,8 +51,8 @@ def receive_resource(
             status="REJECT",
             score=0.0,
             critical_failure=True,
-            checks={"resource_returned": False},
-            blocking_errors=["No produced resource was returned for validation."],
+            checks=(("resource_returned", False),),
+            blocking_errors=("No produced resource was returned for validation.",),
         )
     else:
         validation = validate_resource_output(
@@ -61,7 +61,7 @@ def receive_resource(
             revision_count=revision_count,
         )
 
-    acceptance = ResourceAcceptanceGate().evaluate(task, validation)
+    acceptance = ResourceAcceptanceGate().evaluate(task, validation, produced_resource)
     revision_handoff = None
     if acceptance.decision == "REVISION_REQUIRED":
         revision_handoff = build_resource_revision_handoff(
