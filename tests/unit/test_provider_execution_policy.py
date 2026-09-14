@@ -57,12 +57,7 @@ def make_tool(tool_id, *, quality=0.0, reliability=0.0, capabilities=None):
 def test_first_provider_success_requires_no_fallback():
     task = make_task()
     provider = StubProvider(result={"resource_type": "audio"})
-    result = ProviderExecutionPolicy().execute(
-        task,
-        [make_tool("provider-a", quality=1.0)],
-        {"provider-a": provider},
-    )
-
+    result = ProviderExecutionPolicy().execute(task, [make_tool("provider-a", quality=1.0)], {"provider-a": provider})
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-a"
     assert len(result.attempts) == 1
@@ -78,7 +73,6 @@ def test_failed_provider_falls_back_to_next_eligible_provider():
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
         {"provider-a": failing, "provider-b": working},
     )
-
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-b"
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
@@ -95,7 +89,6 @@ def test_failed_provider_is_not_retried():
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.9)],
         {"provider-a": failing, "provider-b": working},
     )
-
     assert result.status == "HUMAN_HANDOFF"
     assert len(result.attempts) == 2
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
@@ -108,13 +101,11 @@ def test_fallback_preserves_authoritative_task_packet():
     before = deepcopy(task)
     failing = StubProvider(error="failure")
     working = StubProvider(result={"resource_type": "audio"})
-
     ProviderExecutionPolicy().execute(
         task,
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.9)],
         {"provider-a": failing, "provider-b": working},
     )
-
     assert task == before
 
 
@@ -123,13 +114,11 @@ def test_provider_task_mutation_isolated_during_fallback():
     before = deepcopy(task)
     mutating = StubProvider(result={"resource_type": "audio"}, mutate_task=True)
     working = StubProvider(result={"resource_type": "audio"})
-
     result = ProviderExecutionPolicy().execute(
         task,
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.9)],
         {"provider-a": mutating, "provider-b": working},
     )
-
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-a"
     assert task == before
@@ -139,18 +128,12 @@ def test_provider_without_required_capability_is_skipped():
     task = make_task()
     ineligible = StubProvider(result={"resource_type": "audio"})
     working = StubProvider(result={"resource_type": "audio"})
-    bad_tool = ToolCandidate(
-        tool_id="provider-a",
-        capabilities=frozenset({"image_generation"}),
-        quality=1.0,
-    )
-
+    bad_tool = ToolCandidate(tool_id="provider-a", capabilities=frozenset({"image_generation"}), quality=1.0)
     result = ProviderExecutionPolicy().execute(
         task,
         [bad_tool, make_tool("provider-b", quality=0.5)],
         {"provider-a": ineligible, "provider-b": working},
     )
-
     assert result.status == "PRODUCED"
     assert result.tool_id == "provider-b"
     assert ineligible.calls == 0
@@ -166,17 +149,12 @@ def test_all_providers_excluded_produce_handoff_without_attempts():
         capabilities=frozenset({"resource_generation", "audio_generation"}),
         capability_validation=(("audio_generation", "not_validated"),),
     )
-    second_tool = ToolCandidate(
-        tool_id="provider-b",
-        capabilities=frozenset({"resource_generation"}),
-    )
-
+    second_tool = ToolCandidate(tool_id="provider-b", capabilities=frozenset({"resource_generation"}))
     result = ProviderExecutionPolicy().execute(
         task,
         [first_tool, second_tool],
         {"provider-a": first, "provider-b": second},
     )
-
     assert result.status == "HUMAN_HANDOFF"
     assert result.tool_id is None
     assert result.attempts == ()
@@ -193,13 +171,11 @@ def test_preferred_tool_is_selected_when_capable():
     task = make_task(preferred_tool="provider-b")
     preferred = StubProvider(result={"resource_type": "audio"})
     higher_scored = StubProvider(result={"resource_type": "audio"})
-
     result = ProviderExecutionPolicy().execute(
         task,
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.1)],
         {"provider-a": higher_scored, "provider-b": preferred},
     )
-
     assert result.tool_id == "provider-b"
     assert [a.tool_id for a in result.attempts] == ["provider-b"]
     assert higher_scored.calls == 0
@@ -207,19 +183,13 @@ def test_preferred_tool_is_selected_when_capable():
 
 def test_unusable_preferred_tool_does_not_override_capabilities():
     task = make_task(preferred_tool="provider-a")
-    preferred_but_incompatible = ToolCandidate(
-        tool_id="provider-a",
-        capabilities=frozenset({"image_generation"}),
-        quality=10.0,
-    )
+    preferred_but_incompatible = ToolCandidate(tool_id="provider-a", capabilities=frozenset({"image_generation"}), quality=10.0)
     working = StubProvider(result={"resource_type": "audio"})
-
     result = ProviderExecutionPolicy().execute(
         task,
         [preferred_but_incompatible, make_tool("provider-b", quality=0.5)],
         {"provider-a": StubProvider(result={"resource_type": "audio"}), "provider-b": working},
     )
-
     assert result.tool_id == "provider-b"
     assert working.calls == 2
     assert ("provider-a", "MISSING_REQUIRED_CAPABILITIES:audio_generation,resource_generation") in result.excluded_tools
@@ -230,13 +200,11 @@ def test_fallback_hint_is_used_after_preferred_provider_fails():
     preferred = StubProvider(error="preferred unavailable")
     fallback = StubProvider(result={"resource_type": "audio"})
     third = StubProvider(result={"resource_type": "audio"})
-
     result = ProviderExecutionPolicy().execute(
         task,
         [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.1), make_tool("provider-c", quality=0.9)],
         {"provider-a": preferred, "provider-b": fallback, "provider-c": third},
     )
-
     assert result.tool_id == "provider-b"
     assert [a.tool_id for a in result.attempts] == ["provider-a", "provider-b"]
     assert third.calls == 0
@@ -246,9 +214,7 @@ def test_direct_provider_execution_enforces_audio_capability():
     task = make_task(required_output="audio")
     tool = make_tool("provider-a", capabilities={"resource_generation"})
     provider = StubProvider(result={"resource_type": "audio"})
-
     result = execute_resource_provider(task, tool, provider)
-
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["PROVIDER_NOT_ELIGIBLE_FOR_TASK:provider-a:RESOURCE_PRODUCTION"]
     assert provider.calls == 0
@@ -258,9 +224,7 @@ def test_direct_provider_execution_enforces_source_based_capability():
     task = make_task(required_output="worksheet", source_based=True)
     tool = make_tool("provider-a")
     provider = StubProvider(result={"resource_type": "worksheet"})
-
     result = execute_resource_provider(task, tool, provider)
-
     assert result["status"] == "HUMAN_HANDOFF"
     assert provider.calls == 0
 
@@ -273,9 +237,7 @@ def test_direct_provider_execution_blocks_unvalidated_required_capability():
         capability_validation=(("audio_generation", "not_validated"),),
     )
     provider = StubProvider(result={"resource_type": "audio"})
-
     result = execute_resource_provider(task, tool, provider)
-
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["CAPABILITY_NOT_VALIDATED:audio_generation"]
     assert provider.calls == 0
@@ -289,9 +251,7 @@ def test_direct_provider_execution_blocks_unvalidated_source_capability():
         capability_validation=(("source_based_resource_generation", "not_validated"),),
     )
     provider = StubProvider(result={"resource_type": "worksheet"})
-
     result = execute_resource_provider(task, tool, provider)
-
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["CAPABILITY_NOT_VALIDATED:source_based_resource_generation"]
     assert provider.calls == 0
@@ -303,11 +263,7 @@ def test_capability_rejection_does_not_trigger_technical_fallback():
     fallback = StubProvider(result={"resource_type": "audio"})
 
     def reject_capability(_task, _tool, _provider):
-        return {
-            "status": "HUMAN_HANDOFF",
-            "result": None,
-            "errors": ["CAPABILITY_NOT_VALIDATED:audio_generation"],
-        }
+        return {"status": "HUMAN_HANDOFF", "result": None, "errors": ["CAPABILITY_NOT_VALIDATED:audio_generation"]}
 
     result = ProviderExecutionPolicy().execute(
         task,
@@ -315,10 +271,81 @@ def test_capability_rejection_does_not_trigger_technical_fallback():
         {"provider-a": rejected, "provider-b": fallback},
         executor=reject_capability,
     )
-
     assert result.status == "HUMAN_HANDOFF"
     assert result.tool_id == "provider-a"
     assert result.errors == ("CAPABILITY_NOT_VALIDATED:audio_generation",)
     assert [attempt.tool_id for attempt in result.attempts] == ["provider-a"]
     assert rejected.calls == 0
     assert fallback.calls == 0
+
+
+def test_custom_executor_exception_is_normalized_and_falls_back():
+    task = make_task()
+    fallback = StubProvider(result={"resource_type": "audio"})
+
+    def exploding_executor(_task, _tool, _provider):
+        raise RuntimeError("executor crashed")
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
+        {"provider-a": StubProvider(), "provider-b": fallback},
+        executor=exploding_executor,
+    )
+    assert result.status == "PRODUCED"
+    assert result.tool_id == "provider-b"
+    assert result.attempts[0].errors == ("RESOURCE_PROVIDER_EXECUTOR_ERROR:executor crashed",)
+
+
+def test_malformed_custom_executor_output_is_normalized_and_falls_back():
+    task = make_task()
+    fallback = StubProvider(result={"resource_type": "audio"})
+
+    def malformed_executor(_task, _tool, _provider):
+        return ["not", "a", "dict"]
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
+        {"provider-a": StubProvider(), "provider-b": fallback},
+        executor=malformed_executor,
+    )
+    assert result.status == "PRODUCED"
+    assert result.tool_id == "provider-b"
+    assert result.attempts[0].errors == ("RESOURCE_PROVIDER_EXECUTOR_OUTPUT_NOT_OBJECT",)
+
+
+def test_produced_status_with_non_object_result_is_normalized_and_falls_back():
+    task = make_task()
+    fallback = StubProvider(result={"resource_type": "audio"})
+
+    def malformed_result_executor(_task, _tool, _provider):
+        return {"status": "PRODUCED", "result": ["not", "an", "object"], "errors": []}
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
+        {"provider-a": StubProvider(), "provider-b": fallback},
+        executor=malformed_result_executor,
+    )
+    assert result.status == "PRODUCED"
+    assert result.tool_id == "provider-b"
+    assert result.attempts[0].errors == ("RESOURCE_PROVIDER_EXECUTOR_RESULT_NOT_OBJECT",)
+
+
+def test_malformed_executor_errors_are_normalized_and_falls_back():
+    task = make_task()
+    fallback = StubProvider(result={"resource_type": "audio"})
+
+    def malformed_errors_executor(_task, _tool, _provider):
+        return {"status": "HUMAN_HANDOFF", "result": None, "errors": "not-a-list"}
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a", quality=1.0), make_tool("provider-b", quality=0.5)],
+        {"provider-a": StubProvider(), "provider-b": fallback},
+        executor=malformed_errors_executor,
+    )
+    assert result.status == "PRODUCED"
+    assert result.tool_id == "provider-b"
+    assert result.attempts[0].errors == ("RESOURCE_PROVIDER_EXECUTOR_ERRORS_NOT_LIST",)
