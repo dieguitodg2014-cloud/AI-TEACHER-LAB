@@ -63,10 +63,11 @@ def test_notebooklm_failure_falls_back_to_canva_without_redesigning_task():
     def execute(task_packet, tool, provider):
         return execute_resource_provider(task_packet, tool, provider)
 
-    result = ProviderExecutionPolicy(executor=execute).execute(
+    result = ProviderExecutionPolicy().execute(
         task,
         [tool("notebooklm"), tool("canva")],
         providers,
+        executor=execute,
     )
 
     assert result.status == "PRODUCED"
