@@ -11,6 +11,9 @@ from core.workflow.configured_runtime import run_configured_lesson_planning
 from core.workflow.vertical_slice import result_to_dict
 
 
+SUCCESS_STATUS = "ACCEPTED"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run AI TEACHER LAB lesson planning with the configured runtime."
@@ -50,7 +53,7 @@ def main() -> int:
     args = build_parser().parse_args()
     result = run_configured_lesson_planning(build_request(args))
     print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
-    return 0 if result.status == "READY" else 1
+    return 0 if result.status == SUCCESS_STATUS else 1
 
 
 if __name__ == "__main__":
