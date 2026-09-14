@@ -44,8 +44,13 @@ class VerticalSliceResult:
     resource_handoff: dict[str, Any] | None
     resource_validation: ResourceValidationResult | None
     generation: dict[str, Any] | None
-    missing: list[str]
-    errors: list[str]
+    missing: tuple[str, ...]
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Defensively normalize result collections so the frozen model is immutable."""
+        object.__setattr__(self, "missing", tuple(self.missing))
+        object.__setattr__(self, "errors", tuple(self.errors))
 
 
 def run_lesson_planning(
@@ -132,7 +137,7 @@ def run_lesson_planning(
                 resource_validation,
                 None,
                 [],
-                list(acceptance.reasons),
+                acceptance.reasons,
             )
 
         return VerticalSliceResult(
@@ -203,12 +208,12 @@ def run_lesson_planning(
             revision_handoff = None
             if resource_execution.get("validation") is not None and resource_execution["status"] == "REVISION_REQUIRED":
                 revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_execution["validation"])
-            return VerticalSliceResult(resource_execution["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_execution.get("validation"), resource_execution, [], list(resource_execution.get("errors", [])))
+            return VerticalSliceResult(resource_execution["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_execution.get("validation"), resource_execution, [], resource_execution.get("errors", []))
 
         final_validation = resource_execution.get("validation")
         final_acceptance = ResourceAcceptanceGate().evaluate(resource_task, final_validation)
         if final_acceptance.decision != "ACCEPT":
-            return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], list(final_acceptance.reasons))
+            return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], final_acceptance.reasons)
 
         return VerticalSliceResult("ACCEPTED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, final_validation, resource_execution, [], [])
 
