@@ -231,3 +231,35 @@ def test_direct_provider_execution_enforces_source_based_capability():
 
     assert result["status"] == "HUMAN_HANDOFF"
     assert provider.calls == 0
+
+
+def test_direct_provider_execution_blocks_unvalidated_required_capability():
+    task = make_task(required_output="audio")
+    tool = ToolCandidate(
+        tool_id="provider-a",
+        capabilities=frozenset({"resource_generation", "audio_generation"}),
+        capability_validation=(("audio_generation", "not_validated"),),
+    )
+    provider = StubProvider(result={"resource_type": "audio"})
+
+    result = execute_resource_provider(task, tool, provider)
+
+    assert result["status"] == "HUMAN_HANDOFF"
+    assert result["errors"] == ["CAPABILITY_NOT_VALIDATED:audio_generation"]
+    assert provider.calls == 0
+
+
+def test_direct_provider_execution_blocks_unvalidated_source_capability():
+    task = make_task(required_output="worksheet", source_based=True)
+    tool = ToolCandidate(
+        tool_id="provider-a",
+        capabilities=frozenset({"resource_generation", "source_based_resource_generation"}),
+        capability_validation=(("source_based_resource_generation", "not_validated"),),
+    )
+    provider = StubProvider(result={"resource_type": "worksheet"})
+
+    result = execute_resource_provider(task, tool, provider)
+
+    assert result["status"] == "HUMAN_HANDOFF"
+    assert result["errors"] == ["CAPABILITY_NOT_VALIDATED:source_based_resource_generation"]
+    assert provider.calls == 0
