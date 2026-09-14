@@ -78,6 +78,31 @@ def _is_capability_rejection(errors: tuple[str, ...]) -> bool:
     return any(error.startswith("CAPABILITY_NOT_VALIDATED:") for error in errors)
 
 
+def _normalize_executor_outcome(outcome: Any) -> dict[str, Any]:
+    """Normalize malformed custom-executor output at the policy boundary."""
+    if not isinstance(outcome, dict):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "result": None,
+            "errors": ["RESOURCE_PROVIDER_EXECUTOR_OUTPUT_NOT_OBJECT"],
+        }
+    status = outcome.get("status")
+    errors = outcome.get("errors", [])
+    if not isinstance(errors, (list, tuple)) or not all(isinstance(error, str) for error in errors):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "result": None,
+            "errors": ["RESOURCE_PROVIDER_EXECUTOR_ERRORS_NOT_LIST"],
+        }
+    if not isinstance(status, str):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "result": None,
+            "errors": ["RESOURCE_PROVIDER_EXECUTOR_STATUS_MISSING"],
+        }
+    return outcome
+
+
 class ProviderExecutionPolicy:
     """Execute providers with technical fallback while preserving the TaskPacket."""
 
@@ -145,29 +170,48 @@ class ProviderExecutionPolicy:
                     excluded_tools=excluded_tools,
                 )
 
-            outcome = executor(task, tool, providers[tool.tool_id])
+            try:
+                raw_outcome = executor(task, tool, providers[tool.tool_id])
+            except Exception as exc:
+                outcome = {
+                    "status": "HUMAN_HANDOFF",
+                    "result": None,
+                    "errors": [f"RESOURCE_PROVIDER_EXECUTOR_ERROR:{exc}"],
+                }
+            else:
+                outcome = _normalize_executor_outcome(raw_outcome)
 
+            outcome_errors = tuple(outcome.get("errors", []))
             attempt = ProviderAttempt(
                 attempt=len(attempts) + 1,
                 task_id=task.task_id,
                 tool_id=tool.tool_id,
                 status=outcome["status"],
-                errors=tuple(outcome.get("errors", [])),
+                errors=outcome_errors,
             )
             attempts.append(attempt)
 
             if outcome["status"] == "PRODUCED":
-                return ProviderExecutionResult(
-                    status="PRODUCED",
-                    task_id=task.task_id,
-                    tool_id=tool.tool_id,
-                    result=outcome["result"],
-                    attempts=tuple(attempts),
-                    errors=(),
-                    excluded_tools=_excluded_tools(effective_tools, required, blocked, providers),
-                )
+                if not isinstance(outcome.get("result"), dict):
+                    outcome_errors = ("RESOURCE_PROVIDER_EXECUTOR_RESULT_NOT_OBJECT",)
+                    attempts[-1] = ProviderAttempt(
+                        attempt=attempt.attempt,
+                        task_id=attempt.task_id,
+                        tool_id=attempt.tool_id,
+                        status="HUMAN_HANDOFF",
+                        errors=outcome_errors,
+                    )
+                else:
+                    return ProviderExecutionResult(
+                        status="PRODUCED",
+                        task_id=task.task_id,
+                        tool_id=tool.tool_id,
+                        result=outcome["result"],
+                        attempts=tuple(attempts),
+                        errors=(),
+                        excluded_tools=_excluded_tools(effective_tools, required, blocked, providers),
+                    )
 
-            outcome_errors = tuple(outcome.get("errors", []))
             if _is_capability_rejection(outcome_errors):
                 return ProviderExecutionResult(
                     status="HUMAN_HANDOFF",
