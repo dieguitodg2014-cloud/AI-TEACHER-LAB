@@ -13,6 +13,8 @@ from core.workflow.teacher_interface import (
     teacher_result_to_dict,
     to_teacher_result,
 )
+from core.workflow.teacher_lesson_card import build_teacher_lesson_card
+from core.workflow.teacher_lesson_card_html import render_teacher_lesson_card_html
 from core.workflow.vertical_slice import result_to_dict
 
 
@@ -30,9 +32,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--group-size", type=int, default=None, help="Number of learners")
     parser.add_argument(
         "--format",
-        choices=("teacher-text", "teacher", "internal"),
+        choices=("teacher-text", "teacher", "teacher-html", "internal"),
         default="teacher-text",
-        help="Output contract. 'teacher-text' is the classroom-readable default; 'teacher' returns the stable teacher JSON contract; 'internal' preserves the orchestration view.",
+        help="Output contract. 'teacher-text' is the classroom-readable default; 'teacher' returns the stable teacher JSON contract; 'teacher-html' renders the Teacher Lesson Card; 'internal' preserves the orchestration view.",
     )
     return parser
 
@@ -66,6 +68,9 @@ def main() -> int:
         print(render_teacher_result(teacher_result))
     elif args.format == "teacher":
         print(json.dumps(teacher_result_to_dict(teacher_result), ensure_ascii=False, indent=2))
+    elif args.format == "teacher-html":
+        card = build_teacher_lesson_card(teacher_result)
+        print(render_teacher_lesson_card_html(card))
     else:
         print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
 
