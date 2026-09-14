@@ -19,6 +19,9 @@
         "audio_generation",
         "presentation_generation"
       ],
+      "capability_validation": {
+        "visual_resource_generation": "not_validated"
+      },
       "quality": 0.95,
       "reliability": 0.9,
       "accessibility": 0.8,
