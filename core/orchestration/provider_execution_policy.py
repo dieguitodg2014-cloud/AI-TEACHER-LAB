@@ -15,6 +15,7 @@ from core.orchestration.tool_selector import ToolCandidate
 
 
 ProviderExecutor = Callable[[TaskPacket, ToolCandidate, ResourceProvider], dict[str, Any]]
+KNOWN_EXECUTION_STATUSES = frozenset({"PRODUCED", "HUMAN_HANDOFF"})
 
 
 @dataclass(frozen=True)
@@ -100,6 +101,13 @@ def _normalize_executor_outcome(outcome: Any) -> dict[str, Any]:
             "status": "HUMAN_HANDOFF",
             "result": None,
             "errors": ["RESOURCE_PROVIDER_EXECUTOR_STATUS_MISSING"],
+        }
+    if status not in KNOWN_EXECUTION_STATUSES:
+        return {
+            "status": "HUMAN_HANDOFF",
+            "result": None,
+            "errors": [f"RESOURCE_PROVIDER_EXECUTOR_UNKNOWN_STATUS:{status}"],
+            "_terminal": True,
         }
     return outcome
 
@@ -191,6 +199,17 @@ class ProviderExecutionPolicy:
                 errors=outcome_errors,
             )
             attempts.append(attempt)
+
+            if outcome.get("_terminal"):
+                return ProviderExecutionResult(
+                    status="HUMAN_HANDOFF",
+                    task_id=task.task_id,
+                    tool_id=tool.tool_id,
+                    result=None,
+                    attempts=tuple(attempts),
+                    errors=outcome_errors,
+                    excluded_tools=_excluded_tools(effective_tools, required, blocked, providers),
+                )
 
             if outcome["status"] == "PRODUCED":
                 if not isinstance(outcome.get("result"), dict):
