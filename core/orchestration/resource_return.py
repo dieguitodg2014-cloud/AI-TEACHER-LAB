@@ -25,7 +25,11 @@ class ResourceReturnResult:
     task_id: str
     validation: ResourceValidationResult
     revision_handoff: dict[str, Any] | None
-    errors: list[str]
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Defensively normalize return errors to an immutable collection."""
+        object.__setattr__(self, "errors", tuple(self.errors))
 
 
 def receive_resource(
@@ -78,7 +82,7 @@ def receive_resource(
         task_id=task.task_id,
         validation=validation,
         revision_handoff=revision_handoff,
-        errors=list(acceptance.reasons),
+        errors=tuple(acceptance.reasons),
     )
 
 
