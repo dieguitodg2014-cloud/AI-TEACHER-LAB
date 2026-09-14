@@ -10,6 +10,7 @@ from core.orchestration.tool_selector import ToolCandidate
 
 VALIDATED = "validated"
 NOT_VALIDATED = "not_validated"
+VALID_CAPABILITY_VALIDATION_STATUSES = frozenset({VALIDATED, NOT_VALIDATED})
 
 
 def capability_fingerprint(tool: ToolCandidate) -> str:
@@ -24,13 +25,22 @@ def capability_fingerprint(tool: ToolCandidate) -> str:
 
 @dataclass(frozen=True)
 class CapabilityValidationResult:
-    """Immutable evidence result for one provider capability."""
+    """Immutable, evidence-backed result for one provider capability."""
 
     tool_id: str
     capability: str
     status: str
     evidence: tuple[str, ...] = ()
     tool_fingerprint: str = ""
+
+    def __post_init__(self) -> None:
+        """Reject malformed validation evidence at construction time."""
+        if self.status not in VALID_CAPABILITY_VALIDATION_STATUSES:
+            raise ValueError("INVALID_CAPABILITY_VALIDATION_STATUS")
+        if self.status == VALIDATED and not self.evidence:
+            raise ValueError("VALIDATED_CAPABILITY_REQUIRES_EVIDENCE")
+        if self.status == VALIDATED and not self.tool_fingerprint:
+            raise ValueError("VALIDATED_CAPABILITY_REQUIRES_FINGERPRINT")
 
     @property
     def passed(self) -> bool:
@@ -77,10 +87,6 @@ def apply_validation_result(
         raise ValueError("CAPABILITY_VALIDATION_TOOL_MISMATCH")
     if result.capability not in tool.capabilities:
         raise ValueError("CAPABILITY_VALIDATION_NOT_DECLARED")
-    if result.status not in {VALIDATED, NOT_VALIDATED}:
-        raise ValueError("INVALID_CAPABILITY_VALIDATION_STATUS")
-    if result.status == VALIDATED and not result.evidence:
-        raise ValueError("VALIDATED_CAPABILITY_REQUIRES_EVIDENCE")
     if result.status == VALIDATED and result.tool_fingerprint != capability_fingerprint(tool):
         raise ValueError("STALE_CAPABILITY_VALIDATION")
 
