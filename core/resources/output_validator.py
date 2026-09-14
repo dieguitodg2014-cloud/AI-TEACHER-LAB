@@ -7,7 +7,7 @@ production, including a small structural output boundary.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 from typing import Any, Literal
@@ -54,11 +54,7 @@ _PRODUCTION_STATUSES = {"PRODUCED", "READY"}
 
 
 def task_packet_fingerprint(task: TaskPacket) -> str:
-    """Return a stable identity for the approved TaskPacket used by QC.
-
-    The workflow status is intentionally excluded because execution state may
-    change without changing the pedagogical contract that authorized QC.
-    """
+    """Return a stable identity for the approved TaskPacket used by QC."""
     payload = asdict(task)
     payload.pop("status", None)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -67,16 +63,20 @@ def task_packet_fingerprint(task: TaskPacket) -> str:
 
 @dataclass(frozen=True)
 class ResourceValidationResult:
-    """Result of validating a produced resource against a TaskPacket."""
+    """Immutable result of validating a produced resource against a TaskPacket."""
 
     validation_id: str
     status: ValidationStatus
     score: float
     critical_failure: bool
-    checks: dict[str, bool]
-    feedback: list[str] = field(default_factory=list)
-    blocking_errors: list[str] = field(default_factory=list)
+    checks: tuple[tuple[str, bool], ...] = ()
+    feedback: tuple[str, ...] = ()
+    blocking_errors: tuple[str, ...] = ()
     task_fingerprint: str = ""
+
+    def check_passed(self, name: str) -> bool:
+        """Return the result for one named check without exposing mutable state."""
+        return dict(self.checks).get(name, False)
 
 
 def validate_resource_output(
@@ -85,14 +85,7 @@ def validate_resource_output(
     *,
     revision_count: int = 0,
 ) -> ResourceValidationResult:
-    """Validate a provider-neutral resource output against a TaskPacket.
-
-    ``revision_count`` is the number of revisions already attempted before
-    this validation. A correct first output is READY. A correctable failure
-    becomes REVISION_REQUIRED while the revision budget remains. If the
-    resource still fails after the allowed revision, the result becomes
-    REJECT_AND_REDESIGN.
-    """
+    """Validate a provider-neutral resource output against a TaskPacket."""
     checks: dict[str, bool] = {}
     feedback: list[str] = []
     blocking_errors: list[str] = []
@@ -162,28 +155,22 @@ def validate_resource_output(
         status=status,
         score=score,
         critical_failure=critical_failure,
-        checks=checks,
-        feedback=feedback,
-        blocking_errors=blocking_errors,
+        checks=tuple(sorted(checks.items())),
+        feedback=tuple(feedback),
+        blocking_errors=tuple(blocking_errors),
         task_fingerprint=task_packet_fingerprint(task),
     )
 
 
 def _validate_optional_structure(produced_resource: dict[str, Any]) -> dict[str, bool]:
-    """Validate optional metadata without making it mandatory for every type."""
     checks: dict[str, bool] = {}
-
     if "resource_id" in produced_resource:
         checks["resource_id"] = _non_empty_string(produced_resource["resource_id"])
     if "format" in produced_resource:
         checks["format"] = _non_empty_string(produced_resource["format"])
     if "duration" in produced_resource:
         duration = produced_resource["duration"]
-        checks["duration"] = (
-            isinstance(duration, (int, float))
-            and not isinstance(duration, bool)
-            and duration > 0
-        )
+        checks["duration"] = isinstance(duration, (int, float)) and not isinstance(duration, bool) and duration > 0
     if "language" in produced_resource:
         checks["language"] = _non_empty_string(produced_resource["language"])
     if "transcript" in produced_resource:
@@ -191,11 +178,7 @@ def _validate_optional_structure(produced_resource: dict[str, Any]) -> dict[str,
     if "source_reference" in produced_resource:
         checks["source_reference"] = _non_empty_string(produced_resource["source_reference"])
     if "production_status" in produced_resource:
-        checks["production_status"] = (
-            isinstance(produced_resource["production_status"], str)
-            and produced_resource["production_status"].strip().upper() in _PRODUCTION_STATUSES
-        )
-
+        checks["production_status"] = isinstance(produced_resource["production_status"], str) and produced_resource["production_status"].strip().upper() in _PRODUCTION_STATUSES
     return checks
 
 
@@ -204,7 +187,6 @@ def _non_empty_string(value: Any) -> bool:
 
 
 def _has_usable_content(content: Any) -> bool:
-    """Return True when the output contains non-empty resource content."""
     if isinstance(content, str):
         return bool(content.strip())
     if isinstance(content, (list, tuple)):
@@ -215,7 +197,6 @@ def _has_usable_content(content: Any) -> bool:
 
 
 def _criteria_are_addressed(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
-    """Check optional producer evidence without pretending it is semantic QC."""
     evidence = produced_resource.get("quality_criteria_addressed")
     if evidence is None:
         return True
@@ -227,7 +208,6 @@ def _criteria_are_addressed(task: TaskPacket, produced_resource: dict[str, Any])
 
 
 def _sources_are_acceptable(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
-    """Validate source references only when the TaskPacket explicitly asks for them."""
     source_constraints = [item.lower() for item in task.constraints if "source" in item.lower()]
     if not source_constraints:
         return True
