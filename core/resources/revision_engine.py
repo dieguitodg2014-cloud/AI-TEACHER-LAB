@@ -141,6 +141,7 @@ class ResourceRevisionEngine:
                     revision_feedback=tuple(feedback) + handoff.reasons,
                 )
 
+            revised = _normalize_external_resource_shape(revised)
             regression = check_resource_revision_regression(task, validation, revised)
             if not regression.passed:
                 handoff = ResourceAcceptanceResult(
@@ -161,6 +162,16 @@ class ResourceRevisionEngine:
 
             resource = revised
             revisions += 1
+
+
+def _normalize_external_resource_shape(resource: dict[str, Any]) -> dict[str, Any]:
+    """Keep JSON-facing list fields mutable without weakening internal immutability."""
+    normalized = deepcopy(resource)
+    for field in ("quality_criteria_addressed", "source_references"):
+        value = normalized.get(field)
+        if isinstance(value, tuple):
+            normalized[field] = list(value)
+    return normalized
 
 
 def revise_resource(
