@@ -76,7 +76,11 @@ class AssessmentDecision:
     type: Literal["FORMATIVE", "PERFORMANCE", "WRITTEN", "ORAL", "MIXED"]
     target: str
     evidence: str
-    success_criteria: list[str]
+    success_criteria: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Normalize assessment criteria to an immutable tuple."""
+        object.__setattr__(self, "success_criteria", tuple(self.success_criteria))
 
 
 @dataclass(frozen=True)
