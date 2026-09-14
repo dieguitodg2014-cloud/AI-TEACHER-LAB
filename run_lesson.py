@@ -8,7 +8,11 @@ from typing import Any
 
 from core.context.request_interpreter import interpret_request
 from core.workflow.configured_runtime import run_configured_lesson_planning
-from core.workflow.teacher_interface import teacher_result_to_dict, to_teacher_result
+from core.workflow.teacher_interface import (
+    render_teacher_result,
+    teacher_result_to_dict,
+    to_teacher_result,
+)
 from core.workflow.vertical_slice import result_to_dict
 
 
@@ -26,9 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--group-size", type=int, default=None, help="Number of learners")
     parser.add_argument(
         "--format",
-        choices=("internal", "teacher"),
-        default="teacher",
-        help="Output contract. 'teacher' is the classroom-oriented default; 'internal' preserves the orchestration view.",
+        choices=("teacher-text", "teacher", "internal"),
+        default="teacher-text",
+        help="Output contract. 'teacher-text' is the classroom-readable default; 'teacher' returns the stable teacher JSON contract; 'internal' preserves the orchestration view.",
     )
     return parser
 
@@ -56,8 +60,12 @@ def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
 def main() -> int:
     args = build_parser().parse_args()
     result = run_configured_lesson_planning(build_request(args))
-    if args.format == "teacher":
-        print(json.dumps(teacher_result_to_dict(to_teacher_result(result)), ensure_ascii=False, indent=2))
+    teacher_result = to_teacher_result(result)
+
+    if args.format == "teacher-text":
+        print(render_teacher_result(teacher_result))
+    elif args.format == "teacher":
+        print(json.dumps(teacher_result_to_dict(teacher_result), ensure_ascii=False, indent=2))
     else:
         print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
 
