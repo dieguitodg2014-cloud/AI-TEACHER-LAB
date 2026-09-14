@@ -45,6 +45,25 @@ def test_effective_tool_promotes_current_validated_declared_capability():
     assert tool.validation_status("visual_resource_generation") == NOT_VALIDATED
 
 
+def test_effective_tool_preserves_provider_revision_for_fingerprint_integrity():
+    tool = ToolCandidate(
+        "notebooklm",
+        frozenset({"visual_resource_generation"}),
+        provider_revision="capability-contract-v1",
+    )
+    result = validate_capability(
+        tool,
+        "visual_resource_generation",
+        passed=True,
+        evidence=("visual-smoke-test",),
+    )
+
+    effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
+
+    assert effective.provider_revision == "capability-contract-v1"
+    assert effective.validation_status("visual_resource_generation") == VALIDATED
+
+
 def test_stale_validation_does_not_promote_changed_provider_configuration():
     original_tool = ToolCandidate(
         "notebooklm",
