@@ -41,7 +41,9 @@ def select_resource_provider(
     eligible = [
         tool
         for tool in tools
-        if tool.tool_id not in blocked and required.issubset(tool.capabilities)
+        if tool.tool_id not in blocked
+        and required.issubset(tool.capabilities)
+        and not (required & tool.not_validated_capabilities)
     ]
     if not eligible:
         return None
