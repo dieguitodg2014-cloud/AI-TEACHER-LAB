@@ -151,7 +151,14 @@ def run_lesson_planning(
             free_first=free_first,
             validation_registry=validation_registry,
         )
-        resource_tool = next((tool for tool in selected_tools if tool.tool_id == resource_execution.get("tool_id")), resource_tool)
+        selected_tool_id = resource_execution.get("tool_id")
+        if selected_tool_id is not None:
+            raw_resource_tool = next((tool for tool in selected_tools if tool.tool_id == selected_tool_id), resource_tool)
+            resource_tool = (
+                validation_registry.effective_tool(raw_resource_tool)
+                if validation_registry is not None
+                else raw_resource_tool
+            )
 
         if resource_execution["status"] not in {"ACCEPTED", "READY"}:
             revision_handoff = None
