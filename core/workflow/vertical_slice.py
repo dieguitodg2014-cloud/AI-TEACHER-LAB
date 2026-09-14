@@ -89,8 +89,8 @@ def run_lesson_planning(
                 status="REJECT",
                 score=0.0,
                 critical_failure=True,
-                checks={"resource_task_exists": False},
-                blocking_errors=["A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."],
+                checks=(("resource_task_exists", False),),
+                blocking_errors=("A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket.",),
             )
             return VerticalSliceResult(
                 "HUMAN_HANDOFF",
@@ -132,7 +132,7 @@ def run_lesson_planning(
                 resource_validation,
                 None,
                 [],
-                acceptance.reasons,
+                list(acceptance.reasons),
             )
 
         return VerticalSliceResult(
@@ -208,7 +208,7 @@ def run_lesson_planning(
         final_validation = resource_execution.get("validation")
         final_acceptance = ResourceAcceptanceGate().evaluate(resource_task, final_validation)
         if final_acceptance.decision != "ACCEPT":
-            return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], final_acceptance.reasons)
+            return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], list(final_acceptance.reasons))
 
         return VerticalSliceResult("ACCEPTED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, final_validation, resource_execution, [], [])
 
