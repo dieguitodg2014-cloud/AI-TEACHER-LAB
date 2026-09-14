@@ -7,7 +7,9 @@ production, including a small structural output boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+import hashlib
+import json
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -51,6 +53,18 @@ RESOURCE_OUTPUT_CONTRACT: dict[str, Any] = {
 _PRODUCTION_STATUSES = {"PRODUCED", "READY"}
 
 
+def task_packet_fingerprint(task: TaskPacket) -> str:
+    """Return a stable identity for the approved TaskPacket used by QC.
+
+    The workflow status is intentionally excluded because execution state may
+    change without changing the pedagogical contract that authorized QC.
+    """
+    payload = asdict(task)
+    payload.pop("status", None)
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 @dataclass(frozen=True)
 class ResourceValidationResult:
     """Result of validating a produced resource against a TaskPacket."""
@@ -62,6 +76,7 @@ class ResourceValidationResult:
     checks: dict[str, bool]
     feedback: list[str] = field(default_factory=list)
     blocking_errors: list[str] = field(default_factory=list)
+    task_fingerprint: str = ""
 
 
 def validate_resource_output(
@@ -150,6 +165,7 @@ def validate_resource_output(
         checks=checks,
         feedback=feedback,
         blocking_errors=blocking_errors,
+        task_fingerprint=task_packet_fingerprint(task),
     )
 
 
