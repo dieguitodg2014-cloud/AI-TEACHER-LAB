@@ -101,13 +101,13 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
             generators={"mock-resource-provider": mock_resource_provider},
         )
 
-        self.assertEqual(result.status, "READY")
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(result.generation["status"], "ACCEPTED")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["task_type"], "RESOURCE_PRODUCTION")
         self.assertIsNotNone(result.resource_tool)
         self.assertEqual(result.resource_tool.tool_id, "mock-resource-provider")
         self.assertIsNotNone(result.generation)
-        self.assertEqual(result.generation["status"], "PRODUCED")
         self.assertIsNotNone(result.resource_validation)
         self.assertEqual(result.resource_validation.status, "READY")
         self.assertEqual(result.resource_validation.score, 100.0)
@@ -163,6 +163,32 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertIsNone(result.generation)
         self.assertIn("resource_type mismatch", result.errors[0])
 
+    def test_produced_resource_without_task_cannot_cross_acceptance_boundary(self):
+        tools = [
+            ToolCandidate(
+                tool_id="resource-tool",
+                capabilities=frozenset({"lesson_generation", "resource_generation"}),
+            )
+        ]
+
+        result = run_lesson_planning(
+            {
+                **REQUEST,
+                "objective": "Discuss past experiences and ask follow-up questions.",
+            },
+            tools=tools,
+            produced_resource={
+                "resource_type": "audio",
+                "level": "A2",
+                "objective": "Discuss past experiences and ask follow-up questions.",
+                "content": "Unapproved resource.",
+            },
+        )
+
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(result.errors, ["RESOURCE_TASK_MISSING_FOR_ACCEPTANCE"])
+        self.assertIsNone(result.generation)
+
     def test_notebooklm_executor_runs_through_same_resource_qc_boundary(self):
         tools = [
             ToolCandidate(
@@ -194,15 +220,14 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
             notebooklm_executor=notebooklm_executor,
         )
 
-        self.assertEqual(result.status, "READY")
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(result.generation["status"], "ACCEPTED")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["provider"], "notebooklm")
         self.assertEqual(calls[0]["task"]["task_type"], "RESOURCE_PRODUCTION")
         self.assertIsNotNone(result.resource_validation)
         self.assertEqual(result.resource_validation.status, "READY")
         self.assertEqual(result.resource_validation.score, 100.0)
-        self.assertIsNotNone(result.generation)
-        self.assertEqual(result.generation["status"], "PRODUCED")
         self.assertEqual(result.resource_tool.tool_id, "notebooklm")
 
     def test_canva_executor_runs_through_same_resource_qc_boundary(self):
@@ -239,7 +264,8 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
             canva_executor=canva_executor,
         )
 
-        self.assertEqual(result.status, "READY")
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(result.generation["status"], "ACCEPTED")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["provider"], "canva")
         self.assertEqual(calls[0]["task"]["task_type"], "RESOURCE_PRODUCTION")
