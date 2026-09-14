@@ -31,7 +31,7 @@ def build_generation_request(
         "audience": context.get("audience"),
         "duration_minutes": context.get("duration_minutes"),
         "topic": context.get("topic"),
-        "prior_knowledge": context.get("prior_knowledge", []),
+        "prior_knowledge": list(context.get("prior_knowledge", [])),
         "sequence": [
             {
                 "purpose": activity.purpose,
@@ -42,9 +42,9 @@ def build_generation_request(
             }
             for activity in plan.sequence
         ],
-        "evidence_of_learning": plan.evidence_of_learning,
+        "evidence_of_learning": list(plan.evidence_of_learning),
         "resource_need": plan.resource_need,
-        "constraints": context.get("constraints", []),
+        "constraints": list(context.get("constraints", [])),
     }
 
     if assessment_decision is not None:
