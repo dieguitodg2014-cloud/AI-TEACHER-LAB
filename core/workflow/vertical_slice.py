@@ -119,7 +119,7 @@ def run_lesson_planning(
             revision_count=revision_count,
         )
 
-        acceptance = ResourceAcceptanceGate().evaluate(resource_task, resource_validation)
+        acceptance = ResourceAcceptanceGate().evaluate(resource_task, resource_validation, produced_resource)
         if acceptance.decision != "ACCEPT":
             revision_handoff = None
             if acceptance.decision == "REVISION_REQUIRED":
@@ -211,7 +211,8 @@ def run_lesson_planning(
             return VerticalSliceResult(resource_execution["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_execution.get("validation"), resource_execution, [], resource_execution.get("errors", []))
 
         final_validation = resource_execution.get("validation")
-        final_acceptance = ResourceAcceptanceGate().evaluate(resource_task, final_validation)
+        final_resource = resource_execution.get("resource") or resource_execution.get("result")
+        final_acceptance = ResourceAcceptanceGate().evaluate(resource_task, final_validation, final_resource)
         if final_acceptance.decision != "ACCEPT":
             return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], final_acceptance.reasons)
 
@@ -227,8 +228,3 @@ def run_lesson_planning(
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request, free_first=free_first)
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
-
-
-def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
-    """Serialize the workflow result for an API, CLI, or future interface."""
-    return asdict(result)
