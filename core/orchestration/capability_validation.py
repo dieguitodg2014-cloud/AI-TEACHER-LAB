@@ -14,10 +14,11 @@ VALID_CAPABILITY_VALIDATION_STATUSES = frozenset({VALIDATED, NOT_VALIDATED})
 
 
 def capability_fingerprint(tool: ToolCandidate) -> str:
-    """Return a stable fingerprint for the provider capability configuration."""
+    """Return a stable fingerprint for the provider capability contract."""
     payload = {
         "tool_id": tool.tool_id,
         "capabilities": sorted(tool.capabilities),
+        "provider_revision": tool.provider_revision,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
@@ -54,10 +55,11 @@ def validate_capability(
     passed: bool,
     evidence: tuple[str, ...] | list[str] = (),
 ) -> CapabilityValidationResult:
-    """Produce a validation result bound to the provider capability configuration.
+    """Produce a validation result bound to the provider capability contract.
 
-    Validation evidence is tied to the current provider capability fingerprint.
-    A capability cannot become validated without explicit evidence.
+    Validation evidence is tied to the provider's declared capabilities and
+    explicit implementation revision. A capability cannot become validated
+    without explicit evidence.
     """
     normalized_evidence = tuple(evidence)
     fingerprint = capability_fingerprint(tool)
@@ -101,4 +103,5 @@ def apply_validation_result(
         speed=tool.speed,
         cost=tool.cost,
         capability_validation=tuple(sorted(validation.items())),
+        provider_revision=tool.provider_revision,
     )
