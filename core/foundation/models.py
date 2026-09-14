@@ -60,10 +60,14 @@ class ActivityPlan:
 class LearningPlanDecision:
     plan_id: str
     objective: str
-    sequence: list[ActivityPlan]
+    sequence: tuple[ActivityPlan, ...]
     total_minutes: int
     evidence_of_learning: str
     resource_need: str = ""
+
+    def __post_init__(self) -> None:
+        """Normalize the pedagogical sequence to an immutable tuple."""
+        object.__setattr__(self, "sequence", tuple(self.sequence))
 
 
 @dataclass(frozen=True)
