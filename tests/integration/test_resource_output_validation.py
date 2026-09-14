@@ -76,11 +76,12 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_type():
 
     result = run_lesson_planning(REQUEST, produced_resource=resource)
 
-    assert result.status == "REJECT"
+    assert result.status == "HUMAN_HANDOFF"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
     assert "resource_type" in result.resource_validation.blocking_errors[0]
+    assert "resource_type mismatch" in result.errors[0]
 
 
 def test_vertical_slice_rejects_produced_resource_with_wrong_level():
@@ -88,7 +89,7 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_level():
 
     result = run_lesson_planning(REQUEST, produced_resource=resource)
 
-    assert result.status == "REJECT"
+    assert result.status == "HUMAN_HANDOFF"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
@@ -100,7 +101,7 @@ def test_vertical_slice_rejects_produced_resource_without_usable_content():
 
     result = run_lesson_planning(REQUEST, produced_resource=resource)
 
-    assert result.status == "REJECT"
+    assert result.status == "HUMAN_HANDOFF"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
