@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.foundation.models import TaskPacket
 from core.orchestration.capability_matrix import capabilities_for_resource
+from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.tool_selector import ToolCandidate, select_tool
 from tools.registry.config_loader import (
     DEFAULT_TOOL_CONFIG,
@@ -19,13 +20,14 @@ def select_resource_provider(
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
     provider_priority: list[str] | tuple[str, ...] = (),
+    validation_registry: CapabilityValidationRegistry | None = None,
 ) -> ToolCandidate | None:
-    """Select an eligible provider using hints, policy priority, then scoring.
+    """Select an eligible provider using one centralized validation view.
 
     Provider priority is an execution policy only. It cannot override the
     capabilities required by the authoritative TaskPacket and never changes
-    the pedagogical decision. When no explicit priority is supplied, the
-    runtime tool policy provides the specialized-resource order.
+    the pedagogical decision. When a validation registry is supplied, its
+    evidence is applied to immutable effective tool copies before selection.
     """
     if task is None:
         return None
@@ -37,10 +39,16 @@ def select_resource_provider(
             visual=task.visual,
         )
     )
+    effective_tools = [
+        validation_registry.effective_tool(tool)
+        if validation_registry is not None
+        else tool
+        for tool in tools
+    ]
     blocked = blocked_tools or set()
     eligible = [
         tool
-        for tool in tools
+        for tool in effective_tools
         if tool.tool_id not in blocked
         and required.issubset(tool.capabilities)
         and not (required & tool.not_validated_capabilities)
