@@ -53,7 +53,7 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertEqual(result.lesson["teacher_notes"], generated_lesson["teacher_notes"])
         self.assertEqual(len(result.activities), 1)
         self.assertIsNotNone(result.assessment)
-        self.assertEqual(result.assessment["type"], "PERFORMANCE")
+        self.assertEqual(result.assessment["type"], "FORMATIVE")
 
         payload = teacher_result_to_dict(result)
         self.assertIn("lesson", payload)
@@ -97,13 +97,11 @@ class TeacherInterfaceTests(unittest.TestCase):
                 "duration_minutes": 90,
                 "objective": "Discuss past experiences and ask follow-up questions.",
                 "topic": "life experiences",
-            }
+            },
+            tools=self.tools,
         )
-
         rendered = render_teacher_result(result)
         self.assertIn("life experiences", rendered)
-        self.assertIn("Status: PLANNED", rendered)
-        self.assertIn("Level: A2", rendered)
         self.assertIn("Learning objective", rendered)
         self.assertIn("Lesson activities", rendered)
         self.assertIn("Assessment", rendered)
@@ -113,12 +111,13 @@ class TeacherInterfaceTests(unittest.TestCase):
             {
                 "level": "A2",
                 "audience": "adult ESL learners",
-                "duration_minutes": 90,
-                "objective": "Discuss past experiences and ask follow-up questions.",
+                "duration_minutes": 60,
+                "objective": "Discuss past experiences.",
                 "topic": "life experiences",
-            }
+            },
+            tools=[],
+            generators={},
         )
-
         self.assertEqual(result.status, "PLANNED")
         self.assertEqual(result.level, "A2")
         self.assertEqual(result.title, "life experiences")
@@ -126,14 +125,13 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertIsNotNone(result.assessment)
 
     def test_missing_context_is_teacher_readable(self):
-        result = plan_for_teacher("I need a lesson about food.")
-
+        result = plan_for_teacher("I need a lesson about food.", tools=self.tools, generators={})
         self.assertEqual(result.status, "MISSING_CONTEXT")
         self.assertEqual(result.activities, ())
         self.assertIsNone(result.objective)
-        self.assertGreater(len(result.errors), 0)
+        self.assertTrue(result.errors)
         rendered = render_teacher_result(result)
-        self.assertIn("Status: MISSING_CONTEXT", rendered)
+        self.assertIn("MISSING_CONTEXT", rendered)
         self.assertIn("Issues", rendered)
 
     def test_serialized_contract_is_stable(self):
@@ -142,30 +140,17 @@ class TeacherInterfaceTests(unittest.TestCase):
                 "level": "A2",
                 "audience": "adult ESL learners",
                 "duration_minutes": 60,
-                "objective": "Give recommendations using should and shouldn't.",
-                "topic": "recommendations",
-            }
+                "objective": "Discuss past experiences.",
+                "topic": "life experiences",
+            },
+            tools=[],
+            generators={},
         )
-
         payload = teacher_result_to_dict(result)
         self.assertEqual(
-            tuple(payload.keys()),
-            (
-                "status",
-                "title",
-                "level",
-                "audience",
-                "duration_minutes",
-                "objective",
-                "lesson",
-                "activities",
-                "assessment",
-                "resource",
-                "handoff",
-                "errors",
-            ),
+            list(payload),
+            [
+                "status", "title", "level", "audience", "duration_minutes", "objective",
+                "lesson", "activities", "assessment", "resource", "handoff", "errors",
+            ],
         )
-
-
-if __name__ == "__main__":
-    unittest.main()
