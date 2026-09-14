@@ -7,6 +7,7 @@ existing workflow in a concise, classroom-oriented contract.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -23,6 +24,7 @@ class TeacherLessonResult:
     audience: str | None
     duration_minutes: int | None
     objective: str | None
+    lesson: dict[str, Any] | None
     activities: tuple[dict[str, Any], ...]
     assessment: dict[str, Any] | None
     resource: dict[str, Any] | None
@@ -30,7 +32,8 @@ class TeacherLessonResult:
     errors: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "activities", tuple(dict(activity) for activity in self.activities))
+        object.__setattr__(self, "lesson", deepcopy(self.lesson) if self.lesson is not None else None)
+        object.__setattr__(self, "activities", tuple(deepcopy(activity) for activity in self.activities))
         object.__setattr__(self, "errors", tuple(self.errors))
 
 
@@ -64,7 +67,7 @@ def _generated_lesson(result: VerticalSliceResult) -> dict[str, Any] | None:
     if not result.generation:
         return None
     generated = result.generation.get("result")
-    return generated if isinstance(generated, dict) else None
+    return deepcopy(generated) if isinstance(generated, dict) else None
 
 
 def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
@@ -80,9 +83,7 @@ def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
         activities = _activity_output(plan)
 
     resource = None
-    if result.resource_validation is not None and generated:
-        resource = generated
-    elif result.resource_task is not None and result.resource_decision is not None:
+    if result.resource_task is not None and result.resource_decision is not None:
         resource = {
             "action": result.resource_decision.action,
             "type": result.resource_decision.resource_type,
@@ -98,10 +99,11 @@ def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
         audience=context.audience if context else None,
         duration_minutes=context.duration_minutes if context else None,
         objective=plan.objective if plan else (context.objective if context else None),
+        lesson=generated,
         activities=activities,
         assessment=_assessment_output(result.assessment_decision),
         resource=resource,
-        handoff=result.resource_handoff,
+        handoff=deepcopy(result.resource_handoff),
         errors=result.errors,
     )
 
