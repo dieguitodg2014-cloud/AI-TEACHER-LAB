@@ -21,7 +21,6 @@ VALID_RESOURCE = {
 
 def test_vertical_slice_accepts_valid_produced_resource():
     result = run_lesson_planning(REQUEST, produced_resource=VALID_RESOURCE)
-
     assert result.status == "ACCEPTED"
     assert result.resource_task is not None
     assert result.resource_validation is not None
@@ -35,15 +34,8 @@ def test_vertical_slice_accepts_valid_produced_resource():
 
 
 def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
-    resource = {
-        **VALID_RESOURCE,
-        "quality_criteria_addressed": [
-            "Directly support the stated learning objective.",
-        ],
-    }
-
+    resource = {**VALID_RESOURCE, "quality_criteria_addressed": ["Directly support the stated learning objective."]}
     result = run_lesson_planning(REQUEST, produced_resource=resource)
-
     assert result.status == "REVISION_REQUIRED"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REVISION_REQUIRED"
@@ -53,33 +45,24 @@ def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
     assert result.resource_handoff["workflow"] == "NotebookLM"
     assert result.resource_handoff["validation_id"] == result.resource_validation.validation_id
     assert result.resource_handoff["failed_checks"] == ["quality_criteria_acknowledged"]
-    assert result.resource_handoff["return_contract"]["required_fields"] == [
-        "resource_type",
-        "level",
-        "objective",
-        "content",
-    ]
+    assert result.resource_handoff["return_contract"]["required_fields"] == ["resource_type", "level", "objective", "content"]
 
 
 def test_vertical_slice_requests_revision_for_objective_declaration_mismatch():
     resource = {**VALID_RESOURCE, "objective": "Practice general listening."}
-
     result = run_lesson_planning(REQUEST, produced_resource=resource)
-
     assert result.status == "REVISION_REQUIRED"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REVISION_REQUIRED"
     assert result.resource_validation.critical_failure is False
-    assert result.resource_validation.blocking_errors == []
+    assert result.resource_validation.blocking_errors == ()
     assert "objective" in result.resource_validation.feedback[0]
 
 
 def test_vertical_slice_rejects_produced_resource_with_wrong_type():
     resource = {**VALID_RESOURCE, "resource_type": "presentation"}
-
     result = run_lesson_planning(REQUEST, produced_resource=resource)
-
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
@@ -89,10 +72,8 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_type():
 
 def test_vertical_slice_rejects_produced_resource_with_wrong_level():
     resource = {**VALID_RESOURCE, "level": "B1"}
-
     result = run_lesson_planning(REQUEST, produced_resource=resource)
-
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
@@ -101,10 +82,8 @@ def test_vertical_slice_rejects_produced_resource_with_wrong_level():
 
 def test_vertical_slice_rejects_produced_resource_without_usable_content():
     resource = {**VALID_RESOURCE, "content": ""}
-
     result = run_lesson_planning(REQUEST, produced_resource=resource)
-
-    assert result.status == "HUMAN_HANDOFF"
+    assert result.status == "REJECT"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT"
     assert result.resource_validation.critical_failure is True
@@ -112,15 +91,8 @@ def test_vertical_slice_rejects_produced_resource_without_usable_content():
 
 
 def test_revision_round_trip_can_be_validated_again():
-    first_resource = {
-        **VALID_RESOURCE,
-        "quality_criteria_addressed": [
-            "Directly support the stated learning objective.",
-        ],
-    }
-
+    first_resource = {**VALID_RESOURCE, "quality_criteria_addressed": ["Directly support the stated learning objective."]}
     first_result = run_lesson_planning(REQUEST, produced_resource=first_resource)
-
     assert first_result.status == "REVISION_REQUIRED"
     assert first_result.resource_handoff is not None
 
@@ -133,13 +105,7 @@ def test_revision_round_trip_can_be_validated_again():
             "Do not introduce unnecessary content or complexity.",
         ],
     }
-
-    second_result = run_lesson_planning(
-        REQUEST,
-        produced_resource=revised_resource,
-        revision_count=1,
-    )
-
+    second_result = run_lesson_planning(REQUEST, produced_resource=revised_resource, revision_count=1)
     assert second_result.status == "ACCEPTED"
     assert second_result.resource_validation is not None
     assert second_result.resource_validation.status == "READY"
@@ -151,19 +117,8 @@ def test_revision_round_trip_can_be_validated_again():
 
 
 def test_repeated_revision_failure_triggers_redesign():
-    resource = {
-        **VALID_RESOURCE,
-        "quality_criteria_addressed": [
-            "Directly support the stated learning objective.",
-        ],
-    }
-
-    result = run_lesson_planning(
-        REQUEST,
-        produced_resource=resource,
-        revision_count=1,
-    )
-
+    resource = {**VALID_RESOURCE, "quality_criteria_addressed": ["Directly support the stated learning objective."]}
+    result = run_lesson_planning(REQUEST, produced_resource=resource, revision_count=1)
     assert result.status == "REJECT_AND_REDESIGN"
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REJECT_AND_REDESIGN"
@@ -174,24 +129,14 @@ def test_repeated_revision_failure_triggers_redesign():
 
 def test_a2_listening_resource_lifecycle_is_end_to_end():
     initial_result = run_lesson_planning(REQUEST)
-
     assert initial_result.status == "PLANNED"
     assert initial_result.resource_task is not None
     assert initial_result.resource_handoff is not None
     assert initial_result.resource_handoff["status"] == "HUMAN_HANDOFF"
     assert initial_result.resource_handoff["workflow"] == "NotebookLM"
 
-    produced_resource = {
-        **VALID_RESOURCE,
-        "quality_criteria_addressed": [
-            "Directly support the stated learning objective.",
-        ],
-    }
-    first_qc = run_lesson_planning(
-        REQUEST,
-        produced_resource=produced_resource,
-    )
-
+    produced_resource = {**VALID_RESOURCE, "quality_criteria_addressed": ["Directly support the stated learning objective."]}
+    first_qc = run_lesson_planning(REQUEST, produced_resource=produced_resource)
     assert first_qc.status == "REVISION_REQUIRED"
     assert first_qc.resource_validation is not None
     assert first_qc.resource_validation.status == "REVISION_REQUIRED"
@@ -208,12 +153,7 @@ def test_a2_listening_resource_lifecycle_is_end_to_end():
             "Do not introduce unnecessary content or complexity.",
         ],
     }
-    final_qc = run_lesson_planning(
-        REQUEST,
-        produced_resource=revised_resource,
-        revision_count=1,
-    )
-
+    final_qc = run_lesson_planning(REQUEST, produced_resource=revised_resource, revision_count=1)
     assert final_qc.status == "ACCEPTED"
     assert final_qc.resource_validation is not None
     assert final_qc.resource_validation.status == "READY"
