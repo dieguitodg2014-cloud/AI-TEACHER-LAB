@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from core.foundation.models import TaskPacket
-from core.resources.output_validator import ResourceValidationResult, task_packet_fingerprint
+from core.resources.output_validator import ResourceValidationResult, resource_fingerprint, task_packet_fingerprint
 
 
 AcceptanceDecision = Literal[
@@ -39,6 +39,7 @@ class ResourceAcceptanceGate:
         self,
         task: TaskPacket,
         validation: ResourceValidationResult | None,
+        produced_resource: dict[str, Any] | None = None,
     ) -> ResourceAcceptanceResult:
         if validation is None:
             return ResourceAcceptanceResult(
@@ -65,6 +66,27 @@ class ResourceAcceptanceGate:
             )
 
         if validation.status == "READY" and not validation.critical_failure:
+            if produced_resource is None:
+                return ResourceAcceptanceResult(
+                    decision="HUMAN_HANDOFF",
+                    reasons=("RESOURCE_VALIDATION_OUTPUT_MISSING",),
+                    blocking=True,
+                    validation_id=validation.validation_id,
+                )
+            if not validation.resource_fingerprint:
+                return ResourceAcceptanceResult(
+                    decision="HUMAN_HANDOFF",
+                    reasons=("RESOURCE_VALIDATION_OUTPUT_BINDING_MISSING",),
+                    blocking=True,
+                    validation_id=validation.validation_id,
+                )
+            if resource_fingerprint(produced_resource) != validation.resource_fingerprint:
+                return ResourceAcceptanceResult(
+                    decision="HUMAN_HANDOFF",
+                    reasons=("RESOURCE_VALIDATION_OUTPUT_BINDING_MISMATCH",),
+                    blocking=True,
+                    validation_id=validation.validation_id,
+                )
             return ResourceAcceptanceResult(
                 decision="ACCEPT",
                 reasons=("Resource passed the approved TaskPacket validation boundary.",),
@@ -99,6 +121,7 @@ class ResourceAcceptanceGate:
 def accept_resource(
     task: TaskPacket,
     validation: ResourceValidationResult | None,
+    produced_resource: dict[str, Any] | None = None,
 ) -> ResourceAcceptanceResult:
     """Convenience function for the final resource acceptance decision."""
-    return ResourceAcceptanceGate().evaluate(task, validation)
+    return ResourceAcceptanceGate().evaluate(task, validation, produced_resource)
