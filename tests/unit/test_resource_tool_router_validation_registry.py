@@ -1,5 +1,8 @@
 from core.foundation.models import TaskPacket
-from core.orchestration.capability_validation import CapabilityValidationResult, VALIDATED
+from core.orchestration.capability_validation import (
+    VALIDATED,
+    validate_capability,
+)
 from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.resource_tool_router import select_resource_provider
 from core.orchestration.tool_selector import ToolCandidate
@@ -25,9 +28,13 @@ def test_router_uses_registry_evidence_to_promote_validated_capability():
         frozenset({"resource_generation", "presentation_generation", "visual_resource_generation"}),
         capability_validation=(("visual_resource_generation", "not_validated"),),
     )
-    registry = CapabilityValidationRegistry((
-        CapabilityValidationResult("notebooklm", "visual_resource_generation", VALIDATED),
-    ))
+    validation = validate_capability(
+        tool,
+        "visual_resource_generation",
+        passed=True,
+        evidence=["integration-test: visual presentation generation"],
+    )
+    registry = CapabilityValidationRegistry((validation,))
 
     selected = select_resource_provider(task, [tool], validation_registry=registry)
 
