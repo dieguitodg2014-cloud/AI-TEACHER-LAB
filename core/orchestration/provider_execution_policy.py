@@ -69,6 +69,11 @@ def _excluded_tools(
     return tuple(excluded)
 
 
+def _is_capability_rejection(errors: tuple[str, ...]) -> bool:
+    """Return whether execution was denied by capability policy, not by provider failure."""
+    return any(error.startswith("CAPABILITY_NOT_VALIDATED:") for error in errors)
+
+
 class ProviderExecutionPolicy:
     """Execute providers with technical fallback while preserving the TaskPacket."""
 
@@ -158,6 +163,18 @@ class ProviderExecutionPolicy:
                     result=outcome["result"],
                     attempts=tuple(attempts),
                     errors=(),
+                    excluded_tools=_excluded_tools(effective_tools, required, blocked),
+                )
+
+            outcome_errors = tuple(outcome.get("errors", []))
+            if _is_capability_rejection(outcome_errors):
+                return ProviderExecutionResult(
+                    status="HUMAN_HANDOFF",
+                    task_id=task.task_id,
+                    tool_id=tool.tool_id,
+                    result=None,
+                    attempts=tuple(attempts),
+                    errors=outcome_errors,
                     excluded_tools=_excluded_tools(effective_tools, required, blocked),
                 )
 
