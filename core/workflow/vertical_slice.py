@@ -222,3 +222,8 @@ def run_lesson_planning(
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request, free_first=free_first)
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
+
+
+def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
+    """Serialize the workflow result for an API, CLI, or future interface."""
+    return asdict(result)
