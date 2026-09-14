@@ -85,6 +85,18 @@ def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: R
             visual=task.visual,
         )
     )
+    not_validated = sorted(
+        capability
+        for capability in required_capabilities
+        if tool.validation_status(capability) == "not_validated"
+    )
+    if not_validated:
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [f"CAPABILITY_NOT_VALIDATED:{','.join(not_validated)}"],
+        }
     if not provider_supports_capabilities(tool.capabilities, required_capabilities):
         return {
             "status": "HUMAN_HANDOFF",
