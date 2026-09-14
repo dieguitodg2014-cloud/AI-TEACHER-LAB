@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from core.foundation.models import TaskPacket
 from core.orchestration.capability_matrix import capabilities_for_resource
+from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.resource_provider import ResourceProvider
 from core.orchestration.resource_tool_router import select_resource_provider
 from core.orchestration.tool_selector import ToolCandidate
@@ -87,6 +88,7 @@ class ProviderExecutionPolicy:
         providers: dict[str, ResourceProvider],
         *,
         executor: ProviderExecutor | None = None,
+        validation_registry: CapabilityValidationRegistry | None = None,
     ) -> ProviderExecutionResult:
         if executor is None:
             from core.orchestration.resource_orchestrator import execute_resource_provider
@@ -102,16 +104,22 @@ class ProviderExecutionPolicy:
                 visual=task.visual,
             )
         )
+        effective_tools = [
+            validation_registry.effective_tool(tool)
+            if validation_registry is not None
+            else tool
+            for tool in tools
+        ]
 
         while True:
             tool = select_resource_provider(
                 task,
-                tools,
+                effective_tools,
                 free_first=self.free_first,
                 blocked_tools=blocked,
                 provider_priority=self.provider_priority,
             )
-            excluded_tools = _excluded_tools(tools, required, blocked)
+            excluded_tools = _excluded_tools(effective_tools, required, blocked)
             if tool is None:
                 return ProviderExecutionResult(
                     status="HUMAN_HANDOFF",
@@ -150,7 +158,7 @@ class ProviderExecutionPolicy:
                     result=outcome["result"],
                     attempts=tuple(attempts),
                     errors=(),
-                    excluded_tools=_excluded_tools(tools, required, blocked),
+                    excluded_tools=_excluded_tools(effective_tools, required, blocked),
                 )
 
             blocked.add(tool.tool_id)
