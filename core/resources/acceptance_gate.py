@@ -111,7 +111,7 @@ class ResourceAcceptanceGate:
             )
 
         return ResourceAcceptanceResult(
-            decision="HUMAN_HANDOFF",
+            decision="REJECT",
             reasons=tuple(validation.blocking_errors) or ("Resource failed the acceptance boundary.",),
             blocking=True,
             validation_id=validation.validation_id,
