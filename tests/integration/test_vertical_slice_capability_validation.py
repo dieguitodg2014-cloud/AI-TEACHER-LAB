@@ -132,6 +132,49 @@ class VerticalSliceCapabilityValidationIntegrationTests(unittest.TestCase):
         self.assertEqual(result.resource_validation.status, "READY")
         self.assertEqual(result.resource_validation.score, 100.0)
 
+    def test_vertical_slice_preserves_exclusion_trace_when_all_providers_are_ineligible(self):
+        tools = self._tools()
+        tools[1] = ToolCandidate(
+            tool_id="canva",
+            capabilities=frozenset({"resource_generation", "presentation_generation"}),
+            quality=0.95,
+            reliability=0.95,
+            accessibility=0.9,
+            speed=0.8,
+            cost=0.0,
+        )
+        calls = []
+
+        def notebooklm_executor(_payload):
+            calls.append("notebooklm")
+            raise AssertionError("unvalidated provider must never execute")
+
+        def canva_executor(_payload):
+            calls.append("canva")
+            raise AssertionError("provider missing visual capability must never execute")
+
+        result = run_lesson_planning(
+            REQUEST,
+            tools=tools,
+            notebooklm_executor=notebooklm_executor,
+            canva_executor=canva_executor,
+            validation_registry=CapabilityValidationRegistry(),
+        )
+
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(calls, [])
+        self.assertIsNone(result.resource_tool)
+        self.assertIsNotNone(result.generation)
+        self.assertEqual(result.generation["provider_attempts"], ())
+        self.assertEqual(
+            result.generation["provider_execution_trace"]["excluded_tools"],
+            (
+                ("notebooklm", "CAPABILITY_NOT_VALIDATED:visual_resource_generation"),
+                ("canva", "MISSING_REQUIRED_CAPABILITIES:visual_resource_generation"),
+            ),
+        )
+        self.assertEqual(result.errors, ["NO_ELIGIBLE_RESOURCE_TOOL_AFTER_FALLBACK"])
+
 
 if __name__ == "__main__":
     unittest.main()
