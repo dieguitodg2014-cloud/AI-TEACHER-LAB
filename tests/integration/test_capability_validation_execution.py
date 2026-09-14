@@ -1,5 +1,10 @@
 from core.foundation.models import TaskPacket
-from core.orchestration.capability_validation import CapabilityValidationResult, NOT_VALIDATED, VALIDATED
+from core.orchestration.capability_validation import (
+    CapabilityValidationResult,
+    NOT_VALIDATED,
+    VALIDATED,
+    capability_fingerprint,
+)
 from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
 from core.orchestration.tool_selector import ToolCandidate
@@ -29,8 +34,6 @@ def _task():
         audience="children",
         objective="practice classroom vocabulary",
         required_output="presentation",
-        format="slides",
-        duration="10 minutes",
         constraints=(),
         quality_criteria=(),
         source_based=False,
@@ -44,9 +47,7 @@ def _tools():
             "notebooklm",
             frozenset({"resource_generation", "presentation_generation", "visual_resource_generation"}),
             quality=10,
-            capability_validation=(
-                ("visual_resource_generation", NOT_VALIDATED),
-            ),
+            capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
         ),
         ToolCandidate(
             "canva",
@@ -83,10 +84,15 @@ def test_unvalidated_visual_capability_is_skipped_and_canva_executes():
 def test_validated_visual_capability_promotes_notebooklm_to_selected_provider():
     task = _task()
     tools = _tools()
+    notebooklm = tools[0]
     registry = CapabilityValidationRegistry(
         (
             CapabilityValidationResult(
-                "notebooklm", "visual_resource_generation", VALIDATED, ("visual-smoke-test",)
+                "notebooklm",
+                "visual_resource_generation",
+                VALIDATED,
+                ("visual-smoke-test",),
+                capability_fingerprint(notebooklm),
             ),
         )
     )
