@@ -124,6 +124,28 @@ def test_provider_task_mutation_isolated_during_fallback():
     assert task == before
 
 
+def test_custom_executor_receives_defensive_task_copy():
+    task = make_task()
+    before = deepcopy(task)
+    working = StubProvider(result={"resource_type": "audio"})
+    observed = {}
+
+    def mutating_executor(task_packet, _tool, _provider):
+        observed["same_object"] = task_packet is task
+        task_packet.constraints.append("EXECUTOR_MUTATION")
+        return {"status": "PRODUCED", "result": {"resource_type": "audio"}, "errors": []}
+
+    result = ProviderExecutionPolicy().execute(
+        task,
+        [make_tool("provider-a")],
+        {"provider-a": working},
+        executor=mutating_executor,
+    )
+    assert result.status == "PRODUCED"
+    assert observed["same_object"] is False
+    assert task == before
+
+
 def test_provider_without_required_capability_is_skipped():
     task = make_task()
     ineligible = StubProvider(result={"resource_type": "audio"})
