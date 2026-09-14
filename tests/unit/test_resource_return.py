@@ -12,7 +12,8 @@ from core.resources.output_validator import validate_resource_output
 class TestResourceReturn(unittest.TestCase):
     def setUp(self) -> None:
         structured = interpret_request(
-            "Create an A2 listening lesson for adult ESL learners."
+            "Create an A2 listening lesson for adult ESL learners. "
+            "Objective: identify the main idea and key details in a short listening text."
         )
         context_result = build_context(structured)
         self.context = context_result.context
