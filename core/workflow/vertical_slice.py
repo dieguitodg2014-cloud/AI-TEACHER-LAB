@@ -12,6 +12,7 @@ from core.context.request_interpreter import interpret_request
 from core.foundation.models import AssessmentDecision, Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.canva_provider import CanvaResourceProvider
+from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.notebooklm_provider import NotebookLMResourceProvider
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
@@ -56,6 +57,7 @@ def run_lesson_planning(
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
+    validation_registry: CapabilityValidationRegistry | None = None,
 ) -> VerticalSliceResult:
     """Run context, pedagogy, assessment, resources, validation and generation."""
     structured_request = interpret_request(request)
@@ -123,7 +125,12 @@ def run_lesson_planning(
     except (OSError, ValueError, TypeError) as exc:
         return VerticalSliceResult("FAILED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, None, resource_validation, None, [], [f"TOOL_REGISTRY_ERROR:{exc}"])
 
-    resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
+    resource_tool = select_resource_tool(
+        resource_task,
+        selected_tools,
+        free_first=free_first,
+        validation_registry=validation_registry,
+    )
     resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool is None and produced_resource is None else None
 
     if resource_task is not None and (generators is not None or notebooklm_executor is not None or canva_executor is not None):
@@ -136,7 +143,14 @@ def run_lesson_planning(
         if canva_executor is not None:
             providers["canva"] = CanvaResourceProvider(canva_executor)
 
-        resource_execution = execute_resource_production_with_fallback(resource_task, selected_tools, providers, max_revisions=max(0, 1 - revision_count), free_first=free_first)
+        resource_execution = execute_resource_production_with_fallback(
+            resource_task,
+            selected_tools,
+            providers,
+            max_revisions=max(0, 1 - revision_count),
+            free_first=free_first,
+            validation_registry=validation_registry,
+        )
         resource_tool = next((tool for tool in selected_tools if tool.tool_id == resource_execution.get("tool_id")), resource_tool)
 
         if resource_execution["status"] not in {"ACCEPTED", "READY"}:
