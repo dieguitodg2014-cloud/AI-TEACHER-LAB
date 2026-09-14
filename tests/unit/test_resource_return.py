@@ -40,13 +40,20 @@ class TestResourceReturn(unittest.TestCase):
         resource.update(overrides)
         return resource
 
-    def test_return_boundary_routes_valid_resource_to_ready(self):
+    def test_return_boundary_routes_valid_resource_to_accepted(self):
         result = receive_resource(self.context, self.task, self._resource())
 
-        self.assertEqual(result.status, "READY")
+        self.assertEqual(result.status, "ACCEPTED")
         self.assertEqual(result.task_id, self.task.task_id)
         self.assertIsNone(result.revision_handoff)
         self.assertFalse(result.errors)
+        self.assertEqual(result.validation.status, "READY")
+
+    def test_return_boundary_does_not_expose_qc_ready_as_delivery_status(self):
+        result = receive_resource(self.context, self.task, self._resource())
+
+        self.assertNotEqual(result.status, "READY")
+        self.assertEqual(result.status, "ACCEPTED")
 
     def test_return_boundary_creates_revision_handoff(self):
         result = receive_resource(
@@ -63,7 +70,7 @@ class TestResourceReturn(unittest.TestCase):
     def test_return_boundary_rejects_missing_resource(self):
         result = receive_resource(self.context, self.task, None)
 
-        self.assertEqual(result.status, "REJECT")
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
         self.assertTrue(result.validation.critical_failure)
         self.assertTrue(result.errors)
 
@@ -71,9 +78,14 @@ class TestResourceReturn(unittest.TestCase):
         result = receive_resource(self.context, self.task, self._resource())
         payload = resource_return_to_dict(result)
 
-        self.assertEqual(payload["status"], "READY")
+        self.assertEqual(payload["status"], "ACCEPTED")
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
+
+    def test_return_boundary_does_not_accept_unbound_ready_validation(self):
+        result = receive_resource(self.context, self.task, self._resource())
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertEqual(result.validation.task_fingerprint != "", True)
 
 
 if __name__ == "__main__":
