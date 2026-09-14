@@ -107,13 +107,29 @@ def execute_resource_provider(task: TaskPacket, tool: ToolCandidate, provider: R
     if not isinstance(provider, ResourceProvider):
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CONTRACT_INVALID"]}
     provider_task = deepcopy(task)
-    if not provider.can_produce(provider_task):
+    try:
+        can_produce = provider.can_produce(provider_task)
+    except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [f"RESOURCE_PROVIDER_ERROR:{exc}"],
+        }
+    if not can_produce:
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": ["RESOURCE_PROVIDER_CANNOT_PRODUCE"]}
     try:
         produced_resource = provider.produce(deepcopy(provider_task))
     except Exception as exc:  # pragma: no cover - provider failures are integration boundaries
         error_code = str(exc) if isinstance(exc, TypeError) else f"RESOURCE_PROVIDER_ERROR:{exc}"
         return {"status": "HUMAN_HANDOFF", "tool_id": tool.tool_id, "result": None, "errors": [error_code]}
+    if not isinstance(produced_resource, dict):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": ["RESOURCE_OUTPUT_NOT_OBJECT"],
+        }
     return {"status": "PRODUCED", "tool_id": tool.tool_id, "result": produced_resource, "errors": []}
 
 
@@ -127,7 +143,7 @@ def validate_and_accept_resource(
     """Run produced output through QC and the final acceptance boundary."""
     validation: ResourceValidationResult = validate_resource_output(task, produced_resource or {}, revision_count=revision_count)
     gate = acceptance_gate or ResourceAcceptanceGate()
-    acceptance: ResourceAcceptanceResult = gate.evaluate(task, validation)
+    acceptance: ResourceAcceptanceResult = gate.evaluate(task, validation, produced_resource)
 
     status_by_decision = {
         "ACCEPT": "ACCEPTED",
