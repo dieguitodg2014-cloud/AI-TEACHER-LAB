@@ -35,6 +35,19 @@ class ToolSelectorTests(unittest.TestCase):
         ]
         self.assertIsNone(select_tool(tools, {"lesson_generation"}))
 
+    def test_not_validated_capability_is_not_selected(self):
+        tools = [
+            ToolCandidate(
+                "unvalidated-tool",
+                frozenset({"lesson_generation"}),
+                capability_validation=(("lesson_generation", "not_validated"),),
+                quality=10,
+            ),
+            ToolCandidate("validated-tool", frozenset({"lesson_generation"}), quality=5),
+        ]
+        selected = select_tool(tools, {"lesson_generation"})
+        self.assertEqual(selected.tool_id, "validated-tool")
+
     def test_blocked_tool_is_not_selected(self):
         tools = [
             ToolCandidate("preferred-tool", frozenset({"lesson_generation"}), quality=10),
