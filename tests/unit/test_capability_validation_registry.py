@@ -1,68 +1,66 @@
-import json
-
-from core.foundation.models import TaskPacket
-from core.orchestration.provider_execution_policy import ProviderExecutionPolicy
+from core.orchestration.capability_validation import (
+    NOT_VALIDATED,
+    VALIDATED,
+    CapabilityValidationResult,
+)
+from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.tool_selector import ToolCandidate
-from tools.registry.config_loader import load_tool_registry_config
 
 
-class StubProvider:
-    def can_produce(self, task_packet):
-        return True
-
-    def produce(self, task_packet):
-        return {"resource_type": "presentation"}
-
-
-def make_task():
-    return TaskPacket(
-        task_id="validation-test-1",
-        task_type="RESOURCE_PRODUCTION",
-        objective="Practice greetings with visual prompts.",
-        level="A1",
-        required_output="presentation",
-        constraints=[],
-        quality_criteria=["Support the objective."],
-        lesson_id="lesson-1",
-        audience="children",
-        visual=True,
+def test_record_replaces_previous_result_for_same_provider_capability():
+    registry = CapabilityValidationRegistry()
+    first = CapabilityValidationResult("notebooklm", "visual_resource_generation", NOT_VALIDATED)
+    second = CapabilityValidationResult(
+        "notebooklm",
+        "visual_resource_generation",
+        VALIDATED,
+        ("visual-smoke-test",),
     )
 
+    updated = registry.record(first).record(second)
 
-def test_loader_preserves_not_validated_capability_state(tmp_path):
-    config = {
-        "tools": [{
-            "tool_id": "notebooklm",
-            "connector": "notebooklm",
-            "capabilities": ["resource_generation", "presentation_generation"],
-            "capability_validation": {"visual_resource_generation": "not_validated"},
-        }],
-        "policy": {},
-    }
-    path = tmp_path / "tools.json"
-    path.write_text(json.dumps(config), encoding="utf-8")
-
-    tools, _ = load_tool_registry_config(path)
-
-    assert tools[0].validation_status("visual_resource_generation") == "not_validated"
-    assert "visual_resource_generation" in tools[0].not_validated_capabilities
+    assert updated.get("notebooklm", "visual_resource_generation") == second
+    assert len(updated.results) == 1
 
 
-def test_execution_trace_distinguishes_not_validated_from_missing():
-    task = make_task()
+def test_effective_tool_promotes_only_validated_declared_capabilities():
     tool = ToolCandidate(
         "notebooklm",
-        frozenset({"resource_generation", "presentation_generation"}),
-        capability_validation=(("visual_resource_generation", "not_validated"),),
+        frozenset({"resource_generation", "visual_resource_generation"}),
+        capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
     )
-    result = ProviderExecutionPolicy().execute(
-        task,
-        [tool],
-        {"notebooklm": StubProvider()},
+    result = CapabilityValidationResult(
+        "notebooklm", "visual_resource_generation", VALIDATED
     )
 
-    assert result.status == "HUMAN_HANDOFF"
-    assert result.attempts == ()
-    assert result.excluded_tools == (
-        ("notebooklm", "CAPABILITY_NOT_VALIDATED:visual_resource_generation"),
+    effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
+
+    assert effective is not tool
+    assert effective.validation_status("visual_resource_generation") == VALIDATED
+    assert tool.validation_status("visual_resource_generation") == NOT_VALIDATED
+
+
+def test_failed_validation_does_not_promote_capability():
+    tool = ToolCandidate("notebooklm", frozenset({"visual_resource_generation"}))
+    result = CapabilityValidationResult(
+        "notebooklm", "visual_resource_generation", NOT_VALIDATED
     )
+
+    effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
+
+    assert effective.validation_status("visual_resource_generation") == NOT_VALIDATED
+
+
+def test_result_for_different_provider_cannot_promote_tool():
+    tool = ToolCandidate(
+        "canva",
+        frozenset({"visual_resource_generation"}),
+        capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
+    )
+    result = CapabilityValidationResult(
+        "notebooklm", "visual_resource_generation", VALIDATED
+    )
+
+    effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
+
+    assert effective.validation_status("visual_resource_generation") == NOT_VALIDATED
