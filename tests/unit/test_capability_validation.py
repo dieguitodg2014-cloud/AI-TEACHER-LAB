@@ -94,10 +94,12 @@ def test_stale_validated_result_is_rejected_when_applied():
     original_tool = ToolCandidate(
         "notebooklm",
         frozenset({"visual_resource_generation"}),
+        provider_revision="v1",
     )
     changed_tool = ToolCandidate(
         "notebooklm",
-        frozenset({"visual_resource_generation", "audio_generation"}),
+        frozenset({"visual_resource_generation"}),
+        provider_revision="v2",
     )
     result = validate_capability(
         original_tool,
