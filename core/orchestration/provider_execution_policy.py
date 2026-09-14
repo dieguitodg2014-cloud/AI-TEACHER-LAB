@@ -44,12 +44,16 @@ def _excluded_tools(
     tools: list[ToolCandidate],
     required: set[str],
     blocked: set[str],
+    providers: dict[str, ResourceProvider] | None = None,
 ) -> tuple[tuple[str, str], ...]:
     """Explain why configured providers were not eligible for execution."""
     excluded: list[tuple[str, str]] = []
     for tool in tools:
         if tool.tool_id in blocked:
             excluded.append((tool.tool_id, "BLOCKED_AFTER_EXECUTION_FAILURE"))
+            continue
+        if providers is not None and tool.tool_id not in providers:
+            excluded.append((tool.tool_id, "RESOURCE_PROVIDER_NOT_CONFIGURED"))
             continue
         not_validated = sorted(
             capability
@@ -117,14 +121,19 @@ class ProviderExecutionPolicy:
         ]
 
         while True:
+            eligible_tools = [
+                tool
+                for tool in effective_tools
+                if tool.tool_id in providers
+            ]
             tool = select_resource_provider(
                 task,
-                effective_tools,
+                eligible_tools,
                 free_first=self.free_first,
                 blocked_tools=blocked,
                 provider_priority=self.provider_priority,
             )
-            excluded_tools = _excluded_tools(effective_tools, required, blocked)
+            excluded_tools = _excluded_tools(effective_tools, required, blocked, providers)
             if tool is None:
                 return ProviderExecutionResult(
                     status="HUMAN_HANDOFF",
@@ -136,15 +145,7 @@ class ProviderExecutionPolicy:
                     excluded_tools=excluded_tools,
                 )
 
-            provider = providers.get(tool.tool_id)
-            if provider is None:
-                outcome = {
-                    "status": "HUMAN_HANDOFF",
-                    "result": None,
-                    "errors": ["RESOURCE_PROVIDER_NOT_CONFIGURED"],
-                }
-            else:
-                outcome = executor(task, tool, provider)
+            outcome = executor(task, tool, providers[tool.tool_id])
 
             attempt = ProviderAttempt(
                 attempt=len(attempts) + 1,
@@ -163,7 +164,7 @@ class ProviderExecutionPolicy:
                     result=outcome["result"],
                     attempts=tuple(attempts),
                     errors=(),
-                    excluded_tools=_excluded_tools(effective_tools, required, blocked),
+                    excluded_tools=_excluded_tools(effective_tools, required, blocked, providers),
                 )
 
             outcome_errors = tuple(outcome.get("errors", []))
@@ -175,7 +176,7 @@ class ProviderExecutionPolicy:
                     result=None,
                     attempts=tuple(attempts),
                     errors=outcome_errors,
-                    excluded_tools=_excluded_tools(effective_tools, required, blocked),
+                    excluded_tools=_excluded_tools(effective_tools, required, blocked, providers),
                 )
 
             blocked.add(tool.tool_id)
