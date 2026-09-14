@@ -34,9 +34,7 @@ def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], di
             )
         raw_validation = raw.get("capability_validation", {})
         if not isinstance(raw_validation, dict):
-            raise ValueError(
-                f"INVALID_CAPABILITY_VALIDATION:{raw['tool_id']}"
-            )
+            raise ValueError(f"INVALID_CAPABILITY_VALIDATION:{raw['tool_id']}")
         for capability, status in raw_validation.items():
             if not isinstance(capability, str) or status not in VALID_CAPABILITY_VALIDATION_STATUSES:
                 raise ValueError(
@@ -45,6 +43,9 @@ def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], di
         capability_validation = tuple(
             sorted((capability, status) for capability, status in raw_validation.items())
         )
+        provider_revision = raw.get("provider_revision", "")
+        if not isinstance(provider_revision, str):
+            raise ValueError(f"INVALID_PROVIDER_REVISION:{raw['tool_id']}")
         tools.append(
             ToolCandidate(
                 tool_id=raw["tool_id"],
@@ -55,6 +56,7 @@ def load_tool_registry_config(path: str | Path) -> tuple[list[ToolCandidate], di
                 speed=float(raw.get("speed", 0.0)),
                 cost=float(raw.get("cost", 0.0)),
                 capability_validation=capability_validation,
+                provider_revision=provider_revision,
             )
         )
 
