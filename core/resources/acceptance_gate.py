@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from core.foundation.models import TaskPacket
-from core.resources.output_validator import ResourceValidationResult
+from core.resources.output_validator import ResourceValidationResult, task_packet_fingerprint
 
 
 AcceptanceDecision = Literal[
@@ -45,6 +45,23 @@ class ResourceAcceptanceGate:
                 decision="HUMAN_HANDOFF",
                 reasons=["RESOURCE_VALIDATION_MISSING"],
                 blocking=True,
+            )
+
+        expected_fingerprint = task_packet_fingerprint(task)
+        if not validation.task_fingerprint:
+            return ResourceAcceptanceResult(
+                decision="HUMAN_HANDOFF",
+                reasons=["RESOURCE_VALIDATION_TASK_BINDING_MISSING"],
+                blocking=True,
+                validation_id=validation.validation_id,
+            )
+
+        if validation.task_fingerprint != expected_fingerprint:
+            return ResourceAcceptanceResult(
+                decision="HUMAN_HANDOFF",
+                reasons=["RESOURCE_VALIDATION_TASK_BINDING_MISMATCH"],
+                blocking=True,
+                validation_id=validation.validation_id,
             )
 
         if validation.status == "READY" and not validation.critical_failure:
