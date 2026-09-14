@@ -45,7 +45,16 @@ class ProviderCapabilityContractTests(unittest.TestCase):
     def test_supported_capabilities_are_explicit(self):
         self.assertEqual(
             SUPPORTED_PROVIDER_CAPABILITIES,
-            frozenset({"lesson_generation", "resource_generation"}),
+            frozenset(
+                {
+                    "lesson_generation",
+                    "resource_generation",
+                    "audio_generation",
+                    "presentation_generation",
+                    "source_based_resource_generation",
+                    "visual_resource_generation",
+                }
+            ),
         )
 
 
