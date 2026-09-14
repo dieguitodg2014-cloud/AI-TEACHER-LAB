@@ -2,6 +2,7 @@ from core.orchestration.capability_validation import (
     NOT_VALIDATED,
     VALIDATED,
     CapabilityValidationResult,
+    validate_capability,
 )
 from core.orchestration.capability_validation_registry import CapabilityValidationRegistry
 from core.orchestration.tool_selector import ToolCandidate
@@ -10,11 +11,12 @@ from core.orchestration.tool_selector import ToolCandidate
 def test_record_replaces_previous_result_for_same_provider_capability():
     registry = CapabilityValidationRegistry()
     first = CapabilityValidationResult("notebooklm", "visual_resource_generation", NOT_VALIDATED)
-    second = CapabilityValidationResult(
-        "notebooklm",
+    tool = ToolCandidate("notebooklm", frozenset({"visual_resource_generation"}))
+    second = validate_capability(
+        tool,
         "visual_resource_generation",
-        VALIDATED,
-        ("visual-smoke-test",),
+        passed=True,
+        evidence=("visual-smoke-test",),
     )
 
     updated = registry.record(first).record(second)
@@ -23,14 +25,17 @@ def test_record_replaces_previous_result_for_same_provider_capability():
     assert len(updated.results) == 1
 
 
-def test_effective_tool_promotes_only_validated_declared_capabilities():
+def test_effective_tool_promotes_current_validated_declared_capability():
     tool = ToolCandidate(
         "notebooklm",
         frozenset({"resource_generation", "visual_resource_generation"}),
         capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
     )
-    result = CapabilityValidationResult(
-        "notebooklm", "visual_resource_generation", VALIDATED
+    result = validate_capability(
+        tool,
+        "visual_resource_generation",
+        passed=True,
+        evidence=("visual-smoke-test",),
     )
 
     effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
@@ -38,6 +43,28 @@ def test_effective_tool_promotes_only_validated_declared_capabilities():
     assert effective is not tool
     assert effective.validation_status("visual_resource_generation") == VALIDATED
     assert tool.validation_status("visual_resource_generation") == NOT_VALIDATED
+
+
+def test_stale_validation_does_not_promote_changed_provider_configuration():
+    original_tool = ToolCandidate(
+        "notebooklm",
+        frozenset({"resource_generation", "visual_resource_generation"}),
+    )
+    result = validate_capability(
+        original_tool,
+        "visual_resource_generation",
+        passed=True,
+        evidence=("visual-smoke-test",),
+    )
+    changed_tool = ToolCandidate(
+        "notebooklm",
+        frozenset({"resource_generation", "visual_resource_generation", "audio_generation"}),
+        capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
+    )
+
+    effective = CapabilityValidationRegistry((result,)).effective_tool(changed_tool)
+
+    assert effective.validation_status("visual_resource_generation") == NOT_VALIDATED
 
 
 def test_failed_validation_does_not_promote_capability():
@@ -52,13 +79,17 @@ def test_failed_validation_does_not_promote_capability():
 
 
 def test_result_for_different_provider_cannot_promote_tool():
-    tool = ToolCandidate("canva", frozenset({"visual_resource_generation"}))
+    tool = ToolCandidate(
+        "canva",
+        frozenset({"visual_resource_generation"}),
+        capability_validation=(("visual_resource_generation", NOT_VALIDATED),),
+    )
     result = CapabilityValidationResult(
-        "notebooklm", "visual_resource_generation", VALIDATED
+        "notebooklm", "visual_resource_generation", VALIDATED, ("notebooklm-test",), "different-fingerprint"
     )
 
     effective = CapabilityValidationRegistry((result,)).effective_tool(tool)
 
-    assert effective.validation_status("visual_resource_generation") == "validated"
+    assert effective.validation_status("visual_resource_generation") == NOT_VALIDATED
     assert effective.tool_id == "canva"
-    assert effective.capability_validation == ()
+    assert effective.capability_validation == (("visual_resource_generation", NOT_VALIDATED),)
