@@ -134,9 +134,6 @@ def run_lesson_planning(
     resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool is None and produced_resource is None else None
 
     if resource_task is not None and (generators is not None or notebooklm_executor is not None or canva_executor is not None):
-        if resource_tool is None:
-            return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_validation, None, [], ["NO_SUITABLE_RESOURCE_TOOL"])
-
         providers = {tool_id: FunctionResourceProvider(generator) for tool_id, generator in (generators or {}).items() if callable(generator)}
         if notebooklm_executor is not None:
             providers["notebooklm"] = NotebookLMResourceProvider(notebooklm_executor)
