@@ -61,6 +61,34 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertNotIn("capability_validation", str(payload))
         self.assertNotIn("provider_revision", str(payload))
 
+    def test_accepted_resource_is_exposed_as_classroom_output(self):
+        request = {
+            "level": "A2",
+            "audience": "adult ESL learners",
+            "duration_minutes": 90,
+            "objective": "Understand a short conversation and identify key information.",
+            "topic": "Listening for key information",
+            "constraints": ["Students need listening practice"],
+        }
+        resource = {
+            "resource_type": "audio",
+            "level": "A2",
+            "objective": request["objective"],
+            "content": "A short conversation between two adults about making a weekend appointment.",
+        }
+
+        result = plan_for_teacher(request, produced_resource=resource)
+
+        self.assertEqual(result.status, "ACCEPTED")
+        self.assertIsNotNone(result.resource)
+        self.assertEqual(result.resource["type"], "audio")
+        self.assertEqual(result.resource["output"], resource)
+
+        rendered = render_teacher_result(result)
+        self.assertIn("Resource", rendered)
+        self.assertIn("Accepted resource", rendered)
+        self.assertIn(resource["content"], rendered)
+
     def test_teacher_text_render_contains_classroom_essentials(self):
         result = plan_for_teacher(
             {
