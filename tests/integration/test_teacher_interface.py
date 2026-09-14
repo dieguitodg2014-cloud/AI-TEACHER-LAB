@@ -1,7 +1,7 @@
 import unittest
 
 from core.orchestration.tool_selector import ToolCandidate
-from core.workflow.teacher_interface import plan_for_teacher, teacher_result_to_dict
+from core.workflow.teacher_interface import plan_for_teacher, render_teacher_result, teacher_result_to_dict
 
 
 class TeacherInterfaceTests(unittest.TestCase):
@@ -61,6 +61,25 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertNotIn("capability_validation", str(payload))
         self.assertNotIn("provider_revision", str(payload))
 
+    def test_teacher_text_render_contains_classroom_essentials(self):
+        result = plan_for_teacher(
+            {
+                "level": "A2",
+                "audience": "adult ESL learners",
+                "duration_minutes": 90,
+                "objective": "Discuss past experiences and ask follow-up questions.",
+                "topic": "life experiences",
+            }
+        )
+
+        rendered = render_teacher_result(result)
+        self.assertIn("life experiences", rendered)
+        self.assertIn("Status: PLANNED", rendered)
+        self.assertIn("Level: A2", rendered)
+        self.assertIn("Learning objective", rendered)
+        self.assertIn("Lesson activities", rendered)
+        self.assertIn("Assessment", rendered)
+
     def test_planning_without_provider_is_still_useful(self):
         result = plan_for_teacher(
             {
@@ -85,6 +104,9 @@ class TeacherInterfaceTests(unittest.TestCase):
         self.assertEqual(result.activities, ())
         self.assertIsNone(result.objective)
         self.assertGreater(len(result.errors), 0)
+        rendered = render_teacher_result(result)
+        self.assertIn("Status: MISSING_CONTEXT", rendered)
+        self.assertIn("Issues", rendered)
 
     def test_serialized_contract_is_stable(self):
         result = plan_for_teacher(
