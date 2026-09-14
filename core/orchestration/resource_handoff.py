@@ -64,7 +64,7 @@ def build_resource_revision_handoff(
         "required_output": task.required_output,
         "validation_id": validation.validation_id,
         "validation_score": validation.score,
-        "failed_checks": [name for name, passed in validation.checks.items() if not passed],
+        "failed_checks": [name for name, passed in validation.checks if not passed],
         "revision_feedback": list(validation.feedback),
         "blocking_errors": list(validation.blocking_errors),
         "quality_criteria": list(task.quality_criteria),
