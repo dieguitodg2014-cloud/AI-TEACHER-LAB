@@ -22,6 +22,7 @@ from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
+from core.resources.acceptance_gate import ResourceAcceptanceGate
 from core.resources.decision_engine import apply_resource_decision, decide_resource
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
 from tools.registry import ToolRegistry
@@ -98,15 +99,25 @@ def run_lesson_planning(
                 revision_count=revision_count,
             )
 
-        if resource_validation.status != "READY":
+        acceptance = ResourceAcceptanceGate().evaluate(resource_task, resource_validation) if resource_task is not None else ResourceAcceptanceGate().evaluate(resource_task, resource_validation)
+        if acceptance.decision != "ACCEPT":
             revision_handoff = None
-            if resource_validation.status == "REVISION_REQUIRED" and resource_task is not None:
+            if acceptance.decision == "REVISION_REQUIRED" and resource_task is not None:
                 revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_validation)
             return VerticalSliceResult(
-                resource_validation.status, context_result.context, level_decision, learning_plan,
-                assessment_decision, resource_decision, resource_task, None, revision_handoff,
-                resource_validation, None, [],
-                list(resource_validation.blocking_errors) + list(resource_validation.feedback),
+                acceptance.decision,
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
+                resource_task,
+                None,
+                revision_handoff,
+                resource_validation,
+                None,
+                [],
+                acceptance.reasons,
             )
 
     if tools is None and generators is None and notebooklm_executor is None and canva_executor is None:
@@ -163,7 +174,12 @@ def run_lesson_planning(
                 revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_execution["validation"])
             return VerticalSliceResult(resource_execution["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, revision_handoff or resource_handoff or build_resource_handoff(context_result.context, resource_task), resource_execution.get("validation"), resource_execution, [], list(resource_execution.get("errors", [])))
 
-        return VerticalSliceResult("READY", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, resource_execution.get("validation"), resource_execution, [], [])
+        final_validation = resource_execution.get("validation")
+        final_acceptance = ResourceAcceptanceGate().evaluate(resource_task, final_validation)
+        if final_acceptance.decision != "ACCEPT":
+            return VerticalSliceResult(final_acceptance.decision, context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff or build_resource_handoff(context_result.context, resource_task), final_validation, resource_execution, [], final_acceptance.reasons)
+
+        return VerticalSliceResult("READY", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, None, final_validation, resource_execution, [], [])
 
     if generators is None:
         has_resource_capability = any("resource_generation" in tool.capabilities for tool in selected_tools)
@@ -175,8 +191,3 @@ def run_lesson_planning(
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(generation_request, free_first=free_first)
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
-
-
-def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
-    """Serialize the workflow result for an API, CLI, or future interface."""
-    return asdict(result)
