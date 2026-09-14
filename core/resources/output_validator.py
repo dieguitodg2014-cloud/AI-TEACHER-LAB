@@ -61,6 +61,12 @@ def task_packet_fingerprint(task: TaskPacket) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def resource_fingerprint(resource: dict[str, Any]) -> str:
+    """Return a stable identity for the exact resource content validated by QC."""
+    encoded = json.dumps(resource, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 @dataclass(frozen=True)
 class ResourceValidationResult:
     """Immutable result of validating a produced resource against a TaskPacket."""
@@ -73,6 +79,7 @@ class ResourceValidationResult:
     feedback: tuple[str, ...] = ()
     blocking_errors: tuple[str, ...] = ()
     task_fingerprint: str = ""
+    resource_fingerprint: str = ""
 
     def check_passed(self, name: str) -> bool:
         """Return the result for one named check without exposing mutable state."""
@@ -159,6 +166,7 @@ def validate_resource_output(
         feedback=tuple(feedback),
         blocking_errors=tuple(blocking_errors),
         task_fingerprint=task_packet_fingerprint(task),
+        resource_fingerprint=resource_fingerprint(produced_resource),
     )
 
 
@@ -178,38 +186,44 @@ def _validate_optional_structure(produced_resource: dict[str, Any]) -> dict[str,
     if "source_reference" in produced_resource:
         checks["source_reference"] = _non_empty_string(produced_resource["source_reference"])
     if "production_status" in produced_resource:
-        checks["production_status"] = isinstance(produced_resource["production_status"], str) and produced_resource["production_status"].strip().upper() in _PRODUCTION_STATUSES
+        checks["production_status"] = produced_resource["production_status"] in _PRODUCTION_STATUSES
+    if "quality_criteria_addressed" in produced_resource:
+        checks["quality_criteria_addressed"] = isinstance(produced_resource["quality_criteria_addressed"], list)
+    if "source_references" in produced_resource:
+        checks["source_references"] = isinstance(produced_resource["source_references"], list) and all(
+            _non_empty_string(item) for item in produced_resource["source_references"]
+        )
     return checks
 
 
-def _non_empty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+def _criteria_are_addressed(task: TaskPacket, resource: dict[str, Any]) -> bool:
+    if not task.quality_criteria:
+        return True
+    addressed = resource.get("quality_criteria_addressed")
+    if addressed is None:
+        return True
+    if not isinstance(addressed, list):
+        return False
+    return all(criterion in addressed for criterion in task.quality_criteria)
+
+
+def _sources_are_acceptable(task: TaskPacket, resource: dict[str, Any]) -> bool:
+    requires_sources = any("source" in constraint.lower() for constraint in task.constraints)
+    if not requires_sources:
+        return True
+    references = resource.get("source_references")
+    return isinstance(references, list) and bool(references) and all(_non_empty_string(item) for item in references)
 
 
 def _has_usable_content(content: Any) -> bool:
     if isinstance(content, str):
         return bool(content.strip())
     if isinstance(content, (list, tuple)):
-        return bool(content) and all(str(item).strip() for item in content)
+        return bool(content)
     if isinstance(content, dict):
-        return bool(content) and any(str(value).strip() for value in content.values())
+        return bool(content)
     return content is not None
 
 
-def _criteria_are_addressed(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
-    evidence = produced_resource.get("quality_criteria_addressed")
-    if evidence is None:
-        return True
-    if not isinstance(evidence, list):
-        return False
-    requested = {criterion.strip() for criterion in task.quality_criteria if criterion.strip()}
-    supplied = {str(item).strip() for item in evidence if str(item).strip()}
-    return requested.issubset(supplied)
-
-
-def _sources_are_acceptable(task: TaskPacket, produced_resource: dict[str, Any]) -> bool:
-    source_constraints = [item.lower() for item in task.constraints if "source" in item.lower()]
-    if not source_constraints:
-        return True
-    sources = produced_resource.get("source_references")
-    return isinstance(sources, list) and bool(sources) and all(str(item).strip() for item in sources)
+def _non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
