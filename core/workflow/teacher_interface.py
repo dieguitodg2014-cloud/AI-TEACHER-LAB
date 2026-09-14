@@ -107,6 +107,7 @@ def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
             resource["output"] = accepted
 
     title = (context.topic if context else None) or (plan.objective if plan else None) or "Lesson Plan"
+    errors = result.errors or tuple(result.missing)
     return TeacherLessonResult(
         status=result.status,
         title=title,
@@ -119,7 +120,7 @@ def to_teacher_result(result: VerticalSliceResult) -> TeacherLessonResult:
         assessment=_assessment_output(result.assessment_decision),
         resource=resource,
         handoff=deepcopy(result.resource_handoff),
-        errors=result.errors,
+        errors=errors,
     )
 
 
@@ -197,8 +198,7 @@ def render_teacher_result(result: TeacherLessonResult) -> str:
         if isinstance(output, dict):
             content = output.get("content")
             if content:
-                lines.extend(["", "Accepted resource", "-----------------"])
-                lines.append(str(content))
+                lines.extend(["", "Accepted resource", "-----------------", str(content)])
 
     if result.handoff:
         lines.extend(["", "Next action", "----------"])
