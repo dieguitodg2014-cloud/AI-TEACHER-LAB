@@ -23,7 +23,10 @@ class ResourceReturnResult:
     task_id: str
     validation: ResourceValidationResult
     revision_handoff: dict[str, Any] | None
-    errors: list[str]
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "errors", tuple(self.errors))
 
 
 def receive_resource(
@@ -46,7 +49,7 @@ def receive_resource(
             score=0.0,
             critical_failure=True,
             checks={"resource_returned": False},
-            blocking_errors=["No produced resource was returned for validation."],
+            blocking_errors=("No produced resource was returned for validation.",),
         )
     else:
         validation = validate_resource_output(
@@ -63,7 +66,7 @@ def receive_resource(
             validation,
         )
 
-    errors = list(validation.blocking_errors) + list(validation.feedback)
+    errors = tuple(validation.blocking_errors) + tuple(validation.feedback)
     return ResourceReturnResult(
         status=validation.status,
         task_id=task.task_id,
@@ -75,4 +78,9 @@ def receive_resource(
 
 def resource_return_to_dict(result: ResourceReturnResult) -> dict[str, Any]:
     """Serialize a resource-return result for an API, CLI, or future UI."""
-    return asdict(result)
+    payload = asdict(result)
+    payload["validation"]["checks"] = dict(result.validation.checks)
+    payload["validation"]["feedback"] = list(result.validation.feedback)
+    payload["validation"]["blocking_errors"] = list(result.validation.blocking_errors)
+    payload["errors"] = list(result.errors)
+    return payload
