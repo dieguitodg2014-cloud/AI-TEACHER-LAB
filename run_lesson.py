@@ -50,7 +50,17 @@ def main() -> int:
     args = build_parser().parse_args()
     result = run_configured_lesson_planning(build_request(args))
     print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
-    return 0 if result.status == "READY" else 1
+
+    # A resource-generation path is intentionally reported as PLANNED by the
+    # vertical slice because planning/execution remain distinct concerns. If
+    # resource execution completed and its QC result is READY, the CLI has
+    # nevertheless completed its requested work successfully.
+    resource_ready = (
+        result.status == "PLANNED"
+        and result.resource_validation is not None
+        and result.resource_validation.status == "READY"
+    )
+    return 0 if result.status == "READY" or resource_ready else 1
 
 
 if __name__ == "__main__":
