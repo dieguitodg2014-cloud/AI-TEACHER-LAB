@@ -97,6 +97,36 @@ class ResourceVerticalSliceE2ETests(unittest.TestCase):
         self.assertEqual(result.resource_task.input_materials, (approved_script.content,))
         self.assertEqual(captured["input_materials"], [approved_script.content])
 
+    def test_generated_content_must_pass_content_gate_before_provider(self):
+        captured = {"called": False}
+
+        def mock_resource_provider(task_dict):
+            captured["called"] = True
+            return {
+                "resource_type": "audio",
+                "level": task_dict["level"],
+                "objective": task_dict["objective"],
+                "content": "Audio placeholder.",
+                "format": "audio",
+                "production_status": "PRODUCED",
+            }
+
+        result = run_lesson_planning(
+            self._request(),
+            tools=[self._resource_tool()],
+            generators={"notebooklm-mock": mock_resource_provider},
+            generated_resource_content={
+                "resource_content": "A: Have you ever visited Cartagena? B: Yes, I have.",
+                "resource_content_type": "script",
+                "level": "A1",
+                "objective": self._request()["objective"],
+            },
+        )
+
+        self.assertEqual(result.status, "REJECT")
+        self.assertIn("RESOURCE_CONTENT_LEVEL_MISMATCH", result.errors)
+        self.assertFalse(captured["called"])
+
     def test_listening_request_without_resource_provider_stops_at_human_handoff(self):
         result = run_lesson_planning(
             self._request(),
