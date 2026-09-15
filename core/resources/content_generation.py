@@ -77,17 +77,9 @@ def approve_resource_content(
     expected_type: str,
     task: TaskPacket | None = None,
 ) -> ApprovedResourceContent:
-    """Turn validated generated content into the immutable approval contract.
-
-    When a TaskPacket is supplied, the deterministic content gate must pass
-    before approval. Callers remain responsible for the semantic QC gate.
-    """
+    """Turn validated generated content into the immutable approval contract."""
     if task is not None:
-        validation = validate_resource_content(
-            task,
-            generated,
-            expected_type=expected_type,
-        )
+        validation = validate_resource_content(task, generated, expected_type=expected_type)
         if validation.status != "READY":
             raise ValueError("RESOURCE_CONTENT_NOT_APPROVED:" + ",".join(validation.errors))
 
@@ -100,3 +92,13 @@ def approve_resource_content(
 
     content_type = generated.get("resource_content_type", expected_type or "script")
     return ApprovedResourceContent(content=content, content_type=content_type)
+
+
+# Backward-compatible name for the original binding-only adapter.
+def bind_approved_resource_content(
+    generated: dict[str, Any],
+    *,
+    expected_type: str,
+) -> ApprovedResourceContent:
+    """Bind an already-reviewed artifact without performing semantic QC."""
+    return approve_resource_content(generated, expected_type=expected_type)
