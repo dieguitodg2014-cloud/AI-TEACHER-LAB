@@ -14,7 +14,6 @@ class ResourceProviderContractTests(unittest.TestCase):
             objective="Create a short listening resource.",
             level="A2",
             audience="adult learners",
-            duration_minutes=90,
             required_output="audio",
             constraints=["English"],
         )
