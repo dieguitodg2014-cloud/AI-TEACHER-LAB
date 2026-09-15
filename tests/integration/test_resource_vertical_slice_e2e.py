@@ -2,6 +2,7 @@ import unittest
 
 from core.foundation.models import TaskPacket
 from core.orchestration.tool_selector import ToolCandidate
+from core.resources.approved_content import ApprovedResourceContent
 from core.workflow.vertical_slice import run_lesson_planning
 
 
@@ -58,13 +59,73 @@ class ResourceVerticalSliceE2ETests(unittest.TestCase):
         self.assertEqual(result.resource_task.required_output, "audio")
         self.assertIsNotNone(result.resource_tool)
         self.assertEqual(result.resource_tool.tool_id, "notebooklm-mock")
-        self.assertIsNotNone(result.resource_generation)
-        self.assertEqual(result.resource_generation["status"], "PRODUCED")
+        self.assertIsNotNone(result.generation)
+        self.assertEqual(result.generation["status"], "PRODUCED")
         self.assertIsNotNone(result.resource_validation)
         self.assertEqual(result.resource_validation.status, "READY")
         self.assertEqual(result.resource_validation.score, 100.0)
         self.assertEqual(captured["task"]["task_type"], "RESOURCE_PRODUCTION")
         self.assertEqual(captured["task"]["required_output"], "audio")
+
+    def test_approved_content_is_passed_to_resource_provider_unchanged(self):
+        approved_script = ApprovedResourceContent(
+            content="A: Have you ever visited Cartagena? B: Yes, I have.",
+            content_type="dialogue_script",
+        )
+        captured = {}
+
+        def mock_resource_provider(task_dict):
+            captured["input_materials"] = task_dict["input_materials"]
+            return {
+                "resource_type": "audio",
+                "level": task_dict["level"],
+                "objective": task_dict["objective"],
+                "content": "Audio production placeholder for the approved dialogue.",
+                "format": "audio",
+                "language": "English",
+                "production_status": "PRODUCED",
+            }
+
+        result = run_lesson_planning(
+            self._request(),
+            tools=[self._resource_tool()],
+            generators={"notebooklm-mock": mock_resource_provider},
+            approved_resource_content=approved_script,
+        )
+
+        self.assertEqual(result.status, "PLANNED")
+        self.assertEqual(result.resource_task.input_materials, (approved_script.content,))
+        self.assertEqual(captured["input_materials"], [approved_script.content])
+
+    def test_generated_content_must_pass_content_gate_before_provider(self):
+        captured = {"called": False}
+
+        def mock_resource_provider(task_dict):
+            captured["called"] = True
+            return {
+                "resource_type": "audio",
+                "level": task_dict["level"],
+                "objective": task_dict["objective"],
+                "content": "Audio placeholder.",
+                "format": "audio",
+                "production_status": "PRODUCED",
+            }
+
+        result = run_lesson_planning(
+            self._request(),
+            tools=[self._resource_tool()],
+            generators={"notebooklm-mock": mock_resource_provider},
+            generated_resource_content={
+                "resource_content": "A: Have you ever visited Cartagena? B: Yes, I have.",
+                "resource_content_type": "script",
+                "level": "A1",
+                "objective": self._request()["objective"],
+            },
+        )
+
+        self.assertEqual(result.status, "REJECT")
+        self.assertIn("RESOURCE_CONTENT_LEVEL_MISMATCH", result.errors)
+        self.assertFalse(captured["called"])
 
     def test_listening_request_without_resource_provider_stops_at_human_handoff(self):
         result = run_lesson_planning(

@@ -7,8 +7,9 @@ production, including a small structural output boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Literal
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Any, Literal, Mapping
 from uuid import uuid4
 
 from core.foundation.models import TaskPacket
@@ -53,15 +54,21 @@ _PRODUCTION_STATUSES = {"PRODUCED", "READY"}
 
 @dataclass(frozen=True)
 class ResourceValidationResult:
-    """Result of validating a produced resource against a TaskPacket."""
+    """Immutable result of validating a produced resource against a TaskPacket."""
 
     validation_id: str
     status: ValidationStatus
     score: float
     critical_failure: bool
-    checks: dict[str, bool]
-    feedback: list[str] = field(default_factory=list)
-    blocking_errors: list[str] = field(default_factory=list)
+    checks: Mapping[str, bool]
+    feedback: tuple[str, ...] = ()
+    blocking_errors: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Freeze nested validation evidence at the result boundary."""
+        object.__setattr__(self, "checks", MappingProxyType(dict(self.checks)))
+        object.__setattr__(self, "feedback", tuple(self.feedback))
+        object.__setattr__(self, "blocking_errors", tuple(self.blocking_errors))
 
 
 def validate_resource_output(

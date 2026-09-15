@@ -7,12 +7,38 @@ Resource TaskPacket that authorized its production.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
+
+from dataclasses import dataclass
 
 from core.foundation.models import Context, TaskPacket
 from core.orchestration.resource_handoff import build_resource_revision_handoff
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
+
+
+def _freeze(value: Any) -> Any:
+    """Recursively freeze mappings and common collection containers."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze(item) for item in value)
+    return value
+
+
+def _thaw(value: Any) -> Any:
+    """Recursively convert immutable evidence back to JSON-friendly values."""
+    if isinstance(value, Mapping):
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    if isinstance(value, frozenset):
+        return [_thaw(item) for item in value]
+    return value
 
 
 @dataclass(frozen=True)
@@ -22,8 +48,13 @@ class ResourceReturnResult:
     status: str
     task_id: str
     validation: ResourceValidationResult
-    revision_handoff: dict[str, Any] | None
-    errors: list[str]
+    revision_handoff: Mapping[str, Any] | None
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if self.revision_handoff is not None:
+            object.__setattr__(self, "revision_handoff", _freeze(self.revision_handoff))
+        object.__setattr__(self, "errors", tuple(self.errors))
 
 
 def receive_resource(
@@ -46,7 +77,7 @@ def receive_resource(
             score=0.0,
             critical_failure=True,
             checks={"resource_returned": False},
-            blocking_errors=["No produced resource was returned for validation."],
+            blocking_errors=("No produced resource was returned for validation.",),
         )
     else:
         validation = validate_resource_output(
@@ -63,7 +94,7 @@ def receive_resource(
             validation,
         )
 
-    errors = list(validation.blocking_errors) + list(validation.feedback)
+    errors = tuple(validation.blocking_errors) + tuple(validation.feedback)
     return ResourceReturnResult(
         status=validation.status,
         task_id=task.task_id,
@@ -75,4 +106,18 @@ def receive_resource(
 
 def resource_return_to_dict(result: ResourceReturnResult) -> dict[str, Any]:
     """Serialize a resource-return result for an API, CLI, or future UI."""
-    return asdict(result)
+    return {
+        "status": result.status,
+        "task_id": result.task_id,
+        "validation": {
+            "validation_id": result.validation.validation_id,
+            "status": result.validation.status,
+            "score": result.validation.score,
+            "critical_failure": result.validation.critical_failure,
+            "checks": dict(result.validation.checks),
+            "feedback": list(result.validation.feedback),
+            "blocking_errors": list(result.validation.blocking_errors),
+        },
+        "revision_handoff": _thaw(result.revision_handoff),
+        "errors": list(result.errors),
+    }

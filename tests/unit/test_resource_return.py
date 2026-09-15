@@ -9,7 +9,13 @@ from core.orchestration.resource_return import receive_resource, resource_return
 class TestResourceReturn(unittest.TestCase):
     def setUp(self) -> None:
         structured = interpret_request(
-            "Create an A2 listening lesson for adult ESL learners."
+            {
+                "request": "Create an A2 listening lesson for adult ESL learners.",
+                "level": "A2",
+                "audience": "adult ESL learners",
+                "duration_minutes": 60,
+                "objective": "Students will identify the main idea and key details in a short listening text.",
+            }
         )
         context_result = build_context(structured)
         self.context = context_result.context
@@ -60,6 +66,25 @@ class TestResourceReturn(unittest.TestCase):
         self.assertEqual(result.revision_handoff["task_id"], self.task.task_id)
         self.assertEqual(result.revision_handoff["status"], "REVISION_REQUIRED")
 
+    def test_revision_handoff_is_deeply_immutable(self):
+        result = receive_resource(
+            self.context,
+            self.task,
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
+        )
+
+        handoff = result.revision_handoff
+        self.assertIsNotNone(handoff)
+
+        with self.assertRaises(TypeError):
+            handoff["status"] = "READY"
+        with self.assertRaises(TypeError):
+            handoff["context_snapshot"]["context_id"] = "tampered"
+        with self.assertRaises(AttributeError):
+            handoff["quality_criteria"].append("tampered")
+        with self.assertRaises(AttributeError):
+            handoff["context_snapshot"]["prior_knowledge"].append("tampered")
+
     def test_return_boundary_rejects_missing_resource(self):
         result = receive_resource(self.context, self.task, None)
 
@@ -74,6 +99,21 @@ class TestResourceReturn(unittest.TestCase):
         self.assertEqual(payload["status"], "READY")
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
+
+    def test_immutable_handoff_serializes_back_to_json_friendly_values(self):
+        result = receive_resource(
+            self.context,
+            self.task,
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
+        )
+
+        payload = resource_return_to_dict(result)
+        self.assertIsInstance(payload["revision_handoff"], dict)
+        self.assertIsInstance(payload["revision_handoff"]["quality_criteria"], list)
+        self.assertIsInstance(
+            payload["revision_handoff"]["context_snapshot"]["prior_knowledge"],
+            list,
+        )
 
 
 if __name__ == "__main__":

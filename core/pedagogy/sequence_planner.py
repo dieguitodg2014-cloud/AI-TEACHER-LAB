@@ -95,12 +95,10 @@ class SequencePlanner:
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
-        # Do not hard-filter on the primary skill. A speaking lesson can need a
-        # visual-noticing pattern, and a reading lesson can need speaking output.
-        # Skill fit is therefore evaluated when choosing each pattern.
-        candidates = self.registry.filter(
-            PatternFilter(level=level.value, interaction=interaction.value)
-        )
+        # Discover by level first. Interaction is enforced only for roles that
+        # intrinsically require the requested student interaction. This permits
+        # teacher-led noticing and individual exit checks inside pair lessons.
+        candidates = self.registry.filter(PatternFilter(level=level.value))
         candidate_ids = {pattern.pattern_id for pattern in candidates}
 
         selected: list[PlannedPattern] = []
@@ -116,8 +114,6 @@ class SequencePlanner:
         if request.requires_assessment:
             required_roles.append(SequenceRole.ASSESSMENT)
 
-        # Exposure/noticing are strongly preferred when time permits, especially
-        # for lower levels, but they are not allowed to crowd out practice/evidence.
         if request.duration_minutes >= 25:
             required_roles.insert(0, SequenceRole.NOTICING)
 
@@ -125,7 +121,12 @@ class SequencePlanner:
             if role not in required_roles:
                 continue
             pattern = self._choose_pattern(
-                role, candidate_ids, selected_ids, level, primary_skill
+                role,
+                candidate_ids,
+                selected_ids,
+                level,
+                primary_skill,
+                interaction,
             )
             if pattern is None:
                 continue
@@ -138,8 +139,6 @@ class SequencePlanner:
             )
             selected_ids.add(pattern.pattern_id)
 
-        # Add model support for A0/A1 when it is available and useful, without
-        # forcing an extra activity when the lesson is short.
         if level in (Level.A0, Level.A1) and request.duration_minutes >= 40:
             if "MODEL_AND_REPEAT" in candidate_ids and "MODEL_AND_REPEAT" not in selected_ids:
                 selected.insert(
@@ -154,7 +153,8 @@ class SequencePlanner:
 
         selected = self._fit_to_duration(selected, request.duration_minutes)
         uncovered = tuple(
-            role.value for role in required_roles
+            role.value
+            for role in required_roles
             if not any(item.sequence_role == role.value for item in selected)
         )
 
@@ -178,6 +178,7 @@ class SequencePlanner:
         selected_ids: set[str],
         level: Level,
         primary_skill: str,
+        requested_interaction: Interaction,
     ) -> Pattern | None:
         for pattern_id in self._PREFERRED_BY_ROLE[role]:
             if pattern_id not in candidate_ids or pattern_id in selected_ids:
@@ -185,9 +186,13 @@ class SequencePlanner:
             pattern = self.registry.get(pattern_id)
             if not pattern.supports_level(level.value):
                 continue
-            # Input/noticing may support a different skill while preparing the
-            # primary skill. Later output roles should align directly to it.
-            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING):
+            if role not in (
+                SequenceRole.EXPOSURE,
+                SequenceRole.NOTICING,
+                SequenceRole.ASSESSMENT,
+            ):
+                if not pattern.supports_interaction(requested_interaction):
+                    continue
                 if primary_skill not in pattern.skills:
                     continue
             return pattern
@@ -212,22 +217,10 @@ class SequencePlanner:
         if not items:
             return items
 
-        total = sum(item.timing_minutes for item in items)
-        if total <= duration_minutes:
-            return items
-
         adjusted = list(items)
-        for index in range(len(adjusted) - 1, -1, -1):
-            item = adjusted[index]
-            reduction = min(item.timing_minutes - 2, total - duration_minutes)
-            if reduction > 0:
-                adjusted[index] = PlannedPattern(
-                    pattern_id=item.pattern_id,
-                    sequence_role=item.sequence_role,
-                    timing_minutes=item.timing_minutes - reduction,
-                )
-                total -= reduction
-            if total <= duration_minutes:
-                break
-
+        while sum(item.timing_minutes for item in adjusted) > duration_minutes and adjusted:
+            # Never invent a duration below a pattern's pedagogical minimum.
+            # If the sequence cannot fit, drop the least central final pattern
+            # and report its role as uncovered rather than silently shrinking it.
+            adjusted.pop()
         return adjusted
