@@ -23,13 +23,13 @@ def build_resource_task_packet(
         objective=context.objective,
         level=context.level,
         required_output=required_output,
-        constraints=list(context.constraints),
-        quality_criteria=[
+        constraints=tuple(context.constraints),
+        quality_criteria=(
             "Directly support the stated learning objective.",
             "Match the approved learner level and audience.",
             "Be usable within the planned lesson time.",
             "Do not introduce unnecessary content or complexity.",
-        ],
+        ),
         lesson_id=learning_plan.plan_id,
         audience=context.audience,
         status="PENDING",
