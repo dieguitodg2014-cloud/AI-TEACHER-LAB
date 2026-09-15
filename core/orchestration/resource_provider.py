@@ -37,7 +37,22 @@ class FunctionResourceProvider:
         return task_packet.task_type == "RESOURCE_PRODUCTION"
 
     def produce(self, task_packet: TaskPacket) -> dict[str, Any]:
-        result = self._generator(asdict(task_packet))
+        result = self._generator(_provider_task_dict(task_packet))
         if not isinstance(result, dict):
             raise TypeError("RESOURCE_OUTPUT_NOT_OBJECT")
         return result
+
+
+def _provider_task_dict(task_packet: TaskPacket) -> dict[str, Any]:
+    """Convert immutable task collections to JSON-friendly provider input.
+
+    The TaskPacket remains deeply immutable internally. The provider receives a
+    detached mutable dictionary so it cannot mutate orchestration state through
+    a nested collection, while list-shaped fields remain compatible with the
+    resource output contract.
+    """
+    data = asdict(task_packet)
+    data["constraints"] = list(data["constraints"])
+    data["quality_criteria"] = list(data["quality_criteria"])
+    data["input_materials"] = list(data["input_materials"])
+    return data
