@@ -17,12 +17,18 @@ class Context:
     audience: str
     duration_minutes: int
     objective: str
-    constraints: list[str] = field(default_factory=list)
+    constraints: tuple[str, ...] = ()
     group_size: int | None = None
     topic: str | None = None
-    prior_knowledge: list[str] = field(default_factory=list)
-    technology: list[str] = field(default_factory=list)
+    prior_knowledge: tuple[str, ...] = ()
+    technology: tuple[str, ...] = ()
     teacher_preferences: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Normalize context sequences to immutable tuples at the boundary."""
+        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
+        object.__setattr__(self, "technology", tuple(self.technology))
 
 
 @dataclass(frozen=True)
@@ -54,10 +60,14 @@ class ActivityPlan:
 class LearningPlanDecision:
     plan_id: str
     objective: str
-    sequence: list[ActivityPlan]
+    sequence: tuple[ActivityPlan, ...]
     total_minutes: int
     evidence_of_learning: str
     resource_need: str = ""
+
+    def __post_init__(self) -> None:
+        """Normalize the pedagogical sequence to an immutable tuple."""
+        object.__setattr__(self, "sequence", tuple(self.sequence))
 
 
 @dataclass(frozen=True)
@@ -66,7 +76,11 @@ class AssessmentDecision:
     type: Literal["FORMATIVE", "PERFORMANCE", "WRITTEN", "ORAL", "MIXED"]
     target: str
     evidence: str
-    success_criteria: list[str]
+    success_criteria: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Normalize assessment criteria to an immutable tuple."""
+        object.__setattr__(self, "success_criteria", tuple(self.success_criteria))
 
 
 @dataclass(frozen=True)
@@ -77,6 +91,10 @@ class ResourceDecision:
     resource_type: str = ""
     reason: str = ""
     required: bool = False
+    source_based: bool = False
+    visual: bool = False
+    preferred_tool: str = ""
+    fallback_tool: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,9 +102,13 @@ class ToolDecision:
     decision_id: str
     task_type: str
     selected_tool: str
-    fallback_policy: list[str]
+    fallback_policy: tuple[str, ...]
     human_handoff_allowed: bool
     reason: str = ""
+
+    def __post_init__(self) -> None:
+        """Normalize fallback policy so the decision cannot be mutated after creation."""
+        object.__setattr__(self, "fallback_policy", tuple(self.fallback_policy))
 
 
 @dataclass(frozen=True)
@@ -96,15 +118,23 @@ class TaskPacket:
     objective: str
     level: Level
     required_output: str
-    constraints: list[str]
-    quality_criteria: list[str]
+    constraints: tuple[str, ...]
+    quality_criteria: tuple[str, ...]
     course_id: str = ""
     lesson_id: str = ""
     audience: str = ""
-    input_materials: list[str] = field(default_factory=list)
+    input_materials: tuple[str, ...] = ()
     preferred_tool: str = ""
     fallback_tool: str = ""
+    source_based: bool = False
+    visual: bool = False
     status: Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "HUMAN_HANDOFF"] = "PENDING"
+
+    def __post_init__(self) -> None:
+        """Deep-freeze mutable sequence inputs at the authoritative boundary."""
+        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "quality_criteria", tuple(self.quality_criteria))
+        object.__setattr__(self, "input_materials", tuple(self.input_materials))
 
 
 @dataclass(frozen=True)

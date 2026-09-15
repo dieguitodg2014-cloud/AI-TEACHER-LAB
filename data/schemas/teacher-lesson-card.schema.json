@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-teacher-lab.local/schemas/teacher-lesson-card.schema.json",
+  "title": "AI Teacher Lab Teacher Lesson Card v1",
+  "description": "Stable teacher-facing contract for a classroom-oriented lesson result. Internal orchestration objects must not be exposed through this contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "title",
+    "level",
+    "audience",
+    "duration_minutes",
+    "objective",
+    "lesson",
+    "activities",
+    "assessment",
+    "resource",
+    "handoff",
+    "errors"
+  ],
+  "properties": {
+    "status": { "type": "string" },
+    "title": { "type": "string" },
+    "level": { "type": ["string", "null"] },
+    "audience": { "type": ["string", "null"] },
+    "duration_minutes": { "type": ["integer", "null"], "minimum": 0 },
+    "objective": { "type": ["string", "null"] },
+    "lesson": { "type": ["object", "null"] },
+    "activities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/activity" }
+    },
+    "assessment": {
+      "type": ["object", "null"],
+      "properties": {
+        "type": { "type": "string" },
+        "target": { "type": "string" },
+        "evidence": { "type": "string" },
+        "success_criteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["type", "target", "evidence", "success_criteria"],
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": ["object", "null"],
+      "properties": {
+        "action": { "type": "string" },
+        "type": { "type": "string" },
+        "purpose": { "type": "string" },
+        "required": { "type": "boolean" },
+        "output": { "type": "object" }
+      },
+      "required": ["action", "type", "purpose", "required"],
+      "additionalProperties": false
+    },
+    "handoff": { "type": ["object", "null"] },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "activity": {
+      "type": "object",
+      "properties": {
+        "purpose": { "type": "string" },
+        "interaction": { "type": "string" },
+        "minutes": { "type": "integer", "minimum": 0 },
+        "student_production": { "type": "string" },
+        "assessment_link": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["purpose", "interaction", "minutes", "student_production", "assessment_link"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -19,8 +19,11 @@ def run_configured_lesson_planning(
 ) -> VerticalSliceResult:
     """Run the vertical slice using generators resolved from tool configuration.
 
-    ``produced_resource`` optionally carries a resource returned by an external
-    producer so the main workflow can validate it before continuing.
+    Specialized resource connectors are kept on provider-specific paths.
+    NotebookLM and Canva receive the approved TaskPacket through their
+    provider boundaries rather than being treated as generic lesson
+    generators. Other configured connectors remain generic generators for
+    their declared execution paths.
     """
     config_path = tool_config_path or DEFAULT_TOOL_CONFIG
     try:
@@ -42,9 +45,14 @@ def run_configured_lesson_planning(
             errors=[f"RUNTIME_CONNECTOR_ERROR:{exc}"],
         )
 
+    notebooklm_executor = generators.pop("notebooklm", None)
+    canva_executor = generators.pop("canva", None)
+
     return run_lesson_planning(
         request,
         generators=generators,
+        notebooklm_executor=notebooklm_executor,
+        canva_executor=canva_executor,
         tool_config_path=config_path,
         produced_resource=produced_resource,
     )

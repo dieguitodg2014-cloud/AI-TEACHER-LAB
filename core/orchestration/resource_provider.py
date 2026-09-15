@@ -36,8 +36,23 @@ class FunctionResourceProvider:
     def can_produce(self, task_packet: TaskPacket) -> bool:
         return task_packet.task_type == "RESOURCE_PRODUCTION"
 
+    @staticmethod
+    def _provider_payload(task_packet: TaskPacket) -> dict[str, Any]:
+        """Serialize the approved task without exposing immutable internals.
+
+        The authoritative TaskPacket remains deeply immutable. The connector
+        boundary intentionally receives ordinary mutable containers so an
+        external integration may inspect or mutate its local payload without
+        ever mutating the approved task owned by the workflow.
+        """
+        payload = asdict(task_packet)
+        payload["constraints"] = list(task_packet.constraints)
+        payload["quality_criteria"] = list(task_packet.quality_criteria)
+        payload["input_materials"] = list(task_packet.input_materials)
+        return payload
+
     def produce(self, task_packet: TaskPacket) -> dict[str, Any]:
-        result = self._generator(asdict(task_packet))
+        result = self._generator(self._provider_payload(task_packet))
         if not isinstance(result, dict):
             raise TypeError("RESOURCE_OUTPUT_NOT_OBJECT")
         return result

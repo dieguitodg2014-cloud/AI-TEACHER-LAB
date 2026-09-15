@@ -9,7 +9,7 @@ def test_no_resource_task_does_not_select_tool():
     assert result["tool_id"] is None
 
 
-def test_resource_task_selects_capable_tool():
+def test_audio_resource_task_selects_audio_capable_tool():
     task = TaskPacket(
         task_id="task-1",
         task_type="RESOURCE_PRODUCTION",
@@ -25,7 +25,7 @@ def test_resource_task_selects_capable_tool():
     tools = [
         ToolCandidate(
             tool_id="resource-tool",
-            capabilities=frozenset({"resource_generation"}),
+            capabilities=frozenset({"resource_generation", "audio_generation"}),
             quality=0.8,
             reliability=0.9,
             accessibility=1.0,

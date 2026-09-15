@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from core.foundation.models import Context, LearningPlanDecision, ResourceDecision, TaskPacket
+from core.resources.task_contract import ResourceTaskContractValidator
 
 
 def build_resource_task_packet(
@@ -17,7 +18,7 @@ def build_resource_task_packet(
         return None
 
     required_output = resource_decision.resource_type or "instructional resource"
-    return TaskPacket(
+    task = TaskPacket(
         task_id=f"task-{uuid4().hex[:12]}",
         task_type="RESOURCE_PRODUCTION",
         objective=context.objective,
@@ -32,5 +33,14 @@ def build_resource_task_packet(
         ],
         lesson_id=learning_plan.plan_id,
         audience=context.audience,
+        preferred_tool=resource_decision.preferred_tool,
+        fallback_tool=resource_decision.fallback_tool,
+        source_based=resource_decision.source_based,
+        visual=resource_decision.visual,
         status="PENDING",
     )
+
+    validation = ResourceTaskContractValidator().validate(task)
+    if not validation.valid:
+        raise ValueError("INVALID_RESOURCE_TASK_CONTRACT:" + "|".join(validation.errors))
+    return task

@@ -8,6 +8,31 @@ from uuid import uuid4
 from core.foundation.models import Context, LearningPlanDecision, ResourceDecision
 
 
+def _execution_hint(constraints: list[str], prefix: str) -> str:
+    """Read an optional execution hint without making it a hard provider choice."""
+    return next(
+        (
+            item.split(":", 1)[1].strip()
+            for item in constraints
+            if item.upper().startswith(prefix)
+        ),
+        "",
+    )
+
+
+def _boolean_hint(constraints: list[str], prefix: str) -> bool:
+    """Read an explicit boolean modality requirement from request constraints."""
+    value = _execution_hint(constraints, prefix).lower()
+    return value in {"1", "true", "yes", "y"}
+
+
+def _resource_hints(constraints: list[str]) -> tuple[str, str]:
+    return (
+        _execution_hint(constraints, "PREFERRED_RESOURCE_TOOL:"),
+        _execution_hint(constraints, "FALLBACK_RESOURCE_TOOL:"),
+    )
+
+
 def decide_resource(
     context: Context,
     learning_plan: LearningPlanDecision,
@@ -18,13 +43,19 @@ def decide_resource(
     signals can justify production when the learning objective or topic itself
     requires a modality that normal lesson text cannot supply. Explicit
     resource constraints are honored as teacher/request-level instructions.
+
+    Provider hints are carried as optional execution preferences. They never
+    change the pedagogical action, output type, or capability requirements.
     """
     constraints = [item.strip() for item in context.constraints]
+    preferred_tool, fallback_tool = _resource_hints(constraints)
     searchable_text = " ".join(
         part.lower()
         for part in (context.objective, context.topic)
         if part
     )
+    source_based = _boolean_hint(constraints, "RESOURCE_SOURCE_BASED:")
+    visual_hint = _boolean_hint(constraints, "RESOURCE_VISUAL:")
 
     explicit = next(
         (
@@ -36,6 +67,7 @@ def decide_resource(
     )
     if explicit:
         resource_type = explicit or "classroom resource"
+        visual = visual_hint or resource_type.lower() in {"presentation", "slides", "video", "video_or_visual"}
         return ResourceDecision(
             decision_id=f"resource-{uuid4().hex[:12]}",
             action="CREATE",
@@ -43,6 +75,10 @@ def decide_resource(
             resource_type=resource_type,
             reason="The request explicitly requires a resource.",
             required=True,
+            source_based=source_based,
+            visual=visual,
+            preferred_tool=preferred_tool,
+            fallback_tool=fallback_tool,
         )
 
     if any(term in searchable_text for term in ("listening", "listen to", "audio")):
@@ -53,6 +89,10 @@ def decide_resource(
             resource_type="audio",
             reason="The objective or topic requires listening or auditory input that cannot be supplied by lesson text alone.",
             required=True,
+            source_based=source_based,
+            visual=visual_hint,
+            preferred_tool=preferred_tool,
+            fallback_tool=fallback_tool,
         )
 
     if any(term in searchable_text for term in ("watch", "video", "visual demonstration")):
@@ -63,6 +103,10 @@ def decide_resource(
             resource_type="video_or_visual",
             reason="The objective or topic explicitly requires audiovisual or visual input.",
             required=True,
+            source_based=source_based,
+            visual=True,
+            preferred_tool=preferred_tool,
+            fallback_tool=fallback_tool,
         )
 
     return ResourceDecision(
@@ -71,6 +115,10 @@ def decide_resource(
         purpose="Deliver the learning objective using the lesson plan and teacher-led interaction.",
         reason="No specialized resource is currently justified by the learning objective or topic.",
         required=False,
+        source_based=source_based,
+        visual=visual_hint,
+        preferred_tool=preferred_tool,
+        fallback_tool=fallback_tool,
     )
 
 

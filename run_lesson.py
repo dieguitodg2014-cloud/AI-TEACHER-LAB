@@ -8,6 +8,13 @@ from typing import Any
 
 from core.context.request_interpreter import interpret_request
 from core.workflow.configured_runtime import run_configured_lesson_planning
+from core.workflow.teacher_interface import (
+    render_teacher_result,
+    teacher_result_to_dict,
+    to_teacher_result,
+)
+from core.workflow.teacher_lesson_card import build_teacher_lesson_card
+from core.workflow.teacher_lesson_card_html import render_teacher_lesson_card_html
 from core.workflow.vertical_slice import result_to_dict
 
 
@@ -23,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--duration", type=int, default=90, help="Lesson duration in minutes")
     parser.add_argument("--topic", default="", help="Lesson topic")
     parser.add_argument("--group-size", type=int, default=None, help="Number of learners")
+    parser.add_argument(
+        "--format",
+        choices=("teacher-text", "teacher", "teacher-html", "internal"),
+        default="teacher-text",
+        help="Output contract. 'teacher-text' is the classroom-readable default; 'teacher' returns the stable teacher JSON contract; 'teacher-html' renders the Teacher Lesson Card; 'internal' preserves the orchestration view.",
+    )
     return parser
 
 
@@ -49,7 +62,23 @@ def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
 def main() -> int:
     args = build_parser().parse_args()
     result = run_configured_lesson_planning(build_request(args))
-    print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
+    teacher_result = to_teacher_result(result)
+
+    if args.format == "teacher-text":
+        print(render_teacher_result(teacher_result))
+    elif args.format == "teacher":
+        print(json.dumps(teacher_result_to_dict(teacher_result), ensure_ascii=False, indent=2))
+    elif args.format == "teacher-html":
+        card = build_teacher_lesson_card(teacher_result)
+        print(render_teacher_lesson_card_html(card))
+    else:
+        print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
+
+    # Resource workflows succeed only after final acceptance. Lesson-only
+    # workflows retain READY as their generation completion state because no
+    # ResourceAcceptanceGate is involved.
+    if result.resource_task is not None:
+        return 0 if result.status == "ACCEPTED" else 1
     return 0 if result.status == "READY" else 1
 
 

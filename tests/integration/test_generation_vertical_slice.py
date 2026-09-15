@@ -90,7 +90,7 @@ class GenerationVerticalSliceTests(unittest.TestCase):
         )
         self.assertEqual(
             captured["assessment_decision"]["success_criteria"],
-            result.assessment_decision.success_criteria,
+            list(result.assessment_decision.success_criteria),
         )
 
     def test_result_to_dict_exposes_stable_serializable_contract(self):
@@ -124,7 +124,11 @@ class GenerationVerticalSliceTests(unittest.TestCase):
             payload["assessment_decision"]["target"],
             result.assessment_decision.target,
         )
-        self.assertIsInstance(payload["assessment_decision"]["success_criteria"], list)
+        self.assertIsInstance(payload["assessment_decision"]["success_criteria"], tuple)
+        self.assertEqual(
+            payload["assessment_decision"]["success_criteria"],
+            result.assessment_decision.success_criteria,
+        )
         self.assertEqual(payload["generation"]["tool_id"], "test-generator")
         self.assertIn("resource_decision", payload)
         self.assertIn("learning_plan", payload)

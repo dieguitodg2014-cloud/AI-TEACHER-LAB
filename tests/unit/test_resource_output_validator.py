@@ -34,55 +34,47 @@ class TestResourceOutputValidator(unittest.TestCase):
 
     def test_ready_when_output_matches_task(self):
         result = validate_resource_output(self.task, self._resource())
-
         self.assertEqual(result.status, "READY")
         self.assertEqual(result.score, 100.0)
         self.assertFalse(result.critical_failure)
-        self.assertTrue(all(result.checks.values()))
+        self.assertTrue(all(value for _, value in result.checks))
+
+    def test_validation_result_collections_are_immutable(self):
+        result = validate_resource_output(self.task, self._resource())
+        with self.assertRaises(AttributeError):
+            result.feedback.append("mutation")
+        with self.assertRaises(AttributeError):
+            result.blocking_errors.append("mutation")
+        with self.assertRaises(AttributeError):
+            result.checks.append(("injected", True))
 
     def test_revision_required_when_optional_quality_evidence_is_incomplete(self):
         result = validate_resource_output(
             self.task,
-            self._resource(
-                quality_criteria_addressed=[self.task.quality_criteria[0]],
-            ),
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
         )
-
         self.assertEqual(result.status, "REVISION_REQUIRED")
         self.assertFalse(result.critical_failure)
-        self.assertIn("quality_criteria_acknowledged", result.checks)
+        self.assertTrue(result.check_passed("quality_criteria_acknowledged") is False)
 
     def test_reject_when_resource_type_is_wrong(self):
-        result = validate_resource_output(
-            self.task,
-            self._resource(resource_type="video"),
-        )
-
+        result = validate_resource_output(self.task, self._resource(resource_type="video"))
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
         self.assertTrue(result.blocking_errors)
 
     def test_reject_when_level_is_wrong(self):
-        result = validate_resource_output(
-            self.task,
-            self._resource(level="B1"),
-        )
-
+        result = validate_resource_output(self.task, self._resource(level="B1"))
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
 
     def test_reject_when_content_is_missing(self):
-        result = validate_resource_output(
-            self.task,
-            self._resource(content=""),
-        )
-
+        result = validate_resource_output(self.task, self._resource(content=""))
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
 
     def test_missing_resource_is_rejected(self):
         result = validate_resource_output(self.task, {})
-
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
 
@@ -99,15 +91,14 @@ class TestResourceOutputValidator(unittest.TestCase):
                 production_status="PRODUCED",
             ),
         )
-
         self.assertEqual(result.status, "READY")
-        self.assertTrue(result.checks["resource_id"])
-        self.assertTrue(result.checks["format"])
-        self.assertTrue(result.checks["duration"])
-        self.assertTrue(result.checks["language"])
-        self.assertTrue(result.checks["transcript"])
-        self.assertTrue(result.checks["source_reference"])
-        self.assertTrue(result.checks["production_status"])
+        self.assertTrue(result.check_passed("resource_id"))
+        self.assertTrue(result.check_passed("format"))
+        self.assertTrue(result.check_passed("duration"))
+        self.assertTrue(result.check_passed("language"))
+        self.assertTrue(result.check_passed("transcript"))
+        self.assertTrue(result.check_passed("source_reference"))
+        self.assertTrue(result.check_passed("production_status"))
 
     def test_invalid_optional_structural_metadata_is_rejected(self):
         result = validate_resource_output(
@@ -122,19 +113,13 @@ class TestResourceOutputValidator(unittest.TestCase):
                 production_status="FAILED",
             ),
         )
-
         self.assertEqual(result.status, "REJECT")
         self.assertTrue(result.critical_failure)
         for field_name in (
-            "resource_id",
-            "format",
-            "duration",
-            "language",
-            "transcript",
-            "source_reference",
-            "production_status",
+            "resource_id", "format", "duration", "language",
+            "transcript", "source_reference", "production_status",
         ):
-            self.assertFalse(result.checks[field_name])
+            self.assertFalse(result.check_passed(field_name))
 
 
 if __name__ == "__main__":
