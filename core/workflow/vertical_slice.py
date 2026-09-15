@@ -19,6 +19,7 @@ from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
 from core.resources.approved_content import ApprovedResourceContent
+from core.resources.content_generation import approve_resource_content, validate_resource_content
 from core.resources.decision_engine import apply_resource_decision, decide_resource
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
 from tools.registry import ToolRegistry
@@ -58,16 +59,19 @@ def run_lesson_planning(
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
     approved_resource_content: ApprovedResourceContent | None = None,
+    generated_resource_content: dict[str, Any] | None = None,
 ) -> VerticalSliceResult:
     """Run context, pedagogy, assessment, resources, validation and generation.
 
     ``produced_resource`` is optional so an external provider can return a
     resource into the existing validation boundary. When ``generators`` are
-    supplied, a selected resource-generation provider can now execute the
-    Resource TaskPacket directly before resource QC. ``revision_count`` records
+    supplied, a selected resource-generation provider can execute the Resource
+    TaskPacket directly before resource QC. ``revision_count`` records
     revisions already attempted and enforces the resource revision policy.
-    ``approved_resource_content`` is optional reviewed content that may be
-    passed to a downstream media/resource provider without authoring expansion.
+    ``approved_resource_content`` is reviewed content that may be passed to a
+    downstream media/resource provider without authoring expansion.
+    ``generated_resource_content`` is never trusted directly: it must pass the
+    resource-content gate before becoming ApprovedResourceContent.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -85,12 +89,64 @@ def run_lesson_planning(
         )
         resource_decision = decide_resource(context_result.context, learning_plan)
         learning_plan = apply_resource_decision(learning_plan, resource_decision)
+
         resource_task = build_resource_task_packet(
             context_result.context,
             learning_plan,
             resource_decision,
-            approved_resource_content=approved_resource_content,
         )
+
+        if generated_resource_content is not None:
+            if resource_task is None:
+                return VerticalSliceResult(
+                    "FAILED",
+                    context_result.context,
+                    level_decision,
+                    learning_plan,
+                    assessment_decision,
+                    resource_decision,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    [],
+                    ["RESOURCE_CONTENT_WITHOUT_RESOURCE_TASK"],
+                )
+
+            content_validation = validate_resource_content(
+                resource_task,
+                generated_resource_content,
+                expected_type="script",
+            )
+            if content_validation.status != "READY":
+                return VerticalSliceResult(
+                    "REJECT",
+                    context_result.context,
+                    level_decision,
+                    learning_plan,
+                    assessment_decision,
+                    resource_decision,
+                    resource_task,
+                    None,
+                    None,
+                    None,
+                    {"status": "CONTENT_REJECTED", "checks": list(content_validation.checks), "errors": list(content_validation.errors)},
+                    [],
+                    list(content_validation.errors),
+                )
+
+            approved_resource_content = approve_resource_content(
+                generated_resource_content,
+                expected_type="script",
+                task=resource_task,
+            )
+            resource_task = build_resource_task_packet(
+                context_result.context,
+                learning_plan,
+                resource_decision,
+                approved_content=approved_resource_content,
+            )
     except (ValueError, OSError, KeyError) as exc:
         return VerticalSliceResult("FAILED", context_result.context, None, None, None, None, None, None, None, None, None, [], [str(exc)])
 
