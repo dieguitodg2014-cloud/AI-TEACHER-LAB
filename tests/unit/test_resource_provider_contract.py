@@ -16,6 +16,7 @@ class ResourceProviderContractTests(unittest.TestCase):
             audience="adult learners",
             required_output="audio",
             constraints=["English"],
+            quality_criteria=["Directly support the stated learning objective."],
         )
 
     def _tool(self, capabilities=("resource_generation",)):
