@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from .pattern_registry import (
     Interaction,
     Level,
+    Pattern,
     PatternFilter,
     PatternRegistry,
     SequenceRole,
@@ -17,6 +18,8 @@ from .pattern_registry import (
 
 @dataclass(frozen=True)
 class SequenceRequest:
+    """Pedagogical inputs needed to build a minimum effective sequence."""
+
     level: str
     duration_minutes: int
     primary_skill: str
@@ -27,6 +30,8 @@ class SequenceRequest:
 
 @dataclass(frozen=True)
 class PlannedPattern:
+    """A selected pattern plus its planned time and sequence role."""
+
     pattern_id: str
     sequence_role: str
     timing_minutes: int
@@ -34,6 +39,8 @@ class PlannedPattern:
 
 @dataclass(frozen=True)
 class SequencePlan:
+    """Deterministic planner output."""
+
     patterns: tuple[PlannedPattern, ...]
     total_minutes: int
     uncovered_roles: tuple[str, ...]
@@ -45,7 +52,13 @@ class SequencePlan:
 
 
 class SequencePlanner:
-    """Build the smallest useful sequence that covers core learning roles."""
+    """Build the smallest useful sequence that covers core learning roles.
+
+    Selection is deliberately conservative. The planner prefers a progression
+    from input/noticing to controlled use, guided production, communication, and
+    evidence. It avoids adding activities merely because the registry contains
+    them.
+    """
 
     _ROLE_ORDER = (
         SequenceRole.EXPOSURE,
@@ -61,7 +74,13 @@ class SequencePlanner:
         SequenceRole.NOTICING: ("VISUAL_NOTICING", "MODEL_AND_REPEAT"),
         SequenceRole.CONTROLLED_PRACTICE: ("CONTROLLED_PRACTICE", "MATCHING"),
         SequenceRole.GUIDED_PRODUCTION: ("GUIDED_PRODUCTION", "INTERVIEW", "PICTURE_DESCRIPTION"),
-        SequenceRole.COMMUNICATIVE_PRODUCTION: ("INTERVIEW", "INFORMATION_GAP", "SURVEY", "ROLE_PLAY", "PICTURE_DESCRIPTION"),
+        SequenceRole.COMMUNICATIVE_PRODUCTION: (
+            "INTERVIEW",
+            "INFORMATION_GAP",
+            "SURVEY",
+            "ROLE_PLAY",
+            "PICTURE_DESCRIPTION",
+        ),
         SequenceRole.ASSESSMENT: ("EXIT_TICKET", "QUICK_CHECK"),
     }
 
@@ -72,6 +91,7 @@ class SequencePlanner:
         level = Level(request.level)
         interaction = Interaction(request.interaction)
         primary_skill = request.primary_skill.upper()
+
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
@@ -80,49 +100,97 @@ class SequencePlanner:
         # teacher-led noticing and individual exit checks inside pair lessons.
         candidates = self.registry.filter(PatternFilter(level=level.value))
         candidate_ids = {pattern.pattern_id for pattern in candidates}
+
         selected: list[PlannedPattern] = []
         selected_ids: set[str] = set()
+
         required_roles = [SequenceRole.CONTROLLED_PRACTICE]
         if request.requires_communication:
-            required_roles.extend([SequenceRole.GUIDED_PRODUCTION, SequenceRole.COMMUNICATIVE_PRODUCTION])
+            required_roles.extend(
+                [SequenceRole.GUIDED_PRODUCTION, SequenceRole.COMMUNICATIVE_PRODUCTION]
+            )
         else:
             required_roles.append(SequenceRole.GUIDED_PRODUCTION)
         if request.requires_assessment:
             required_roles.append(SequenceRole.ASSESSMENT)
+
         if request.duration_minutes >= 25:
             required_roles.insert(0, SequenceRole.NOTICING)
 
         for role in self._ROLE_ORDER:
             if role not in required_roles:
                 continue
-            pattern = self._choose_pattern(role, candidate_ids, selected_ids, level, primary_skill, interaction)
+            pattern = self._choose_pattern(
+                role,
+                candidate_ids,
+                selected_ids,
+                level,
+                primary_skill,
+                interaction,
+            )
             if pattern is None:
                 continue
-            selected.append(PlannedPattern(pattern.pattern_id, role.value, self._initial_time(pattern, role)))
+            selected.append(
+                PlannedPattern(
+                    pattern_id=pattern.pattern_id,
+                    sequence_role=role.value,
+                    timing_minutes=self._initial_time(pattern, role),
+                )
+            )
             selected_ids.add(pattern.pattern_id)
 
         if level in (Level.A0, Level.A1) and request.duration_minutes >= 40:
             if "MODEL_AND_REPEAT" in candidate_ids and "MODEL_AND_REPEAT" not in selected_ids:
-                selected.insert(0, PlannedPattern("MODEL_AND_REPEAT", SequenceRole.EXPOSURE.value, 5))
+                selected.insert(
+                    0,
+                    PlannedPattern(
+                        pattern_id="MODEL_AND_REPEAT",
+                        sequence_role=SequenceRole.EXPOSURE.value,
+                        timing_minutes=5,
+                    ),
+                )
                 selected_ids.add("MODEL_AND_REPEAT")
 
         selected = self._fit_to_duration(selected, request.duration_minutes)
-        uncovered = tuple(role.value for role in required_roles if not any(item.sequence_role == role.value for item in selected))
+        uncovered = tuple(
+            role.value
+            for role in required_roles
+            if not any(item.sequence_role == role.value for item in selected)
+        )
+
         warnings = []
         if uncovered:
             warnings.append("Required sequence roles could not all be covered within the available constraints.")
         if not selected:
             warnings.append("No compatible activity pattern was found.")
-        return SequencePlan(tuple(selected), sum(item.timing_minutes for item in selected), uncovered, tuple(warnings))
 
-    def _choose_pattern(self, role, candidate_ids, selected_ids, level, primary_skill, requested_interaction):
+        return SequencePlan(
+            patterns=tuple(selected),
+            total_minutes=sum(item.timing_minutes for item in selected),
+            uncovered_roles=uncovered,
+            warnings=tuple(warnings),
+        )
+
+    def _choose_pattern(
+        self,
+        role: SequenceRole,
+        candidate_ids: set[str],
+        selected_ids: set[str],
+        level: Level,
+        primary_skill: str,
+        requested_interaction: Interaction,
+    ) -> Pattern | None:
         for pattern_id in self._PREFERRED_BY_ROLE[role]:
             if pattern_id not in candidate_ids or pattern_id in selected_ids:
                 continue
             pattern = self.registry.get(pattern_id)
             if not pattern.supports_level(level.value):
                 continue
-            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING, SequenceRole.ASSESSMENT):
+            if role not in (
+                SequenceRole.EXPOSURE,
+                SequenceRole.NOTICING,
+                SequenceRole.ASSESSMENT,
+            ):
                 if not pattern.supports_interaction(requested_interaction):
                     continue
                 if primary_skill not in pattern.skills:
@@ -131,7 +199,7 @@ class SequencePlanner:
         return None
 
     @staticmethod
-    def _initial_time(pattern, role):
+    def _initial_time(pattern: Pattern, role: SequenceRole) -> int:
         preferred = {
             SequenceRole.NOTICING: 8,
             SequenceRole.CONTROLLED_PRACTICE: 10,
@@ -143,9 +211,12 @@ class SequencePlanner:
         return max(pattern.timing_min, min(preferred, pattern.timing_max))
 
     @staticmethod
-    def _fit_to_duration(items, duration_minutes):
+    def _fit_to_duration(
+        items: list[PlannedPattern], duration_minutes: int
+    ) -> list[PlannedPattern]:
         if not items:
             return items
+
         adjusted = list(items)
         while sum(item.timing_minutes for item in adjusted) > duration_minutes and adjusted:
             # Never invent a duration below a pattern's pedagogical minimum.
