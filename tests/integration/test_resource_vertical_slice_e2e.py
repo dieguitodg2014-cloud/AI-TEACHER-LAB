@@ -2,6 +2,7 @@ import unittest
 
 from core.foundation.models import TaskPacket
 from core.orchestration.tool_selector import ToolCandidate
+from core.resources.approved_content import ApprovedResourceContent
 from core.workflow.vertical_slice import run_lesson_planning
 
 
@@ -65,6 +66,36 @@ class ResourceVerticalSliceE2ETests(unittest.TestCase):
         self.assertEqual(result.resource_validation.score, 100.0)
         self.assertEqual(captured["task"]["task_type"], "RESOURCE_PRODUCTION")
         self.assertEqual(captured["task"]["required_output"], "audio")
+
+    def test_approved_content_is_passed_to_resource_provider_unchanged(self):
+        approved_script = ApprovedResourceContent(
+            content="A: Have you ever visited Cartagena? B: Yes, I have.",
+            content_type="dialogue_script",
+        )
+        captured = {}
+
+        def mock_resource_provider(task_dict):
+            captured["input_materials"] = task_dict["input_materials"]
+            return {
+                "resource_type": "audio",
+                "level": task_dict["level"],
+                "objective": task_dict["objective"],
+                "content": "Audio production placeholder for the approved dialogue.",
+                "format": "audio",
+                "language": "English",
+                "production_status": "PRODUCED",
+            }
+
+        result = run_lesson_planning(
+            self._request(),
+            tools=[self._resource_tool()],
+            generators={"notebooklm-mock": mock_resource_provider},
+            approved_resource_content=approved_script,
+        )
+
+        self.assertEqual(result.status, "PLANNED")
+        self.assertEqual(result.resource_task.input_materials, (approved_script.content,))
+        self.assertEqual(captured["input_materials"], [approved_script.content])
 
     def test_listening_request_without_resource_provider_stops_at_human_handoff(self):
         result = run_lesson_planning(
