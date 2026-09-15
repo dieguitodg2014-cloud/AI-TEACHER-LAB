@@ -7,9 +7,10 @@ Resource TaskPacket that authorized its production.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from types import MappingProxyType
 from typing import Any, Mapping
+
+from dataclasses import dataclass
 
 from core.foundation.models import Context, TaskPacket
 from core.orchestration.resource_handoff import build_resource_revision_handoff
@@ -105,10 +106,18 @@ def receive_resource(
 
 def resource_return_to_dict(result: ResourceReturnResult) -> dict[str, Any]:
     """Serialize a resource-return result for an API, CLI, or future UI."""
-    payload = asdict(result)
-    payload["validation"]["checks"] = dict(result.validation.checks)
-    payload["validation"]["feedback"] = list(result.validation.feedback)
-    payload["validation"]["blocking_errors"] = list(result.validation.blocking_errors)
-    payload["revision_handoff"] = _thaw(result.revision_handoff)
-    payload["errors"] = list(result.errors)
-    return payload
+    return {
+        "status": result.status,
+        "task_id": result.task_id,
+        "validation": {
+            "validation_id": result.validation.validation_id,
+            "status": result.validation.status,
+            "score": result.validation.score,
+            "critical_failure": result.validation.critical_failure,
+            "checks": dict(result.validation.checks),
+            "feedback": list(result.validation.feedback),
+            "blocking_errors": list(result.validation.blocking_errors),
+        },
+        "revision_handoff": _thaw(result.revision_handoff),
+        "errors": list(result.errors),
+    }
