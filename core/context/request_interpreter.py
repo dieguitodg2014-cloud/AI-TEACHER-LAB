@@ -23,7 +23,7 @@ _AUDIENCE_FROM_GROUP = re.compile(
     re.IGNORECASE,
 )
 _AUDIENCE_FROM_FOR = re.compile(
-    r"\bfor\s+((?:adult|adult\s+ESL|ESL|young|young\s+adult|children|kids|teenagers?|students?|learners?)(?:\s+(?:ESL|students?|learners?|people))*)\b",
+    r"\bfor\s+((?:adult\s+ESL|adult|ESL|young\s+adult|young|children|kids|teenagers?|students?|learners?)(?:\s+(?:ESL|students?|learners?|people))*)\b",
     re.IGNORECASE,
 )
 _OBJECTIVE = re.compile(r"\b(?:objective|goal|aim)\s*:\s*(.+?)(?=\s+(?:topic|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
