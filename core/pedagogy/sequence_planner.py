@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from .pattern_registry import (
     Interaction,
     Level,
-    Pattern,
     PatternFilter,
     PatternRegistry,
     SequenceRole,
@@ -18,8 +17,6 @@ from .pattern_registry import (
 
 @dataclass(frozen=True)
 class SequenceRequest:
-    """Pedagogical inputs needed to build a minimum effective sequence."""
-
     level: str
     duration_minutes: int
     primary_skill: str
@@ -30,8 +27,6 @@ class SequenceRequest:
 
 @dataclass(frozen=True)
 class PlannedPattern:
-    """A selected pattern plus its planned time and sequence role."""
-
     pattern_id: str
     sequence_role: str
     timing_minutes: int
@@ -39,8 +34,6 @@ class PlannedPattern:
 
 @dataclass(frozen=True)
 class SequencePlan:
-    """Deterministic planner output."""
-
     patterns: tuple[PlannedPattern, ...]
     total_minutes: int
     uncovered_roles: tuple[str, ...]
@@ -68,9 +61,7 @@ class SequencePlanner:
         SequenceRole.NOTICING: ("VISUAL_NOTICING", "MODEL_AND_REPEAT"),
         SequenceRole.CONTROLLED_PRACTICE: ("CONTROLLED_PRACTICE", "MATCHING"),
         SequenceRole.GUIDED_PRODUCTION: ("GUIDED_PRODUCTION", "INTERVIEW", "PICTURE_DESCRIPTION"),
-        SequenceRole.COMMUNICATIVE_PRODUCTION: (
-            "INTERVIEW", "INFORMATION_GAP", "SURVEY", "ROLE_PLAY", "PICTURE_DESCRIPTION"
-        ),
+        SequenceRole.COMMUNICATIVE_PRODUCTION: ("INTERVIEW", "INFORMATION_GAP", "SURVEY", "ROLE_PLAY", "PICTURE_DESCRIPTION"),
         SequenceRole.ASSESSMENT: ("EXIT_TICKET", "QUICK_CHECK"),
     }
 
@@ -84,13 +75,11 @@ class SequencePlanner:
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
-        # Interaction is a hard constraint for activities that require that
-        # interaction mode. Support/input and assessment patterns may legitimately
-        # use another mode, so we select from the full level-compatible registry
-        # and validate interaction at role selection time.
+        # Discover by level first. Interaction is enforced only for roles that
+        # intrinsically require the requested student interaction. This permits
+        # teacher-led noticing and individual exit checks inside pair lessons.
         candidates = self.registry.filter(PatternFilter(level=level.value))
         candidate_ids = {pattern.pattern_id for pattern in candidates}
-
         selected: list[PlannedPattern] = []
         selected_ids: set[str] = set()
         required_roles = [SequenceRole.CONTROLLED_PRACTICE]
@@ -133,12 +122,7 @@ class SequencePlanner:
             pattern = self.registry.get(pattern_id)
             if not pattern.supports_level(level.value):
                 continue
-            if role in (SequenceRole.EXPOSURE, SequenceRole.NOTICING, SequenceRole.ASSESSMENT):
-                if role != SequenceRole.ASSESSMENT and not pattern.supports_interaction(requested_interaction):
-                    # Support patterns may use whole-class/individual interaction
-                    # in a pair lesson, but should still be usable by the class.
-                    pass
-            else:
+            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING, SequenceRole.ASSESSMENT):
                 if not pattern.supports_interaction(requested_interaction):
                     continue
                 if primary_skill not in pattern.skills:
@@ -148,23 +132,24 @@ class SequencePlanner:
 
     @staticmethod
     def _initial_time(pattern, role):
-        preferred = {SequenceRole.NOTICING: 8, SequenceRole.CONTROLLED_PRACTICE: 10, SequenceRole.GUIDED_PRODUCTION: 10, SequenceRole.COMMUNICATIVE_PRODUCTION: 15, SequenceRole.ASSESSMENT: 7, SequenceRole.EXPOSURE: 5}.get(role, pattern.timing_min)
+        preferred = {
+            SequenceRole.NOTICING: 8,
+            SequenceRole.CONTROLLED_PRACTICE: 10,
+            SequenceRole.GUIDED_PRODUCTION: 10,
+            SequenceRole.COMMUNICATIVE_PRODUCTION: 15,
+            SequenceRole.ASSESSMENT: 7,
+            SequenceRole.EXPOSURE: 5,
+        }.get(role, pattern.timing_min)
         return max(pattern.timing_min, min(preferred, pattern.timing_max))
 
     @staticmethod
     def _fit_to_duration(items, duration_minutes):
         if not items:
             return items
-        total = sum(item.timing_minutes for item in items)
-        if total <= duration_minutes:
-            return items
         adjusted = list(items)
-        for index in range(len(adjusted) - 1, -1, -1):
-            item = adjusted[index]
-            reduction = min(item.timing_minutes - 2, total - duration_minutes)
-            if reduction > 0:
-                adjusted[index] = PlannedPattern(item.pattern_id, item.sequence_role, item.timing_minutes - reduction)
-                total -= reduction
-            if total <= duration_minutes:
-                break
+        while sum(item.timing_minutes for item in adjusted) > duration_minutes and adjusted:
+            # Never invent a duration below a pattern's pedagogical minimum.
+            # If the sequence cannot fit, drop the least central final pattern
+            # and report its role as uncovered rather than silently shrinking it.
+            adjusted.pop()
         return adjusted
