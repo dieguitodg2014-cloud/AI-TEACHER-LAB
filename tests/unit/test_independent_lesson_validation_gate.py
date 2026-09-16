@@ -1,0 +1,79 @@
+from core.foundation.models import Context
+from core.generation.revision import generate_with_revision
+from core.validation.lesson_quality import LessonValidationResult
+
+
+def _context():
+    return Context(
+        context_id="ctx-001",
+        level="A2",
+        audience="adult ESL learners",
+        duration_minutes=30,
+        objective="Discuss past experiences.",
+        group_size=10,
+    )
+
+
+def _lesson(request):
+    return {
+        "level": request["level"],
+        "objective": request["objective"],
+        "duration_minutes": request["duration_minutes"],
+        "activities": [{"name": "discussion"}],
+    }
+
+
+def _result(status, revision=(), critical=()):
+    return LessonValidationResult(
+        validation_id="test-validation",
+        status=status,
+        score=100.0 if status == "READY" else 50.0,
+        checks={"independent": status == "READY"},
+        revision_required=tuple(revision),
+        critical_failures=tuple(critical),
+    )
+
+
+def test_revision_required_is_revalidated_before_acceptance():
+    calls = []
+
+    def generator(request, errors):
+        calls.append(list(errors))
+        return _lesson(request)
+
+    def validator(context, lesson, **kwargs):
+        if len(calls) == 1:
+            return _result("REVISION_REQUIRED", revision=("Fix the interaction format.",))
+        return _result("READY")
+
+    result = generate_with_revision(
+        generator,
+        {"level": "A2", "objective": "Discuss past experiences.", "duration_minutes": 30},
+        independent_validator=validator,
+        validation_context=_context(),
+        max_revisions=1,
+    )
+
+    assert result["status"] == "READY"
+    assert result["attempts"] == 2
+    assert calls[1] == ["Fix the interaction format."]
+    assert result["independent_validation"].status == "READY"
+
+
+def test_critical_independent_failure_routes_to_human_handoff():
+    def generator(request, errors):
+        return _lesson(request)
+
+    def validator(context, lesson, **kwargs):
+        return _result("CRITICAL_FAILURE", critical=("Level mismatch cannot be repaired normally.",))
+
+    result = generate_with_revision(
+        generator,
+        {"level": "A2", "objective": "Discuss past experiences.", "duration_minutes": 30},
+        independent_validator=validator,
+        validation_context=_context(),
+    )
+
+    assert result["status"] == "HUMAN_HANDOFF"
+    assert result["errors"] == ["Level mismatch cannot be repaired normally."]
+    assert result["independent_validation"].status == "CRITICAL_FAILURE"
