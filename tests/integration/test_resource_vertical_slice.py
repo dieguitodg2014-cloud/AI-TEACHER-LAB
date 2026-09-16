@@ -92,7 +92,9 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
                 "level": task_packet["level"],
                 "objective": task_packet["objective"],
                 "content": "A short conversation between two adults about making a weekend appointment.",
-                "quality_criteria_addressed": task_packet["quality_criteria"],
+                # Resource outputs use the external JSON-shaped contract; the
+                # TaskPacket itself remains deeply immutable internally.
+                "quality_criteria_addressed": list(task_packet["quality_criteria"]),
             }
 
         result = run_lesson_planning(
