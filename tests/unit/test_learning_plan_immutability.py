@@ -72,5 +72,6 @@ def test_asdict_preserves_read_compatibility():
     plan = _plan()
     payload = asdict(plan)
 
-    assert payload["sequence"] == (_activity(),)
+    assert isinstance(payload["sequence"], tuple)
     assert payload["sequence"][0]["activity_id"] == "act-1"
+    assert payload["sequence"][0]["minutes"] == 10
