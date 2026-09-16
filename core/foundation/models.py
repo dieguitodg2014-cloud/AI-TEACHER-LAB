@@ -4,10 +4,58 @@ The models mirror the executable contracts in data/schemas/mvp-contracts.schema.
 They intentionally contain no provider-specific or UI-specific logic.
 """
 
+from __future__ import annotations
+
+from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Level = Literal["A0", "A1", "A2", "B1", "B2"]
+
+
+class FrozenMapping(Mapping[str, Any]):
+    """Recursively immutable mapping used by foundation contracts.
+
+    It keeps mapping-style reads while preventing mutation through the public
+    contract. ``__deepcopy__`` preserves compatibility with ``dataclasses.asdict``.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: Mapping[str, Any] | None = None) -> None:
+        object.__setattr__(self, "_data", {key: _freeze(value) for key, value in (data or {}).items()})
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "FrozenMapping":
+        memo[id(self)] = self
+        return self
+
+    def __repr__(self) -> str:
+        return f"FrozenMapping({self._data!r})"
+
+
+def _freeze(value: Any) -> Any:
+    """Recursively convert common mutable containers into immutable values."""
+    if isinstance(value, FrozenMapping):
+        return value
+    if isinstance(value, Mapping):
+        return FrozenMapping(value)
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)
@@ -17,12 +65,18 @@ class Context:
     audience: str
     duration_minutes: int
     objective: str
-    constraints: list[str] = field(default_factory=list)
+    constraints: tuple[str, ...] = ()
     group_size: int | None = None
     topic: str | None = None
-    prior_knowledge: list[str] = field(default_factory=list)
-    technology: list[str] = field(default_factory=list)
-    teacher_preferences: dict[str, Any] = field(default_factory=dict)
+    prior_knowledge: tuple[str, ...] = ()
+    technology: tuple[str, ...] = ()
+    teacher_preferences: FrozenMapping = field(default_factory=FrozenMapping)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
+        object.__setattr__(self, "technology", tuple(self.technology))
+        object.__setattr__(self, "teacher_preferences", FrozenMapping(self.teacher_preferences))
 
 
 @dataclass(frozen=True)
