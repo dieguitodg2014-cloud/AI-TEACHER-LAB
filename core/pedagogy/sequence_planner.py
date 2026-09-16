@@ -107,6 +107,12 @@ class SequencePlanner:
                 selected.insert(0, PlannedPattern("MODEL_AND_REPEAT", SequenceRole.EXPOSURE.value, 5))
                 selected_ids.add("MODEL_AND_REPEAT")
 
+        # Never make an activity shorter than the registry's pedagogical minimum
+        # just to claim that every required role fits. If even the minimum viable
+        # durations do not fit, drop lower-priority roles from the end and report
+        # them as uncovered. Duration fitting can then safely compress the
+        # remaining activities without violating pattern minimums.
+        selected = self._trim_to_minimums(selected, request.duration_minutes)
         selected = self._fit_to_duration(selected, request.duration_minutes)
         uncovered = tuple(role.value for role in required_roles if not any(item.sequence_role == role.value for item in selected))
         warnings = []
@@ -127,6 +133,16 @@ class SequencePlanner:
                 continue
             return pattern
         return None
+
+    def _trim_to_minimums(self, items: list[PlannedPattern], duration_minutes: int) -> list[PlannedPattern]:
+        """Drop lower-priority roles when their registry minimums cannot fit."""
+        adjusted = list(items)
+        while adjusted:
+            minimum_total = sum(self.registry.get(item.pattern_id).timing_min for item in adjusted)
+            if minimum_total <= duration_minutes:
+                break
+            adjusted.pop()
+        return adjusted
 
     @staticmethod
     def _initial_time(pattern: Pattern, role: SequenceRole) -> int:
