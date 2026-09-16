@@ -1,6 +1,6 @@
 from core.foundation.models import Context
 from core.generation.revision import generate_with_revision
-from core.validation.lesson_quality import LessonValidationResult
+from core.validation.lesson_quality import LessonValidationResult, validate_lesson_structure
 
 
 def _context():
@@ -77,3 +77,54 @@ def test_critical_independent_failure_routes_to_human_handoff():
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["Level mismatch cannot be repaired normally."]
     assert result["independent_validation"].status == "CRITICAL_FAILURE"
+
+
+def test_structural_validator_accepts_authoritative_metadata_without_redundant_fields():
+    lesson = {
+        "level": "A2",
+        "objective": "Discuss past experiences.",
+        "activities": [
+            {
+                "name": "discussion",
+                "assessment_link": "Teacher observes target language use.",
+            }
+        ],
+    }
+
+    result = validate_lesson_structure(_context(), lesson)
+
+    assert result.status == "READY"
+    assert result.checks["audience_alignment"] is True
+    assert result.checks["objectives_present"] is True
+    assert result.checks["assessment_present"] is True
+
+
+def test_structural_validator_flags_explicit_audience_contradiction():
+    lesson = {
+        "level": "A2",
+        "audience": "children",
+        "objective": "Discuss past experiences.",
+        "activities": [
+            {"name": "discussion", "assessment_link": "Teacher observation."}
+        ],
+    }
+
+    result = validate_lesson_structure(_context(), lesson)
+
+    assert result.status == "REVISION_REQUIRED"
+    assert result.checks["audience_alignment"] is False
+
+
+def test_structural_validator_keeps_level_mismatch_critical():
+    lesson = {
+        "level": "B1",
+        "objective": "Discuss past experiences.",
+        "activities": [
+            {"name": "discussion", "assessment_link": "Teacher observation."}
+        ],
+    }
+
+    result = validate_lesson_structure(_context(), lesson)
+
+    assert result.status == "CRITICAL_FAILURE"
+    assert result.checks["level_alignment"] is False
