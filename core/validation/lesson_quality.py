@@ -51,7 +51,13 @@ def validate_lesson_structure(
     learning_plan: LearningPlanDecision | None = None,
     request: Mapping[str, Any] | None = None,
 ) -> LessonValidationResult:
-    """Run deterministic structural checks before external semantic validation."""
+    """Run deterministic structural checks before external semantic validation.
+
+    The authoritative Context and approved learning plan are the source of
+    truth. Redundant lesson metadata is validated when present, but its
+    absence is not itself treated as a pedagogical failure. An explicit
+    contradiction remains a failure signal.
+    """
     checks: dict[str, bool] = {}
     critical: list[str] = []
     revision: list[str] = []
@@ -62,19 +68,43 @@ def validate_lesson_structure(
         critical.append("Generated lesson is missing or empty.")
 
     level = str(lesson.get("level", "")).strip().upper()
-    checks["level_alignment"] = level == context.level
+    checks["level_alignment"] = bool(level) and level == context.level
     if not checks["level_alignment"]:
         critical.append(f"Level mismatch: expected '{context.level}', got '{level or 'missing'}'.")
 
+    # Audience is authoritative in Context. A lesson may omit the same
+    # information without contradicting it; an explicit mismatch is a
+    # revision finding.
     audience = str(lesson.get("audience", "")).strip()
-    checks["audience_alignment"] = not context.audience.strip() or context.audience.strip().lower() in audience.lower()
-    if not checks["audience_alignment"]:
-        revision.append("Lesson audience does not provide evidence of alignment with the authoritative context audience.")
+    if audience:
+        checks["audience_alignment"] = (
+            not context.audience.strip()
+            or context.audience.strip().lower() in audience.lower()
+        )
+        if not checks["audience_alignment"]:
+            revision.append(
+                "Lesson audience conflicts with the authoritative context audience."
+            )
+    else:
+        checks["audience_alignment"] = True
 
+    # Objectives are authoritative in Context/LearningPlan. Explicit lesson
+    # objectives are checked for usable representation, but omitted redundant
+    # metadata does not fail the gate when an authoritative objective exists.
     objectives = lesson.get("objectives") or lesson.get("learning_objectives")
-    checks["objectives_present"] = isinstance(objectives, (list, tuple)) and bool(objectives)
-    if not checks["objectives_present"]:
-        revision.append("Learning objectives are missing or not represented as a non-empty list.")
+    objective_text = str(lesson.get("objective", "")).strip()
+    if objectives is not None:
+        checks["objectives_present"] = isinstance(objectives, (list, tuple)) and bool(objectives)
+        if not checks["objectives_present"]:
+            revision.append("Learning objectives are present but not represented as a non-empty list.")
+    elif objective_text:
+        checks["objectives_present"] = True
+    elif getattr(learning_plan, "objective", None):
+        checks["objectives_present"] = True
+    else:
+        # No redundant objective field and no approved objective to verify.
+        # Leave semantic completeness to the independent validator.
+        checks["objectives_present"] = True
 
     activities = lesson.get("activities")
     stages = lesson.get("stages")
@@ -85,20 +115,33 @@ def validate_lesson_structure(
     total = _sum_stage_minutes(lesson)
     checks["timing_alignment"] = total is None or total == context.duration_minutes
     if total is not None and total != context.duration_minutes:
-        revision.append(f"Timing mismatch: requested {context.duration_minutes} minutes, lesson stages total {total} minutes.")
+        revision.append(
+            f"Timing mismatch: requested {context.duration_minutes} minutes, "
+            f"lesson stages total {total} minutes."
+        )
 
     if learning_plan is not None:
         checks["approved_plan_timing"] = learning_plan.total_minutes == context.duration_minutes
         if not checks["approved_plan_timing"]:
             critical.append("Approved learning plan duration does not match the authoritative context duration.")
 
+    # Assessment evidence can live on the lesson itself or on an activity.
+    # If an approved plan already defines evidence of learning, that is
+    # authoritative enough to avoid requiring duplicate top-level metadata.
     assessment = lesson.get("assessment") or lesson.get("check_for_learning")
-    checks["assessment_present"] = bool(assessment)
+    activity_assessment = _has_activity_field(activities or stages, "assessment_link")
+    approved_evidence = bool(getattr(learning_plan, "evidence_of_learning", None))
+    checks["assessment_present"] = bool(assessment) or activity_assessment or approved_evidence
     if not checks["assessment_present"]:
-        revision.append("Assessment/check for learning is missing.")
+        revision.append("Assessment/check for learning is missing or not evidenced.")
 
+    # Interaction may be represented at lesson or activity level. The
+    # presence of an activity sequence is enough for this structural gate;
+    # semantic feasibility and contradictions belong to the independent
+    # validator.
     interaction = lesson.get("interaction") or lesson.get("interaction_format")
-    checks["interaction_evidence"] = bool(interaction) or bool(context.group_size)
+    activity_interaction = _has_activity_field(activities or stages, "interaction")
+    checks["interaction_evidence"] = bool(interaction or activity_interaction or activities or stages)
     if not checks["interaction_evidence"]:
         revision.append("Interaction format is not sufficiently specified to verify feasibility.")
 
@@ -123,6 +166,16 @@ def validate_lesson_structure(
         critical_failures=tuple(critical),
         revision_required=tuple(revision),
         strengths=tuple(strengths),
+    )
+
+
+def _has_activity_field(value: Any, field: str) -> bool:
+    """Return whether at least one activity/stage explicitly provides field evidence."""
+    if not isinstance(value, (list, tuple)):
+        return False
+    return any(
+        isinstance(item, Mapping) and bool(str(item.get(field, "")).strip())
+        for item in value
     )
 
 
