@@ -11,6 +11,7 @@ class TestResourceReturn(unittest.TestCase):
         structured = interpret_request(
             {
                 "request": "Create an A2 listening lesson for adult ESL learners.",
+                "duration_minutes": 30,
                 "objective": "Students will identify the main idea and key details in a short listening text.",
             }
         )
