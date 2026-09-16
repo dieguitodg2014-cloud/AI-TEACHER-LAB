@@ -9,7 +9,8 @@ from core.orchestration.resource_return import receive_resource, resource_return
 class TestResourceReturn(unittest.TestCase):
     def setUp(self) -> None:
         structured = interpret_request(
-            "Create an A2 listening lesson for adult ESL learners."
+            "Create an A2 listening lesson for adult ESL learners. "
+            "Students will identify the main idea and key details in a short listening text."
         )
         context_result = build_context(structured)
         self.context = context_result.context
