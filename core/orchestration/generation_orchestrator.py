@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from core.foundation.models import Context, LearningPlanDecision
 from core.generation.revision import generate_with_revision
-from core.orchestration.provider_task_eligibility import (
-    validate_provider_task_eligibility,
-)
+from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
 from core.orchestration.tool_selector import ToolCandidate, select_tool
+from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
 
 class GenerationOrchestrator:
@@ -27,6 +27,9 @@ class GenerationOrchestrator:
         max_revisions: int = 2,
         free_first: bool = True,
         task_type: str = "LESSON_GENERATION",
+        independent_validator: Callable[..., LessonValidationResult] | LessonQualityValidator | None = None,
+        validation_context: Context | None = None,
+        learning_plan: LearningPlanDecision | None = None,
     ) -> dict[str, Any]:
         capabilities = required_capabilities or {"lesson_generation"}
         tool = select_tool(
@@ -71,6 +74,9 @@ class GenerationOrchestrator:
             generator,
             generation_request,
             max_revisions=max_revisions,
+            independent_validator=independent_validator,
+            validation_context=validation_context,
+            learning_plan=learning_plan,
         )
         return {
             "status": result["status"],

@@ -20,6 +20,7 @@ from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
 from core.resources.decision_engine import apply_resource_decision, decide_resource
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
+from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult, validate_lesson_structure
 from tools.registry import ToolRegistry
 from tools.registry.config_loader import load_tool_registry_config
 
@@ -42,6 +43,17 @@ class VerticalSliceResult:
     missing: list[str]
     errors: list[str]
 
+    @property
+    def resource_generation(self) -> dict[str, Any] | None:
+        """Backward-compatible alias for the resource-generation result.
+
+        ``generation`` is the established public field used by the workflow
+        contract. Resource-producing callers historically accessed the same
+        payload as ``resource_generation``; expose that alias without creating
+        a second mutable source of truth.
+        """
+        return self.generation
+
 
 def run_lesson_planning(
     request: dict[str, Any] | str,
@@ -51,14 +63,14 @@ def run_lesson_planning(
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
+    independent_validator: Callable[..., LessonValidationResult] | LessonQualityValidator | None = validate_lesson_structure,
 ) -> VerticalSliceResult:
-    """Run context, pedagogy, assessment, resources, validation and generation.
+    """Run context, pedagogy, assessment, lesson validation, resources and generation.
 
-    ``produced_resource`` is optional so an external provider can return a
-    resource into the existing validation boundary. When ``generators`` are
-    supplied, a selected resource-generation provider can now execute the
-    Resource TaskPacket directly before resource QC. ``revision_count`` records
-    revisions already attempted and enforces the resource revision policy.
+    ``independent_validator`` is provider-neutral and receives the authoritative
+    Context plus approved learning plan. It runs after generation and after each
+    revision, before resource production. Pass ``None`` to disable this gate only
+    for workflows that intentionally manage validation elsewhere.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -249,7 +261,13 @@ def run_lesson_planning(
         assessment_decision,
     )
     orchestration = GenerationOrchestrator(selected_tools, generators)
-    generation = orchestration.run(generation_request, free_first=free_first)
+    generation = orchestration.run(
+        generation_request,
+        free_first=free_first,
+        independent_validator=independent_validator,
+        validation_context=context_result.context,
+        learning_plan=learning_plan,
+    )
     return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
 
 

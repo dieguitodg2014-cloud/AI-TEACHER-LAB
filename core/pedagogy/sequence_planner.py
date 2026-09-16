@@ -6,14 +6,7 @@ to later pipeline stages.
 """
 from dataclasses import dataclass
 
-from .pattern_registry import (
-    Interaction,
-    Level,
-    Pattern,
-    PatternFilter,
-    PatternRegistry,
-    SequenceRole,
-)
+from .pattern_registry import Interaction, Level, Pattern, PatternFilter, PatternRegistry, SequenceRole
 
 
 @dataclass(frozen=True)
@@ -52,21 +45,12 @@ class SequencePlan:
 
 
 class SequencePlanner:
-    """Build the smallest useful sequence that covers core learning roles.
-
-    Selection is deliberately conservative. The planner prefers a progression
-    from input/noticing to controlled use, guided production, communication, and
-    evidence. It avoids adding activities merely because the registry contains
-    them.
-    """
+    """Build the smallest useful sequence that covers core learning roles."""
 
     _ROLE_ORDER = (
-        SequenceRole.EXPOSURE,
-        SequenceRole.NOTICING,
-        SequenceRole.CONTROLLED_PRACTICE,
-        SequenceRole.GUIDED_PRODUCTION,
-        SequenceRole.COMMUNICATIVE_PRODUCTION,
-        SequenceRole.ASSESSMENT,
+        SequenceRole.EXPOSURE, SequenceRole.NOTICING,
+        SequenceRole.CONTROLLED_PRACTICE, SequenceRole.GUIDED_PRODUCTION,
+        SequenceRole.COMMUNICATIVE_PRODUCTION, SequenceRole.ASSESSMENT,
     )
 
     _PREFERRED_BY_ROLE = {
@@ -74,13 +58,7 @@ class SequencePlanner:
         SequenceRole.NOTICING: ("VISUAL_NOTICING", "MODEL_AND_REPEAT"),
         SequenceRole.CONTROLLED_PRACTICE: ("CONTROLLED_PRACTICE", "MATCHING"),
         SequenceRole.GUIDED_PRODUCTION: ("GUIDED_PRODUCTION", "INTERVIEW", "PICTURE_DESCRIPTION"),
-        SequenceRole.COMMUNICATIVE_PRODUCTION: (
-            "INTERVIEW",
-            "INFORMATION_GAP",
-            "SURVEY",
-            "ROLE_PLAY",
-            "PICTURE_DESCRIPTION",
-        ),
+        SequenceRole.COMMUNICATIVE_PRODUCTION: ("INTERVIEW", "INFORMATION_GAP", "SURVEY", "ROLE_PLAY", "PICTURE_DESCRIPTION"),
         SequenceRole.ASSESSMENT: ("EXIT_TICKET", "QUICK_CHECK"),
     }
 
@@ -91,127 +69,91 @@ class SequencePlanner:
         level = Level(request.level)
         interaction = Interaction(request.interaction)
         primary_skill = request.primary_skill.upper()
-
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be greater than zero")
 
-        # Do not hard-filter on the primary skill. A speaking lesson can need a
-        # visual-noticing pattern, and a reading lesson can need speaking output.
-        # Skill fit is therefore evaluated when choosing each pattern.
-        candidates = self.registry.filter(
-            PatternFilter(level=level.value, interaction=interaction.value)
-        )
+        candidates = self.registry.filter(PatternFilter(level=level.value, interaction=interaction.value))
         candidate_ids = {pattern.pattern_id for pattern in candidates}
+        # Noticing and assessment can legitimately use whole-class or individual
+        # interaction inside a pair/group lesson; do not report them uncovered
+        # merely because their own interaction differs from the lesson default.
+        for pattern in self.registry.filter(PatternFilter(level=level.value)):
+            if SequenceRole.NOTICING in pattern.sequence_roles or SequenceRole.ASSESSMENT in pattern.sequence_roles:
+                candidate_ids.add(pattern.pattern_id)
 
         selected: list[PlannedPattern] = []
         selected_ids: set[str] = set()
-
         required_roles = [SequenceRole.CONTROLLED_PRACTICE]
         if request.requires_communication:
-            required_roles.extend(
-                [SequenceRole.GUIDED_PRODUCTION, SequenceRole.COMMUNICATIVE_PRODUCTION]
-            )
+            required_roles.extend([SequenceRole.GUIDED_PRODUCTION, SequenceRole.COMMUNICATIVE_PRODUCTION])
         else:
             required_roles.append(SequenceRole.GUIDED_PRODUCTION)
         if request.requires_assessment:
             required_roles.append(SequenceRole.ASSESSMENT)
-
-        # Exposure/noticing are strongly preferred when time permits, especially
-        # for lower levels, but they are not allowed to crowd out practice/evidence.
         if request.duration_minutes >= 25:
             required_roles.insert(0, SequenceRole.NOTICING)
 
         for role in self._ROLE_ORDER:
             if role not in required_roles:
                 continue
-            pattern = self._choose_pattern(
-                role, candidate_ids, selected_ids, level, primary_skill
-            )
+            pattern = self._choose_pattern(role, candidate_ids, selected_ids, level, primary_skill)
             if pattern is None:
                 continue
-            selected.append(
-                PlannedPattern(
-                    pattern_id=pattern.pattern_id,
-                    sequence_role=role.value,
-                    timing_minutes=self._initial_time(pattern, role),
-                )
-            )
+            selected.append(PlannedPattern(pattern.pattern_id, role.value, self._initial_time(pattern, role)))
             selected_ids.add(pattern.pattern_id)
 
-        # Add model support for A0/A1 when it is available and useful, without
-        # forcing an extra activity when the lesson is short.
         if level in (Level.A0, Level.A1) and request.duration_minutes >= 40:
             if "MODEL_AND_REPEAT" in candidate_ids and "MODEL_AND_REPEAT" not in selected_ids:
-                selected.insert(
-                    0,
-                    PlannedPattern(
-                        pattern_id="MODEL_AND_REPEAT",
-                        sequence_role=SequenceRole.EXPOSURE.value,
-                        timing_minutes=5,
-                    ),
-                )
+                selected.insert(0, PlannedPattern("MODEL_AND_REPEAT", SequenceRole.EXPOSURE.value, 5))
                 selected_ids.add("MODEL_AND_REPEAT")
 
+        # Never make an activity shorter than the registry's pedagogical minimum
+        # just to claim that every required role fits. If even the minimum viable
+        # durations do not fit, drop lower-priority roles from the end and report
+        # them as uncovered. Duration fitting can then safely compress the
+        # remaining activities without violating pattern minimums.
+        selected = self._trim_to_minimums(selected, request.duration_minutes)
         selected = self._fit_to_duration(selected, request.duration_minutes)
-        uncovered = tuple(
-            role.value for role in required_roles
-            if not any(item.sequence_role == role.value for item in selected)
-        )
-
+        uncovered = tuple(role.value for role in required_roles if not any(item.sequence_role == role.value for item in selected))
         warnings = []
         if uncovered:
             warnings.append("Required sequence roles could not all be covered within the available constraints.")
         if not selected:
             warnings.append("No compatible activity pattern was found.")
+        return SequencePlan(tuple(selected), sum(item.timing_minutes for item in selected), uncovered, tuple(warnings))
 
-        return SequencePlan(
-            patterns=tuple(selected),
-            total_minutes=sum(item.timing_minutes for item in selected),
-            uncovered_roles=uncovered,
-            warnings=tuple(warnings),
-        )
-
-    def _choose_pattern(
-        self,
-        role: SequenceRole,
-        candidate_ids: set[str],
-        selected_ids: set[str],
-        level: Level,
-        primary_skill: str,
-    ) -> Pattern | None:
+    def _choose_pattern(self, role, candidate_ids, selected_ids, level, primary_skill):
         for pattern_id in self._PREFERRED_BY_ROLE[role]:
             if pattern_id not in candidate_ids or pattern_id in selected_ids:
                 continue
             pattern = self.registry.get(pattern_id)
             if not pattern.supports_level(level.value):
                 continue
-            # Input/noticing may support a different skill while preparing the
-            # primary skill. Later output roles should align directly to it.
-            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING):
-                if primary_skill not in pattern.skills:
-                    continue
+            if role not in (SequenceRole.EXPOSURE, SequenceRole.NOTICING) and primary_skill not in pattern.skills:
+                continue
             return pattern
         return None
 
+    def _trim_to_minimums(self, items: list[PlannedPattern], duration_minutes: int) -> list[PlannedPattern]:
+        """Drop lower-priority roles when their registry minimums cannot fit."""
+        adjusted = list(items)
+        while adjusted:
+            minimum_total = sum(self.registry.get(item.pattern_id).timing_min for item in adjusted)
+            if minimum_total <= duration_minutes:
+                break
+            adjusted.pop()
+        return adjusted
+
     @staticmethod
     def _initial_time(pattern: Pattern, role: SequenceRole) -> int:
-        preferred = {
-            SequenceRole.NOTICING: 8,
-            SequenceRole.CONTROLLED_PRACTICE: 10,
-            SequenceRole.GUIDED_PRODUCTION: 10,
-            SequenceRole.COMMUNICATIVE_PRODUCTION: 15,
-            SequenceRole.ASSESSMENT: 7,
-            SequenceRole.EXPOSURE: 5,
-        }.get(role, pattern.timing_min)
+        preferred = {SequenceRole.NOTICING: 8, SequenceRole.CONTROLLED_PRACTICE: 10, SequenceRole.GUIDED_PRODUCTION: 10, SequenceRole.COMMUNICATIVE_PRODUCTION: 15, SequenceRole.ASSESSMENT: 7, SequenceRole.EXPOSURE: 5}.get(role, pattern.timing_min)
         return max(pattern.timing_min, min(preferred, pattern.timing_max))
 
     @staticmethod
-    def _fit_to_duration(
-        items: list[PlannedPattern], duration_minutes: int
-    ) -> list[PlannedPattern]:
+    def _fit_to_duration(items: list[PlannedPattern], duration_minutes: int) -> list[PlannedPattern]:
+        """Fit a selected sequence to duration without dropping its roles."""
         if not items:
             return items
-
         total = sum(item.timing_minutes for item in items)
         if total <= duration_minutes:
             return items
@@ -229,5 +171,4 @@ class SequencePlanner:
                 total -= reduction
             if total <= duration_minutes:
                 break
-
         return adjusted
