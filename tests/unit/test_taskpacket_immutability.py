@@ -64,7 +64,7 @@ class TaskPacketImmutabilityTests(unittest.TestCase):
         self.assertEqual(packet.quality_criteria, ("Match A2",))
         self.assertEqual(packet.input_materials, ("teacher_notes",))
 
-    def test_asdict_remains_serializable_as_json_arrays(self):
+    def test_asdict_preserves_immutable_collection_values(self):
         packet = self._packet()
         data = asdict(packet)
 
