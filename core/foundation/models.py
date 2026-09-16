@@ -194,5 +194,9 @@ class QCResult:
     critical_failure: bool
     checks: QCChecks
     revision_required: bool = False
-    feedback: list[str] = field(default_factory=list)
-    blocking_errors: list[str] = field(default_factory=list)
+    feedback: tuple[str, ...] = field(default_factory=tuple)
+    blocking_errors: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "feedback", tuple(self.feedback))
+        object.__setattr__(self, "blocking_errors", tuple(self.blocking_errors))
