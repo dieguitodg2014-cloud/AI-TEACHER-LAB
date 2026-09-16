@@ -84,9 +84,12 @@ class ToolDecision:
     decision_id: str
     task_type: str
     selected_tool: str
-    fallback_policy: list[str]
+    fallback_policy: tuple[str, ...]
     human_handoff_allowed: bool
     reason: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fallback_policy", tuple(self.fallback_policy))
 
 
 @dataclass(frozen=True)
