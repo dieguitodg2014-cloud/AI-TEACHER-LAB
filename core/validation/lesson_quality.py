@@ -1,17 +1,17 @@
 """Independent validation of generated lesson plans.
 
-This module deliberately sits upstream of resource production. It validates a
-lesson against an immutable TaskPacket without mutating or redefining that
-packet. External validators can implement the same provider-neutral contract.
+This module deliberately sits upstream of resource production. Lesson
+validation uses the authoritative Context and approved learning-plan inputs;
+resource TaskPackets remain owned by the resource-production boundary.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal, Mapping
 from uuid import uuid4
 
-from core.foundation.models import TaskPacket
+from core.foundation.models import Context, LearningPlanDecision
 
 LessonValidationStatus = Literal["READY", "REVISION_REQUIRED", "CRITICAL_FAILURE"]
 
@@ -35,25 +35,23 @@ class LessonQualityValidator:
 
     def validate(
         self,
-        task: TaskPacket,
+        context: Context,
         lesson: Mapping[str, Any],
         *,
+        learning_plan: LearningPlanDecision | None = None,
         request: Mapping[str, Any] | None = None,
     ) -> LessonValidationResult:
         raise NotImplementedError
 
 
 def validate_lesson_structure(
-    task: TaskPacket,
+    context: Context,
     lesson: Mapping[str, Any],
     *,
+    learning_plan: LearningPlanDecision | None = None,
     request: Mapping[str, Any] | None = None,
 ) -> LessonValidationResult:
-    """Run deterministic structural checks before an external semantic validator.
-
-    The lesson is copied into local read-only access; the authoritative task is
-    never rewritten from generated output.
-    """
+    """Run deterministic structural checks before external semantic validation."""
     checks: dict[str, bool] = {}
     critical: list[str] = []
     revision: list[str] = []
@@ -64,14 +62,14 @@ def validate_lesson_structure(
         critical.append("Generated lesson is missing or empty.")
 
     level = str(lesson.get("level", "")).strip().upper()
-    checks["level_alignment"] = level == task.level
+    checks["level_alignment"] = level == context.level
     if not checks["level_alignment"]:
-        critical.append(f"Level mismatch: expected '{task.level}', got '{level or 'missing'}'.")
+        critical.append(f"Level mismatch: expected '{context.level}', got '{level or 'missing'}'.")
 
     audience = str(lesson.get("audience", "")).strip()
-    checks["audience_alignment"] = not task.audience.strip() or task.audience.strip().lower() in audience.lower()
+    checks["audience_alignment"] = not context.audience.strip() or context.audience.strip().lower() in audience.lower()
     if not checks["audience_alignment"]:
-        revision.append("Lesson audience does not provide evidence of alignment with the authoritative TaskPacket audience.")
+        revision.append("Lesson audience does not provide evidence of alignment with the authoritative context audience.")
 
     objectives = lesson.get("objectives") or lesson.get("learning_objectives")
     checks["objectives_present"] = isinstance(objectives, (list, tuple)) and bool(objectives)
@@ -84,11 +82,15 @@ def validate_lesson_structure(
     if not checks["lesson_sequence_present"]:
         revision.append("No usable lesson activity sequence was found.")
 
-    duration = task.duration_minutes
     total = _sum_stage_minutes(lesson)
-    checks["timing_alignment"] = total is None or total == duration
-    if total is not None and total != duration:
-        revision.append(f"Timing mismatch: requested {duration} minutes, lesson stages total {total} minutes.")
+    checks["timing_alignment"] = total is None or total == context.duration_minutes
+    if total is not None and total != context.duration_minutes:
+        revision.append(f"Timing mismatch: requested {context.duration_minutes} minutes, lesson stages total {total} minutes.")
+
+    if learning_plan is not None:
+        checks["approved_plan_timing"] = learning_plan.total_minutes == context.duration_minutes
+        if not checks["approved_plan_timing"]:
+            critical.append("Approved learning plan duration does not match the authoritative context duration.")
 
     assessment = lesson.get("assessment") or lesson.get("check_for_learning")
     checks["assessment_present"] = bool(assessment)
@@ -96,7 +98,7 @@ def validate_lesson_structure(
         revision.append("Assessment/check for learning is missing.")
 
     interaction = lesson.get("interaction") or lesson.get("interaction_format")
-    checks["interaction_evidence"] = bool(interaction) or bool(request and request.get("group_size"))
+    checks["interaction_evidence"] = bool(interaction) or bool(context.group_size)
     if not checks["interaction_evidence"]:
         revision.append("Interaction format is not sufficiently specified to verify feasibility.")
 
