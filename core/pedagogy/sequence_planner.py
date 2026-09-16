@@ -99,15 +99,21 @@ class SequencePlanner:
             pattern = self._choose_pattern(role, candidate_ids, selected_ids, level, primary_skill)
             if pattern is None:
                 continue
-            selected.append(PlannedPattern(pattern.pattern_id, role.value, self._initial_time(pattern, role)))
+            timing = self._initial_time(pattern, role)
+            if sum(item.timing_minutes for item in selected) + timing > request.duration_minutes:
+                # Never invent time by shrinking a pattern below its registry
+                # minimum. The role remains uncovered and is reported explicitly.
+                continue
+            selected.append(PlannedPattern(pattern.pattern_id, role.value, timing))
             selected_ids.add(pattern.pattern_id)
 
         if level in (Level.A0, Level.A1) and request.duration_minutes >= 40:
             if "MODEL_AND_REPEAT" in candidate_ids and "MODEL_AND_REPEAT" not in selected_ids:
-                selected.insert(0, PlannedPattern("MODEL_AND_REPEAT", SequenceRole.EXPOSURE.value, 5))
-                selected_ids.add("MODEL_AND_REPEAT")
+                exposure = PlannedPattern("MODEL_AND_REPEAT", SequenceRole.EXPOSURE.value, 5)
+                if sum(item.timing_minutes for item in selected) + 5 <= request.duration_minutes:
+                    selected.insert(0, exposure)
+                    selected_ids.add("MODEL_AND_REPEAT")
 
-        selected = self._fit_to_duration(selected, request.duration_minutes)
         uncovered = tuple(role.value for role in required_roles if not any(item.sequence_role == role.value for item in selected))
         warnings = []
         if uncovered:
@@ -132,21 +138,3 @@ class SequencePlanner:
     def _initial_time(pattern: Pattern, role: SequenceRole) -> int:
         preferred = {SequenceRole.NOTICING: 8, SequenceRole.CONTROLLED_PRACTICE: 10, SequenceRole.GUIDED_PRODUCTION: 10, SequenceRole.COMMUNICATIVE_PRODUCTION: 15, SequenceRole.ASSESSMENT: 7, SequenceRole.EXPOSURE: 5}.get(role, pattern.timing_min)
         return max(pattern.timing_min, min(preferred, pattern.timing_max))
-
-    @staticmethod
-    def _fit_to_duration(items, duration_minutes):
-        if not items:
-            return items
-        total = sum(item.timing_minutes for item in items)
-        if total <= duration_minutes:
-            return items
-        adjusted = list(items)
-        for index in range(len(adjusted) - 1, -1, -1):
-            item = adjusted[index]
-            reduction = min(item.timing_minutes - 2, total - duration_minutes)
-            if reduction > 0:
-                adjusted[index] = PlannedPattern(item.pattern_id, item.sequence_role, item.timing_minutes - reduction)
-                total -= reduction
-            if total <= duration_minutes:
-                break
-        return adjusted
