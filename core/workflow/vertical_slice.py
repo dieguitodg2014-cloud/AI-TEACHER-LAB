@@ -14,6 +14,7 @@ from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
 from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool
+from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
