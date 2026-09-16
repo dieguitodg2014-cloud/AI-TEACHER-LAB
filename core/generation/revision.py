@@ -5,11 +5,14 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
+from core.foundation.models import Context, LearningPlanDecision
 from core.orchestration.provider_contract import validate_provider_output
 from core.quality.generation_qc import review_generated_lesson
+from core.validation.lesson_quality import LessonValidationResult
 
 
 Generator = Callable[[dict[str, Any], list[str]], dict[str, Any]]
+LessonValidator = Callable[..., LessonValidationResult]
 
 _GENERIC_PRODUCTION = {
     "produce language demonstrating the lesson objective.",
@@ -73,8 +76,17 @@ def generate_with_revision(
     generation_request: dict[str, Any],
     *,
     max_revisions: int = 2,
+    independent_validator: LessonValidator | None = None,
+    validation_context: Context | None = None,
+    learning_plan: LearningPlanDecision | None = None,
 ) -> dict[str, Any]:
-    """Generate, validate the provider boundary, pass through QC, and revise."""
+    """Generate, run deterministic QC, independently validate, and revise.
+
+    The independent validator is downstream of generation but upstream of
+    acceptance/resource production. Every revision is revalidated. A critical
+    independent finding cannot be repaired through normal generation and is
+    routed to HUMAN_HANDOFF.
+    """
     expected_level = generation_request.get("level")
     expected_objective = generation_request.get("objective")
     expected_duration = generation_request.get("duration_minutes")
@@ -97,11 +109,14 @@ def generate_with_revision(
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if not isinstance(max_revisions, int) or max_revisions < 0:
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+    if independent_validator is not None and validation_context is None:
+        return {"status": "FAILED", "lesson": None, "errors": ["VALIDATION_CONTEXT_REQUIRED"]}
 
     attempts = 0
     errors: list[str] = []
     lesson: dict[str, Any] | None = None
     qc_result: dict[str, Any] | None = None
+    independent_validation: LessonValidationResult | None = None
 
     while attempts <= max_revisions:
         try:
@@ -113,6 +128,7 @@ def generate_with_revision(
                 "errors": ["EXECUTION_ERROR", f"{type(exc).__name__}: {exc}"],
                 "attempts": attempts + 1,
                 "qc": None,
+                "independent_validation": None,
             }
 
         provider_errors = validate_provider_output(lesson)
@@ -123,6 +139,7 @@ def generate_with_revision(
                 "errors": provider_errors,
                 "attempts": attempts + 1,
                 "qc": None,
+                "independent_validation": None,
             }
 
         lesson = _repair_generic_production_fields(lesson, expected_objective, errors)
@@ -137,15 +154,39 @@ def generate_with_revision(
             approved_sequence=approved_sequence,
         )
         errors = list(qc_result["blocking_errors"])
-        if qc_result["status"] == "READY":
-            return {
-                "status": "READY",
-                "lesson": lesson,
-                "errors": [],
-                "attempts": attempts + 1,
-                "qc": qc_result,
-            }
-        attempts += 1
+        if qc_result["status"] != "READY":
+            attempts += 1
+            continue
+
+        if independent_validator is not None and validation_context is not None:
+            independent_validation = independent_validator(
+                validation_context,
+                lesson,
+                learning_plan=learning_plan,
+                request=generation_request,
+            )
+            if independent_validation.status == "CRITICAL_FAILURE":
+                return {
+                    "status": "HUMAN_HANDOFF",
+                    "lesson": lesson,
+                    "errors": list(independent_validation.critical_failures),
+                    "attempts": attempts + 1,
+                    "qc": qc_result,
+                    "independent_validation": independent_validation,
+                }
+            if independent_validation.status == "REVISION_REQUIRED":
+                errors = list(independent_validation.revision_required)
+                attempts += 1
+                continue
+
+        return {
+            "status": "READY",
+            "lesson": lesson,
+            "errors": [],
+            "attempts": attempts + 1,
+            "qc": qc_result,
+            "independent_validation": independent_validation,
+        }
 
     return {
         "status": "REJECT",
@@ -153,4 +194,5 @@ def generate_with_revision(
         "errors": errors,
         "attempts": attempts,
         "qc": qc_result,
+        "independent_validation": independent_validation,
     }
