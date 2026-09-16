@@ -8,11 +8,11 @@ from typing import Any, Callable
 from core.foundation.models import Context, LearningPlanDecision
 from core.orchestration.provider_contract import validate_provider_output
 from core.quality.generation_qc import review_generated_lesson
-from core.validation.lesson_quality import LessonValidationResult
+from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
 
 Generator = Callable[[dict[str, Any], list[str]], dict[str, Any]]
-LessonValidator = Callable[..., LessonValidationResult]
+LessonValidator = Callable[..., LessonValidationResult] | LessonQualityValidator
 
 _GENERIC_PRODUCTION = {
     "produce language demonstrating the lesson objective.",
@@ -69,6 +69,32 @@ def _repair_generic_production_fields(
 
     repaired["activities"] = repaired_activities
     return repaired
+
+
+def _run_independent_validator(
+    validator: LessonValidator,
+    context: Context,
+    lesson: dict[str, Any],
+    *,
+    learning_plan: LearningPlanDecision | None,
+    request: dict[str, Any],
+) -> LessonValidationResult:
+    """Invoke either the provider-neutral validator contract or a callable adapter."""
+    if isinstance(validator, LessonQualityValidator):
+        return validator.validate(
+            context,
+            lesson,
+            learning_plan=learning_plan,
+            request=request,
+        )
+    if callable(validator):
+        return validator(
+            context,
+            lesson,
+            learning_plan=learning_plan,
+            request=request,
+        )
+    raise TypeError("independent_validator must be callable or implement LessonQualityValidator")
 
 
 def generate_with_revision(
@@ -159,7 +185,8 @@ def generate_with_revision(
             continue
 
         if independent_validator is not None and validation_context is not None:
-            independent_validation = independent_validator(
+            independent_validation = _run_independent_validator(
+                independent_validator,
                 validation_context,
                 lesson,
                 learning_plan=learning_plan,
