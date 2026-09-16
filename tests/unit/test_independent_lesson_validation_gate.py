@@ -1,6 +1,6 @@
 from core.foundation.models import Context
 from core.generation.revision import generate_with_revision
-from core.validation.lesson_quality import LessonValidationResult, validate_lesson_structure
+from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult, validate_lesson_structure
 
 
 def _context():
@@ -77,6 +77,22 @@ def test_critical_independent_failure_routes_to_human_handoff():
     assert result["status"] == "HUMAN_HANDOFF"
     assert result["errors"] == ["Level mismatch cannot be repaired normally."]
     assert result["independent_validation"].status == "CRITICAL_FAILURE"
+
+
+def test_object_validator_contract_is_supported():
+    class StubValidator(LessonQualityValidator):
+        def validate(self, context, lesson, *, learning_plan=None, request=None):
+            return _result("READY")
+
+    result = generate_with_revision(
+        lambda request, errors: _lesson(request),
+        {"level": "A2", "objective": "Discuss past experiences.", "duration_minutes": 30},
+        independent_validator=StubValidator(),
+        validation_context=_context(),
+    )
+
+    assert result["status"] == "READY"
+    assert result["independent_validation"].status == "READY"
 
 
 def test_structural_validator_accepts_authoritative_metadata_without_redundant_fields():
