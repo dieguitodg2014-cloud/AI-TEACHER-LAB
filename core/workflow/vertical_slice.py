@@ -273,4 +273,9 @@ def run_lesson_planning(
 
 def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
     """Serialize the workflow result for an API, CLI, or future interface."""
-    return asdict(result)
+    payload = asdict(result)
+    if payload["assessment_decision"] is not None:
+        payload["assessment_decision"]["success_criteria"] = list(
+            payload["assessment_decision"]["success_criteria"]
+        )
+    return payload

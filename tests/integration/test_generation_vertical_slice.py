@@ -90,7 +90,7 @@ class GenerationVerticalSliceTests(unittest.TestCase):
         )
         self.assertEqual(
             captured["assessment_decision"]["success_criteria"],
-            result.assessment_decision.success_criteria,
+            list(result.assessment_decision.success_criteria),
         )
 
     def test_result_to_dict_exposes_stable_serializable_contract(self):
