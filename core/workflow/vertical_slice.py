@@ -43,6 +43,17 @@ class VerticalSliceResult:
     missing: list[str]
     errors: list[str]
 
+    @property
+    def resource_generation(self) -> dict[str, Any] | None:
+        """Backward-compatible alias for the resource-generation result.
+
+        ``generation`` is the established public field used by the workflow
+        contract. Resource-producing callers historically accessed the same
+        payload as ``resource_generation``; expose that alias without creating
+        a second mutable source of truth.
+        """
+        return self.generation
+
 
 def run_lesson_planning(
     request: dict[str, Any] | str,
