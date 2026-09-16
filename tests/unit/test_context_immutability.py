@@ -34,11 +34,11 @@ def test_contract_collections_are_immutable():
     assert isinstance(context.teacher_preferences, FrozenMapping)
 
     with pytest.raises(TypeError):
-        context.constraints += ("No phones",)
+        context.constraints[0] = "No phones"
     with pytest.raises(TypeError):
-        context.prior_knowledge += ("Past Simple",)
+        context.prior_knowledge[0] = "Past Simple"
     with pytest.raises(TypeError):
-        context.technology += ("audio",)
+        context.technology[0] = "audio"
     with pytest.raises(TypeError):
         context.teacher_preferences["pace"] = "fast"
 
@@ -49,7 +49,7 @@ def test_nested_teacher_preferences_are_immutable():
     with pytest.raises(TypeError):
         context.teacher_preferences["nested"]["feedback"] = "immediate"
     with pytest.raises(TypeError):
-        context.teacher_preferences["formats"] += ("groups",)
+        context.teacher_preferences["formats"][0] = "groups"
 
 
 def test_constructor_defensively_copies_mutable_inputs():
