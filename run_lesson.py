@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import argparse
-import json
 from typing import Any
 
 from core.context.request_interpreter import interpret_request
-from core.workflow.configured_runtime import run_configured_lesson_planning
-from core.workflow.vertical_slice import result_to_dict
+from core.workflow.teacher_facing_output import run_teacher_facing_lesson
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,9 +46,13 @@ def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
 
 def main() -> int:
     args = build_parser().parse_args()
-    result = run_configured_lesson_planning(build_request(args))
-    print(json.dumps(result_to_dict(result), ensure_ascii=False, indent=2))
-    return 0 if result.status == "READY" else 1
+    try:
+        output = run_teacher_facing_lesson(build_request(args))
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    print(output)
+    return 0
 
 
 if __name__ == "__main__":
