@@ -19,9 +19,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="resource-tool",
-                capabilities=frozenset(
-                    {"lesson_generation", "resource_generation", "resource_output:audio"}
-                ),
+                capabilities=frozenset({"lesson_generation", "resource_generation", "resource_output:audio"}),
                 quality=0.8,
                 reliability=0.9,
                 accessibility=1.0,
@@ -29,9 +27,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
                 cost=0.0,
             )
         ]
-
         result = run_lesson_planning(REQUEST, tools=tools)
-
         self.assertEqual(result.status, "PLANNED")
         self.assertIsNotNone(result.resource_task)
         self.assertEqual(result.resource_decision.action, "CREATE")
@@ -40,15 +36,8 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertEqual(result.resource_tool.tool_id, "resource-tool")
 
     def test_required_resource_without_capable_tool_has_no_selected_resource_tool(self):
-        tools = [
-            ToolCandidate(
-                tool_id="lesson-only-tool",
-                capabilities=frozenset({"lesson_generation"}),
-            )
-        ]
-
+        tools = [ToolCandidate(tool_id="lesson-only-tool", capabilities=frozenset({"lesson_generation"}))]
         result = run_lesson_planning(REQUEST, tools=tools)
-
         self.assertEqual(result.status, "PLANNED")
         self.assertIsNotNone(result.resource_task)
         self.assertIsNone(result.resource_tool)
@@ -57,20 +46,10 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="resource-tool",
-                capabilities=frozenset(
-                    {"lesson_generation", "resource_generation", "resource_output:audio"}
-                ),
+                capabilities=frozenset({"lesson_generation", "resource_generation", "resource_output:audio"}),
             )
         ]
-
-        result = run_lesson_planning(
-            {
-                **REQUEST,
-                "objective": "Discuss past experiences and ask follow-up questions.",
-            },
-            tools=tools,
-        )
-
+        result = run_lesson_planning({**REQUEST, "objective": "Discuss past experiences and ask follow-up questions."}, tools=tools)
         self.assertEqual(result.status, "PLANNED")
         self.assertIsNone(result.resource_task)
         self.assertIsNone(result.resource_tool)
@@ -99,12 +78,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
                 "quality_criteria_addressed": list(task_packet["quality_criteria"]),
             }
 
-        result = run_lesson_planning(
-            REQUEST,
-            tools=tools,
-            generators={"mock-resource-provider": mock_resource_provider},
-        )
-
+        result = run_lesson_planning(REQUEST, tools=tools, generators={"mock-resource-provider": mock_resource_provider})
         self.assertEqual(result.status, "PLANNED")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["task_type"], "RESOURCE_PRODUCTION")
@@ -116,23 +90,48 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         self.assertEqual(result.resource_validation.status, "READY")
         self.assertEqual(result.resource_validation.score, 100.0)
 
-    def test_resource_task_cannot_be_executed_by_lesson_only_provider(self):
+    def test_selected_resource_tool_is_not_silently_replaced(self):
         tools = [
             ToolCandidate(
-                tool_id="lesson-only-tool",
-                capabilities=frozenset({"lesson_generation"}),
-            )
+                tool_id="selected-free-resource",
+                capabilities=frozenset({"resource_generation", "resource_output:audio"}),
+                cost=0.0,
+            ),
+            ToolCandidate(
+                tool_id="alternate-resource",
+                capabilities=frozenset({"resource_generation", "resource_output:audio"}),
+                quality=1.0,
+                reliability=1.0,
+                accessibility=1.0,
+                speed=1.0,
+                cost=1.0,
+            ),
         ]
 
-        def lesson_provider(_task_packet):
+        calls = []
+
+        def alternate_generator(_task_packet):
+            calls.append("alternate")
             return {"resource_type": "audio"}
 
         result = run_lesson_planning(
             REQUEST,
             tools=tools,
-            generators={"lesson-only-tool": lesson_provider},
+            generators={"alternate-resource": alternate_generator},
         )
 
+        self.assertEqual(result.status, "HUMAN_HANDOFF")
+        self.assertEqual(result.resource_tool.tool_id, "selected-free-resource")
+        self.assertEqual(result.errors, ["GENERATOR_UNAVAILABLE"])
+        self.assertEqual(calls, [])
+
+    def test_resource_task_cannot_be_executed_by_lesson_only_provider(self):
+        tools = [ToolCandidate(tool_id="lesson-only-tool", capabilities=frozenset({"lesson_generation"}))]
+
+        def lesson_provider(_task_packet):
+            return {"resource_type": "audio"}
+
+        result = run_lesson_planning(REQUEST, tools=tools, generators={"lesson-only-tool": lesson_provider})
         self.assertEqual(result.status, "HUMAN_HANDOFF")
         self.assertIsNotNone(result.resource_task)
         self.assertIsNone(result.resource_validation)
@@ -154,12 +153,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
                 "content": "Wrong resource type.",
             }
 
-        result = run_lesson_planning(
-            REQUEST,
-            tools=tools,
-            generators={"mock-resource-provider": mock_resource_provider},
-        )
-
+        result = run_lesson_planning(REQUEST, tools=tools, generators={"mock-resource-provider": mock_resource_provider})
         self.assertEqual(result.status, "REJECT")
         self.assertIsNotNone(result.resource_validation)
         self.assertEqual(result.resource_validation.status, "REJECT")
