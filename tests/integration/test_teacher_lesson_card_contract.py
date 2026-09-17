@@ -1,5 +1,7 @@
 import unittest
 
+from dataclasses import FrozenInstanceError
+
 from core.orchestration.tool_selector import ToolCandidate
 from core.workflow.teacher_lesson_card import teacher_lesson_card_from_result
 from core.workflow.vertical_slice import run_lesson_planning
@@ -58,7 +60,7 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertEqual(card.assessment["type"], result.assessment_decision.type)
         self.assertEqual(card.assessment["evidence"], result.assessment_decision.evidence)
 
-        with self.assertRaises(TypeError):
+        with self.assertRaises(FrozenInstanceError):
             card.activities += (card.activities[0],)
         with self.assertRaises(TypeError):
             card.assessment["type"] = "WRITTEN"
