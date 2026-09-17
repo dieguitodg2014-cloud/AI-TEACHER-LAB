@@ -69,8 +69,9 @@ def run_lesson_planning(
 
     ``independent_validator`` is provider-neutral and receives the authoritative
     Context plus approved learning plan. It runs after generation and after each
-    revision, before resource production. Pass ``None`` to disable this gate only
-    for workflows that intentionally manage validation elsewhere.
+    revision, before resource production. Final lesson-generation execution
+    requires this validator; callers cannot disable the acceptance gate through
+    this end-to-end workflow.
     """
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
@@ -254,6 +255,23 @@ def run_lesson_planning(
         if resource_task is not None or has_resource_capability:
             return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, None, [], [])
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
+
+    if independent_validator is None:
+        return VerticalSliceResult(
+            "FAILED",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            resource_tool,
+            None,
+            resource_validation,
+            None,
+            [],
+            ["INDEPENDENT_VALIDATOR_REQUIRED"],
+        )
 
     generation_request = build_generation_request(
         learning_plan,
