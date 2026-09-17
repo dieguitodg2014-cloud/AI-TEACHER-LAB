@@ -1,11 +1,12 @@
 import unittest
 
-from core.orchestration.tool_selector import ToolCandidate, select_tool
+from core.foundation.models import ToolDecision
+from core.orchestration.tool_selector import ToolCandidate, select_tool, select_tool_decision
 
 
 class ToolSelectorTests(unittest.TestCase):
-    def test_selects_best_eligible_free_tool(self):
-        tools = [
+    def setUp(self):
+        self.tools = [
             ToolCandidate(
                 "premium-tool",
                 frozenset({"lesson_generation"}),
@@ -26,7 +27,8 @@ class ToolSelectorTests(unittest.TestCase):
             ),
         ]
 
-        selected = select_tool(tools, {"lesson_generation"})
+    def test_selects_best_eligible_free_tool(self):
+        selected = select_tool(self.tools, {"lesson_generation"})
         self.assertEqual(selected.tool_id, "free-tool")
 
     def test_capability_mismatch_is_not_selected(self):
@@ -42,6 +44,31 @@ class ToolSelectorTests(unittest.TestCase):
         ]
         selected = select_tool(tools, {"lesson_generation"}, blocked_tools={"preferred-tool"})
         self.assertEqual(selected.tool_id, "fallback-tool")
+
+    def test_selection_produces_authoritative_tool_decision(self):
+        decision = select_tool_decision(
+            self.tools,
+            {"lesson_generation"},
+            task_type="LESSON_GENERATION",
+        )
+
+        self.assertIsInstance(decision, ToolDecision)
+        self.assertEqual(decision.selected_tool, "free-tool")
+        self.assertEqual(decision.task_type, "LESSON_GENERATION")
+        self.assertEqual(decision.fallback_policy, ())
+        self.assertTrue(decision.human_handoff_allowed)
+
+    def test_explicit_fallback_policy_is_preserved(self):
+        decision = select_tool_decision(
+            self.tools,
+            {"lesson_generation"},
+            fallback_policy=("premium-tool",),
+            human_handoff_allowed=False,
+        )
+
+        self.assertEqual(decision.selected_tool, "free-tool")
+        self.assertEqual(decision.fallback_policy, ("premium-tool",))
+        self.assertFalse(decision.human_handoff_allowed)
 
 
 if __name__ == "__main__":
