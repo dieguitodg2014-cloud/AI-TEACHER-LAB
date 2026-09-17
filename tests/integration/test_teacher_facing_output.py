@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 from core.workflow.teacher_facing_output import (
     TeacherFacingOutputError,
@@ -10,70 +11,38 @@ from core.workflow.vertical_slice import VerticalSliceResult
 
 class TeacherFacingOutputTests(unittest.TestCase):
     def test_ready_result_becomes_rendered_teacher_output(self):
-        result = VerticalSliceResult(
-            status="READY",
-            context=None,
-            level_decision=None,
-            learning_plan=None,
-            assessment_decision=None,
-            resource_decision=None,
-            resource_task=None,
-            resource_tool=None,
-            resource_handoff=None,
-            resource_validation=None,
-            generation=None,
-            missing=[],
-            errors=[],
+        result = Mock(spec=VerticalSliceResult)
+        result.status = "READY"
+        result.context = Mock(
+            level="A2",
+            audience="adult ESL learners",
+            objective="Talk about past experiences and ask follow-up questions.",
+            duration_minutes=60,
         )
-
-        # The card mapper requires the approved context/plan/assessment. Use a
-        # small real pipeline result below rather than duplicating those
-        # contracts in this boundary test.
-        from core.workflow.vertical_slice import run_lesson_planning
-
-        result = run_lesson_planning(
-            {
-                "level": "A2",
-                "audience": "adult ESL learners",
-                "duration_minutes": 60,
-                "objective": "Talk about past experiences and ask follow-up questions.",
-            },
-            independent_validator=lambda lesson, context, plan: {
-                "status": "READY",
-                "feedback": [],
-            },
+        result.learning_plan = Mock(sequence=())
+        result.assessment_decision = Mock(
+            type="OBSERVATION",
+            target="Past experiences",
+            evidence="Learner response",
+            success_criteria=(),
         )
+        result.resource_task = None
+        result.resource_decision = None
+        result.resource_tool = None
 
         html = run_teacher_facing_lesson(
-            {
-                "level": "A2",
-                "audience": "adult ESL learners",
-                "duration_minutes": 60,
-                "objective": "Talk about past experiences and ask follow-up questions.",
-            },
+            {},
             planner=lambda request: result,
         )
 
         self.assertIn("A2", html)
         self.assertIn("adult ESL learners", html)
         self.assertIn("Talk about past experiences", html)
+        self.assertIn("OBSERVATION", html)
 
     def test_non_ready_result_cannot_cross_teacher_facing_boundary(self):
-        result = VerticalSliceResult(
-            status="FAILED",
-            context=None,
-            level_decision=None,
-            learning_plan=None,
-            assessment_decision=None,
-            resource_decision=None,
-            resource_task=None,
-            resource_tool=None,
-            resource_handoff=None,
-            resource_validation=None,
-            generation=None,
-            missing=[],
-            errors=["TEST_FAILURE"],
-        )
+        result = Mock(spec=VerticalSliceResult)
+        result.status = "FAILED"
 
         with self.assertRaises(TeacherFacingOutputError):
             build_teacher_lesson_card(result)
