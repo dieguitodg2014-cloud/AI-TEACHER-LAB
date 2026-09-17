@@ -15,6 +15,9 @@ class ToolCandidate:
     speed: float = 0.0
     cost: float = 0.0
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "capabilities", frozenset(self.capabilities))
+
 
 def select_tool(
     candidates: list[ToolCandidate],
