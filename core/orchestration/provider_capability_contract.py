@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.orchestration.resource_output_compatibility import RESOURCE_OUTPUT_CAPABILITY_PREFIX
+
 
 # These are execution capabilities, not pedagogical decisions. New provider
 # capabilities can be added here without changing the foundation models.
@@ -13,6 +15,14 @@ SUPPORTED_PROVIDER_CAPABILITIES = frozenset(
         "resource_generation",
     }
 )
+
+
+def _is_supported_capability(capability: str) -> bool:
+    return (
+        capability in SUPPORTED_PROVIDER_CAPABILITIES
+        or capability.startswith(RESOURCE_OUTPUT_CAPABILITY_PREFIX)
+        and len(capability) > len(RESOURCE_OUTPUT_CAPABILITY_PREFIX)
+    )
 
 
 def validate_provider_capabilities(value: Any) -> list[str]:
@@ -31,7 +41,7 @@ def validate_provider_capabilities(value: Any) -> list[str]:
         if not isinstance(capability, str):
             errors.append("PROVIDER_CAPABILITY_INVALID_TYPE")
             continue
-        if capability not in SUPPORTED_PROVIDER_CAPABILITIES:
+        if not _is_supported_capability(capability):
             errors.append(f"PROVIDER_CAPABILITY_UNSUPPORTED:{capability}")
 
     return errors

@@ -19,7 +19,9 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="resource-tool",
-                capabilities=frozenset({"lesson_generation", "resource_generation"}),
+                capabilities=frozenset(
+                    {"lesson_generation", "resource_generation", "resource_output:audio"}
+                ),
                 quality=0.8,
                 reliability=0.9,
                 accessibility=1.0,
@@ -55,7 +57,9 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="resource-tool",
-                capabilities=frozenset({"lesson_generation", "resource_generation"}),
+                capabilities=frozenset(
+                    {"lesson_generation", "resource_generation", "resource_output:audio"}
+                ),
             )
         ]
 
@@ -75,7 +79,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="mock-resource-provider",
-                capabilities=frozenset({"resource_generation"}),
+                capabilities=frozenset({"resource_generation", "resource_output:audio"}),
                 quality=1.0,
                 reliability=1.0,
                 accessibility=1.0,
@@ -92,8 +96,6 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
                 "level": task_packet["level"],
                 "objective": task_packet["objective"],
                 "content": "A short conversation between two adults about making a weekend appointment.",
-                # Resource outputs use the external JSON-shaped contract; the
-                # TaskPacket itself remains deeply immutable internally.
                 "quality_criteria_addressed": list(task_packet["quality_criteria"]),
             }
 
@@ -140,7 +142,7 @@ class ResourceVerticalSliceIntegrationTests(unittest.TestCase):
         tools = [
             ToolCandidate(
                 tool_id="mock-resource-provider",
-                capabilities=frozenset({"resource_generation"}),
+                capabilities=frozenset({"resource_generation", "resource_output:audio"}),
             )
         ]
 

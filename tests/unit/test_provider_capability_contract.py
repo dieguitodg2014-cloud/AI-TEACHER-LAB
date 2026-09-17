@@ -11,6 +11,7 @@ class ProviderCapabilityContractTests(unittest.TestCase):
     def test_valid_capabilities_are_accepted(self):
         self.assertEqual(validate_provider_capabilities(["lesson_generation"]), [])
         self.assertEqual(validate_provider_capabilities(["resource_generation"]), [])
+        self.assertEqual(validate_provider_capabilities(["resource_output:audio"]), [])
 
     def test_non_collection_is_rejected(self):
         self.assertEqual(
@@ -22,6 +23,12 @@ class ProviderCapabilityContractTests(unittest.TestCase):
         self.assertEqual(
             validate_provider_capabilities(["visual_generation"]),
             ["PROVIDER_CAPABILITY_UNSUPPORTED:visual_generation"],
+        )
+
+    def test_empty_typed_resource_capability_is_rejected(self):
+        self.assertEqual(
+            validate_provider_capabilities(["resource_output:"]),
+            ["PROVIDER_CAPABILITY_UNSUPPORTED:resource_output:"],
         )
 
     def test_invalid_capability_type_is_rejected(self):

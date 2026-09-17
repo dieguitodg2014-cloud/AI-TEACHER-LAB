@@ -19,7 +19,7 @@ class ResourceProviderContractTests(unittest.TestCase):
             quality_criteria=["Support the requested resource objective."],
         )
 
-    def _tool(self, capabilities=("resource_generation",)):
+    def _tool(self, capabilities=("resource_generation", "resource_output:audio")):
         return ToolCandidate(
             tool_id="resource-provider",
             capabilities=frozenset(capabilities),
@@ -68,6 +68,19 @@ class ResourceProviderContractTests(unittest.TestCase):
         self.assertEqual(result["status"], "PRODUCED")
         self.assertEqual(result["tool_id"], "resource-provider")
         self.assertEqual(result["result"]["resource_type"], "audio")
+
+    def test_provider_neutral_execution_rejects_incompatible_output(self):
+        provider = FunctionResourceProvider(lambda task: {"content": "sample"})
+
+        result = execute_resource_provider(
+            self._task(), self._tool(("resource_generation", "resource_output:video")), provider
+        )
+
+        self.assertEqual(result["status"], "HUMAN_HANDOFF")
+        self.assertEqual(
+            result["errors"],
+            ["PROVIDER_NOT_ELIGIBLE_FOR_OUTPUT:resource-provider:audio"],
+        )
 
     def test_provider_neutral_execution_rejects_lesson_only_capability(self):
         provider = FunctionResourceProvider(lambda task: {"content": "sample"})
