@@ -74,5 +74,10 @@ def receive_resource(
 
 
 def resource_return_to_dict(result: ResourceReturnResult) -> dict[str, Any]:
-    """Serialize a resource-return result for an API, CLI, or future UI."""
-    return asdict(result)
+    """Serialize a resource-return result with JSON-friendly validation fields."""
+    payload = asdict(result)
+    validation = payload["validation"]
+    validation["checks"] = dict(validation["checks"])
+    validation["feedback"] = list(validation["feedback"])
+    validation["blocking_errors"] = list(validation["blocking_errors"])
+    return payload
