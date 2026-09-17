@@ -40,8 +40,12 @@ class VerticalSliceResult:
     resource_handoff: dict[str, Any] | None
     resource_validation: ResourceValidationResult | None
     generation: dict[str, Any] | None
-    missing: list[str]
-    errors: list[str]
+    missing: tuple[str, ...]
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "missing", tuple(self.missing))
+        object.__setattr__(self, "errors", tuple(self.errors))
 
     @property
     def resource_generation(self) -> dict[str, Any] | None:
@@ -292,6 +296,8 @@ def run_lesson_planning(
 def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
     """Serialize the workflow result for an API, CLI, or future interface."""
     payload = asdict(result)
+    payload["missing"] = list(payload["missing"])
+    payload["errors"] = list(payload["errors"])
     if payload["assessment_decision"] is not None:
         payload["assessment_decision"]["success_criteria"] = list(
             payload["assessment_decision"]["success_criteria"]
