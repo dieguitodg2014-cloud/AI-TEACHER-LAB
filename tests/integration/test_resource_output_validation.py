@@ -67,7 +67,7 @@ def test_vertical_slice_requests_revision_for_objective_declaration_mismatch():
     assert result.resource_validation is not None
     assert result.resource_validation.status == "REVISION_REQUIRED"
     assert result.resource_validation.critical_failure is False
-    assert result.resource_validation.blocking_errors == []
+    assert result.resource_validation.blocking_errors == ()
     assert "objective" in result.resource_validation.feedback[0]
 
 
