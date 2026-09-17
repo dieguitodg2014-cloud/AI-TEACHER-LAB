@@ -1,8 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from core.workflow.teacher_facing_output import render_teacher_facing_lesson
-from core.workflow.teacher_lesson_card import TeacherLessonCard
+from core.workflow.teacher_facing_output import run_teacher_facing_lesson
 from core.workflow.vertical_slice import VerticalSliceResult
 
 
@@ -22,7 +21,10 @@ class TeacherFacingEndToEndOutputTests(unittest.TestCase):
         result.resource_decision = None
         result.resource_tool = None
 
-        html = render_teacher_facing_lesson(result)
+        html = run_teacher_facing_lesson(
+            {},
+            planner=lambda request: result,
+        )
 
         self.assertIsInstance(html, str)
         self.assertIn("A2", html)
@@ -35,7 +37,8 @@ class TeacherFacingEndToEndOutputTests(unittest.TestCase):
         result.status = "REVISION_REQUIRED"
 
         with self.assertRaises(ValueError):
-            render_teacher_facing_lesson(result)
+            from core.workflow.teacher_facing_output import build_teacher_lesson_card
+            build_teacher_lesson_card(result)
 
 
 if __name__ == "__main__":
