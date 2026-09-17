@@ -13,7 +13,7 @@ from core.foundation.models import AssessmentDecision, Context, LearningPlanDeci
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
-from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool
+from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool_decision
 from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
@@ -45,13 +45,7 @@ class VerticalSliceResult:
 
     @property
     def resource_generation(self) -> dict[str, Any] | None:
-        """Backward-compatible alias for the resource-generation result.
-
-        ``generation`` is the established public field used by the workflow
-        contract. Resource-producing callers historically accessed the same
-        payload as ``resource_generation``; expose that alias without creating
-        a second mutable source of truth.
-        """
+        """Backward-compatible alias for the resource-generation result."""
         return self.generation
 
 
@@ -65,13 +59,7 @@ def run_lesson_planning(
     revision_count: int = 0,
     independent_validator: Callable[..., LessonValidationResult] | LessonQualityValidator | None = validate_lesson_structure,
 ) -> VerticalSliceResult:
-    """Run context, pedagogy, assessment, lesson validation, resources and generation.
-
-    ``independent_validator`` is provider-neutral and receives the authoritative
-    Context plus approved learning plan. It runs after generation and after each
-    revision, before resource production. Pass ``None`` to disable this gate only
-    for workflows that intentionally manage validation elsewhere.
-    """
+    """Run context, pedagogy, assessment, lesson validation, resources and generation."""
     structured_request = interpret_request(request)
     context_result = build_context(structured_request)
 
@@ -104,21 +92,12 @@ def run_lesson_planning(
                 blocking_errors=["A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."],
             )
         else:
-            resource_validation = validate_resource_output(
-                resource_task,
-                produced_resource,
-                revision_count=revision_count,
-            )
+            resource_validation = validate_resource_output(resource_task, produced_resource, revision_count=revision_count)
 
         if resource_validation.status != "READY":
             revision_handoff = None
             if resource_validation.status == "REVISION_REQUIRED" and resource_task is not None:
-                revision_handoff = build_resource_revision_handoff(
-                    context_result.context,
-                    resource_task,
-                    resource_validation,
-                )
-
+                revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_validation)
             return VerticalSliceResult(
                 resource_validation.status,
                 context_result.context,
@@ -136,11 +115,7 @@ def run_lesson_planning(
             )
 
     if tools is None and generators is None:
-        resource_handoff = (
-            build_resource_handoff(context_result.context, resource_task)
-            if resource_task is not None and produced_resource is None
-            else None
-        )
+        resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and produced_resource is None else None
         return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
 
     free_first = True
@@ -155,15 +130,15 @@ def run_lesson_planning(
     except (OSError, ValueError, TypeError) as exc:
         return VerticalSliceResult("FAILED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, None, resource_validation, None, [], [f"TOOL_REGISTRY_ERROR:{exc}"])
 
-    resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
-    resource_handoff = (
-        build_resource_handoff(context_result.context, resource_task)
-        if resource_task is not None and resource_tool is None and produced_resource is None
-        else None
+    resource_tool_decision = select_resource_tool_decision(resource_task, selected_tools, free_first=free_first)
+    resource_tool = next(
+        (tool for tool in selected_tools if resource_tool_decision is not None and tool.tool_id == resource_tool_decision.selected_tool),
+        None,
     )
+    resource_handoff = build_resource_handoff(context_result.context, resource_task) if resource_task is not None and resource_tool_decision is None and produced_resource is None else None
 
     if resource_task is not None and generators is not None:
-        if resource_tool is None:
+        if resource_tool_decision is None or resource_tool is None:
             return VerticalSliceResult(
                 "HUMAN_HANDOFF",
                 context_result.context,
@@ -182,7 +157,8 @@ def run_lesson_planning(
 
         resource_generation = execute_resource_generation(
             resource_task,
-            resource_tool,
+            resource_tool_decision,
+            selected_tools,
             generators,
         )
         if resource_generation["status"] != "PRODUCED":
@@ -202,19 +178,11 @@ def run_lesson_planning(
                 resource_generation.get("errors", []),
             )
 
-        resource_validation = validate_resource_output(
-            resource_task,
-            resource_generation["result"],
-            revision_count=revision_count,
-        )
+        resource_validation = validate_resource_output(resource_task, resource_generation["result"], revision_count=revision_count)
         if resource_validation.status != "READY":
             revision_handoff = None
             if resource_validation.status == "REVISION_REQUIRED":
-                revision_handoff = build_resource_revision_handoff(
-                    context_result.context,
-                    resource_task,
-                    resource_validation,
-                )
+                revision_handoff = build_resource_revision_handoff(context_result.context, resource_task, resource_validation)
             return VerticalSliceResult(
                 resource_validation.status,
                 context_result.context,
@@ -248,18 +216,12 @@ def run_lesson_planning(
         )
 
     if generators is None:
-        has_resource_capability = any(
-            "resource_generation" in tool.capabilities for tool in selected_tools
-        )
+        has_resource_capability = any("resource_generation" in tool.capabilities for tool in selected_tools)
         if resource_task is not None or has_resource_capability:
             return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, None, [], [])
         return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
 
-    generation_request = build_generation_request(
-        learning_plan,
-        asdict(context_result.context),
-        assessment_decision,
-    )
+    generation_request = build_generation_request(learning_plan, asdict(context_result.context), assessment_decision)
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(
         generation_request,
@@ -275,7 +237,5 @@ def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
     """Serialize the workflow result for an API, CLI, or future interface."""
     payload = asdict(result)
     if payload["assessment_decision"] is not None:
-        payload["assessment_decision"]["success_criteria"] = list(
-            payload["assessment_decision"]["success_criteria"]
-        )
+        payload["assessment_decision"]["success_criteria"] = list(payload["assessment_decision"]["success_criteria"])
     return payload
