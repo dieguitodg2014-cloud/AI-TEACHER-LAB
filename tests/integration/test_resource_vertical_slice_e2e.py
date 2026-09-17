@@ -20,7 +20,7 @@ class ResourceVerticalSliceE2ETests(unittest.TestCase):
     def _resource_tool(self):
         return ToolCandidate(
             tool_id="notebooklm-mock",
-            capabilities=frozenset({"resource_generation"}),
+            capabilities=frozenset({"resource_generation", "resource_output:audio"}),
             quality=0.9,
             reliability=0.9,
             accessibility=1.0,
