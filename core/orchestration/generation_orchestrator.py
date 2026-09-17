@@ -7,12 +7,12 @@ from typing import Any, Callable
 from core.foundation.models import Context, LearningPlanDecision
 from core.generation.revision import generate_with_revision
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
-from core.orchestration.tool_selector import ToolCandidate, select_tool
+from core.orchestration.tool_selector import ToolCandidate, select_tool_decision
 from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
 
 class GenerationOrchestrator:
-    """Route a generation task to a capable tool and apply bounded revision."""
+    """Route a generation task through an immutable tool-selection decision."""
 
     def __init__(self, tools: list[ToolCandidate], generators: dict[str, Callable]):
         self._tools = tools
@@ -32,14 +32,15 @@ class GenerationOrchestrator:
         learning_plan: LearningPlanDecision | None = None,
     ) -> dict[str, Any]:
         capabilities = required_capabilities or {"lesson_generation"}
-        tool = select_tool(
+        decision = select_tool_decision(
             self._tools,
             capabilities,
             blocked_tools=blocked_tools,
             free_first=free_first,
+            task_type=task_type,
         )
 
-        if tool is None:
+        if decision is None:
             return {
                 "status": "HUMAN_HANDOFF",
                 "tool_id": None,
@@ -47,11 +48,25 @@ class GenerationOrchestrator:
                 "errors": ["NO_SUITABLE_TOOL"],
             }
 
-        generator = self._generators.get(tool.tool_id)
+        # Resolve exactly the tool named by the immutable decision. The
+        # execution boundary must not call select_tool() again.
+        tool = next(
+            (candidate for candidate in self._tools if candidate.tool_id == decision.selected_tool),
+            None,
+        )
+        if tool is None:
+            return {
+                "status": "HUMAN_HANDOFF" if decision.human_handoff_allowed else "FAILED",
+                "tool_id": decision.selected_tool,
+                "result": None,
+                "errors": ["SELECTED_TOOL_UNAVAILABLE"],
+            }
+
+        generator = self._generators.get(decision.selected_tool)
         if generator is None:
             return {
-                "status": "HUMAN_HANDOFF",
-                "tool_id": tool.tool_id,
+                "status": "HUMAN_HANDOFF" if decision.human_handoff_allowed else "FAILED",
+                "tool_id": decision.selected_tool,
                 "result": None,
                 "errors": ["GENERATOR_UNAVAILABLE"],
             }
@@ -64,8 +79,8 @@ class GenerationOrchestrator:
         )
         if eligibility_errors:
             return {
-                "status": "HUMAN_HANDOFF",
-                "tool_id": tool.tool_id,
+                "status": "HUMAN_HANDOFF" if decision.human_handoff_allowed else "FAILED",
+                "tool_id": decision.selected_tool,
                 "result": None,
                 "errors": eligibility_errors,
             }
@@ -80,7 +95,7 @@ class GenerationOrchestrator:
         )
         return {
             "status": result["status"],
-            "tool_id": tool.tool_id,
+            "tool_id": decision.selected_tool,
             "result": result,
             "errors": result.get("errors", []),
         }

@@ -61,6 +61,20 @@ class GenerationOrchestratorTests(unittest.TestCase):
         self.assertEqual(result["tool_id"], "premium-generator")
         self.assertEqual(result["errors"], ["GENERATOR_UNAVAILABLE"])
 
+    def test_selected_tool_unavailable_does_not_silently_fallback(self):
+        def premium_generator(request, errors):
+            return {"activities": [{"name": "premium"}]}
+
+        orchestrator = GenerationOrchestrator(
+            self.tools,
+            {"premium-generator": premium_generator},
+        )
+        result = orchestrator.run(self.request)
+
+        self.assertEqual(result["status"], "HUMAN_HANDOFF")
+        self.assertEqual(result["tool_id"], "free-generator")
+        self.assertEqual(result["errors"], ["GENERATOR_UNAVAILABLE"])
+
     def test_missing_generator_causes_handoff(self):
         orchestrator = GenerationOrchestrator(self.tools, {})
         result = orchestrator.run(self.request)
