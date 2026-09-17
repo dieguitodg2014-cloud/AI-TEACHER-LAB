@@ -10,6 +10,7 @@ from core.orchestration.provider_capability_contract import (
     validate_provider_capabilities,
 )
 from core.orchestration.provider_task_eligibility import validate_provider_task_eligibility
+from core.orchestration.resource_output_compatibility import provider_supports_resource_output
 from core.orchestration.resource_provider import FunctionResourceProvider, ResourceProvider
 from core.orchestration.tool_selector import ToolCandidate, select_tool
 
@@ -24,11 +25,18 @@ def select_resource_tool(
     free_first: bool = True,
     blocked_tools: set[str] | None = None,
 ) -> ToolCandidate | None:
-    """Select a tool for a resource task without naming a provider."""
+    """Select a tool that can execute the approved concrete resource output."""
     if task is None:
         return None
+
+    compatible_tools = [
+        tool
+        for tool in tools
+        if provider_supports_capabilities(tool.capabilities, {RESOURCE_CAPABILITY})
+        and provider_supports_resource_output(tool.capabilities, task.required_output)
+    ]
     return select_tool(
-        tools,
+        compatible_tools,
         {RESOURCE_CAPABILITY},
         free_first=free_first,
         blocked_tools=blocked_tools,
@@ -54,7 +62,7 @@ def resource_tool_plan(
             "status": "HUMAN_HANDOFF",
             "tool_id": None,
             "task_id": task.task_id,
-            "reason": "NO_RESOURCE_GENERATION_TOOL",
+            "reason": "NO_SUITABLE_RESOURCE_TOOL",
         }
     return {
         "status": "READY",
@@ -89,6 +97,15 @@ def execute_resource_provider(
             "result": None,
             "errors": [
                 f"PROVIDER_NOT_ELIGIBLE_FOR_TASK:{tool.tool_id}:RESOURCE_PRODUCTION"
+            ],
+        }
+    if not provider_supports_resource_output(tool.capabilities, task.required_output):
+        return {
+            "status": "HUMAN_HANDOFF",
+            "tool_id": tool.tool_id,
+            "result": None,
+            "errors": [
+                f"PROVIDER_NOT_ELIGIBLE_FOR_OUTPUT:{tool.tool_id}:{task.required_output}"
             ],
         }
     if not isinstance(provider, ResourceProvider):
