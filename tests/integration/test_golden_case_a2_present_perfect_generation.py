@@ -54,7 +54,7 @@ class GoldenCaseA2PresentPerfectGenerationTests(unittest.TestCase):
                         "student_production": "Students complete the approved task.",
                         "assessment_link": "Teacher observes the learner response.",
                     }
-                    for contract in request["activity_contracts"]
+                    for contract in generation_request["activity_contracts"]
                 ],
             }
 
