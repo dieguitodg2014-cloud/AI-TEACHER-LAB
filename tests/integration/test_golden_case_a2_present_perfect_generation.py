@@ -58,7 +58,7 @@ class GoldenCaseA2PresentPerfectGenerationTests(unittest.TestCase):
 
         generation_result = result.generation["result"]
         self.assertEqual(generation_result["status"], "READY")
-        self.assertEqual(generation_result["errors"], [])
+        self.assertEqual(generation_result["errors"], ())
         self.assertEqual(generation_result["attempts"], 1)
         self.assertEqual(generation_result["qc"]["status"], "READY")
         self.assertFalse(generation_result["qc"]["critical_failure"])
