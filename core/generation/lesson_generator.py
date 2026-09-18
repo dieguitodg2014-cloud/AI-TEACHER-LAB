@@ -24,6 +24,7 @@ def build_generation_request(
     plan: Any,
     context: dict[str, Any],
     assessment_decision: AssessmentDecision | None = None,
+    resource_decision: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create the constrained request sent to a generation adapter."""
     request = {
@@ -73,5 +74,8 @@ def build_generation_request(
             "evidence": assessment_decision.evidence,
             "success_criteria": list(assessment_decision.success_criteria),
         }
+
+    if resource_decision is not None:
+        request["resource_decision"] = dict(resource_decision)
 
     return request
