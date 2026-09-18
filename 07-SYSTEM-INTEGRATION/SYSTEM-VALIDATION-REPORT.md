@@ -87,23 +87,17 @@ The configured-runtime regression test explicitly verifies this expected behavio
 
 The Quality Control implementation now includes a deterministic weighted scoring layer over the approved QC evidence. The score covers learning validity, pedagogical alignment, level appropriacy, scaffolding alignment, language accuracy evidence, communicative value, practical feasibility, assessment alignment, and resource efficiency when an authoritative resource decision is available. Blocking validation remains authoritative: a weighted score never overrides a critical contract failure.
 
-The repository contains unit and integration tests for the implemented components, but the current validation record does not claim that those automated tests have passed in CI. They have been created as executable verification artifacts and still require actual automated execution.
+The repository contains unit and integration tests for the implemented components, and the MVP certification path has now been executed successfully in GitHub Actions. The certification PR passed its CI check and the resulting merge commit also passed the main-branch CI workflow.
 
 The real local runtime has been validated manually. This is evidence of executable integration, not a substitute for a repeatable automated test suite.
 
 ## Final MVP Gate
 
-The MVP is considered **FUNCTIONALLY INTEGRATED BUT NOT YET FORMALLY TEST-CERTIFIED**. The acceptance boundary is now explicit: generation must pass Generation QC and the independent lesson validator before teacher-facing output can be produced.
+The MVP is considered **FUNCTIONALLY INTEGRATED AND AUTOMATED-CI CERTIFIED**. The acceptance boundary is explicit: generation must pass Generation QC and the independent lesson validator before teacher-facing output can be produced.
 
-The critical architecture-to-code path is implemented and a real local generation path has been demonstrated. The remaining strictly necessary validation work is:
+The critical architecture-to-code path is implemented, the automated test suite has been certified in CI, and the weighted QC layer is now part of the generation QC result. The configured local runtime remains a separate manual environment check and is not treated as a substitute for CI.
 
-1. execute the existing unit and integration test suite;
-2. resolve any failures found by that execution;
-3. establish one repeatable automated test command or CI workflow;
-4. verify the configured resource human-handoff test in the same environment;
-5. record the resulting test evidence here.
-
-No new architectural layer is required for this validation gate.
+No new architectural layer is required for the frozen MVP validation gate.
 
 ## Current Overall Status
 
@@ -120,7 +114,7 @@ The MVP boundary is intentionally frozen at the accepted lesson-generation workf
 3. **Adaptation** — automatic pedagogical adaptation driven by accumulated learner evidence.
 4. **Broader QC semantics** — richer linguistic and classroom-usability evaluation beyond the current deterministic weighted evidence model.
 5. **Broader external-tool automation** — additional production connectors and operational fallback chains beyond the current configured runtime and human-handoff path.
-6. **Formal automated certification** — repeatable CI execution and recorded passing evidence for the full test suite.
+6. **Broader automated certification scope** — additional runtime/environment-specific certification beyond the repository CI suite.
 
 ### MVP-Next rule
 
