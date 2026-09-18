@@ -8,6 +8,8 @@ from typing import Any, Callable
 
 from core.foundation.models import Context, FrozenMapping, LearningPlanDecision
 from core.orchestration.provider_contract import validate_provider_output
+from core.pedagogy.activity_contract import ActivityGenerationContract
+from core.pedagogy.activity_validator import validate_activity
 from core.quality.generation_qc import review_generated_lesson
 from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
@@ -121,6 +123,7 @@ def generate_with_revision(
     constraints = generation_request.get("constraints", [])
     assessment_decision = generation_request.get("assessment_decision")
     approved_sequence = generation_request.get("sequence")
+    activity_contracts = generation_request.get("activity_contracts", [])
 
     if not isinstance(expected_level, str) or not isinstance(expected_objective, str):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
@@ -183,7 +186,7 @@ def generate_with_revision(
             assessment_decision=assessment_decision,
             approved_sequence=approved_sequence,
         )
-        errors = list(qc_result["blocking_errors"])
+        errors = activity_errors + list(qc_result["blocking_errors"])
         if qc_result["status"] != "READY":
             attempts += 1
             continue
