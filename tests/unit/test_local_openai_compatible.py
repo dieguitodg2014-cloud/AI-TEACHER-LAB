@@ -84,6 +84,41 @@ class LocalOpenAICompatibleTests(unittest.TestCase):
         self.assertIn('"teacher_preferences": {', prompt)
         self.assertIn('"mode": "guided"', prompt)
 
+    def test_activity_contract_fields_are_required_in_prompt(self):
+        payload = {
+            "choices": [
+                {"message": {"content": '{"level":"A2","objective":"x","duration_minutes":90,"activities":[{}]}'}}
+            ]
+        }
+        generator = create_local_openai_compatible_generator(base_url="http://test")
+
+        request_data = {
+            "activity_contracts": [
+                {
+                    "activity_id": "act-1",
+                    "level": "A2",
+                    "objective": "x",
+                    "skill": "SPEAKING",
+                    "interaction": "pairs",
+                    "cognitive_demand": "APPLY",
+                    "scaffolding": 2,
+                    "duration_minutes": 20,
+                    "language_target": "x",
+                    "evidence": "observable speaking performance",
+                }
+            ]
+        }
+        with patch("tools.connectors.local_openai_compatible.request.urlopen", return_value=FakeResponse(payload)) as mocked:
+            generator(request_data, [])
+
+        sent = json.loads(mocked.call_args.args[0].data.decode("utf-8"))
+        prompt = sent["messages"][1]["content"]
+        for field in (
+            "activity_id", "skill", "interaction", "cognitive_demand",
+            "scaffolding", "duration_minutes", "language_target", "evidence",
+        ):
+            self.assertIn(f'"{field}"', prompt)
+
     def test_generation_controls_are_sent(self):
         payload = {
             "choices": [
