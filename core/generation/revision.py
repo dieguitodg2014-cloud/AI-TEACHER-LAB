@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Any, Callable
 
 from core.foundation.models import Context, FrozenMapping, LearningPlanDecision
@@ -11,7 +12,7 @@ from core.quality.generation_qc import review_generated_lesson
 from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
 
-Generator = Callable[[dict[str, Any], list[str]], dict[str, Any]]
+Generator = Callable[[Mapping[str, Any], list[str]], dict[str, Any]]
 LessonValidator = Callable[..., LessonValidationResult] | LessonQualityValidator
 
 _GENERIC_PRODUCTION = {
