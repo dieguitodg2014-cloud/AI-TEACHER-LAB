@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from core.generation.output_validator import validate_generated_lesson
@@ -94,7 +95,7 @@ def _approved_sequence_errors(
 
 def _activity_contract_errors(
     lesson: dict[str, Any],
-    activity_contracts: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None,
+    activity_contracts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None,
 ) -> list[str]:
     """Validate generated activities against the approved per-activity contracts."""
     if not activity_contracts:
@@ -106,7 +107,7 @@ def _activity_contract_errors(
 
     errors: list[str] = []
     for activity, contract_data in zip(activities, activity_contracts):
-        if not isinstance(contract_data, dict):
+        if not isinstance(contract_data, Mapping):
             errors.append("INVALID_ACTIVITY_CONTRACT")
             continue
         try:
@@ -127,7 +128,7 @@ def review_generated_lesson(
     constraints: list[Any] | None = None,
     assessment_decision: dict[str, Any] | None = None,
     approved_sequence: list[dict[str, Any]] | None = None,
-    activity_contracts: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
+    activity_contracts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
