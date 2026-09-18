@@ -45,7 +45,7 @@ def build_generation_request(
                 "scaffolding": activity.scaffolding,
                 "duration_minutes": activity.minutes,
                 "language_target": activity.language_target,
-                "must_include": [],
+                "must_include": [context.get("topic")] if context.get("topic") else [],
                 "must_not_include": [],
                 "evidence": activity.assessment_link or activity.student_production,
             }
