@@ -35,11 +35,15 @@ class TeacherLessonCardContractTests(unittest.TestCase):
                 "objective": generation_request["objective"],
                 "duration_minutes": generation_request["duration_minutes"],
                 "topic": generation_request["topic"],
-                "activities": [{
-                    "name": "communicative task",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
-                    "assessment_link": "Teacher observes the learner response during the task.",
-                }],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "approved activity",
+                        "student_production": contract["evidence"] or "Students complete the approved task.",
+                        "assessment_link": "Teacher observes the learner response.",
+                    }
+                    for contract in generation_request["activity_contracts"]
+                ],
             }
 
         result = run_lesson_planning(
