@@ -22,12 +22,12 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     allocations = _allocate_minutes(duration)
     objective = context.objective
     sequence = [
-        ActivityPlan(f"act-{uuid4().hex[:10]}", f"Establish language/content needed for: {objective}", "teacher_to_class", allocations["presentation"], "Identify or recognize the target language/content."),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Make successful task performance visible through a clear model.", "teacher_to_class", allocations["modeling"], "Notice and reproduce the model with support."),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Build controlled accuracy before freer communication.", "pairs", allocations["guided_practice"], "Use the target language in a supported exchange."),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Use the target language to exchange meaningful information.", "pairs_or_small_groups", allocations["communicative_practice"], "Complete a meaningful interaction task."),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Demonstrate more independent performance of the objective.", "individual_or_pairs", allocations["production"], "Produce language demonstrating the lesson objective."),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Collect direct evidence of objective attainment.", "individual", allocations["assessment"], "Provide an observable performance or response.", objective),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", f"Establish language/content needed for: {objective}", "teacher_to_class", allocations["presentation"], "Identify or recognize the target language/content.", skill="MIXED", cognitive_demand="UNDERSTAND", scaffolding=4),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", "Make successful task performance visible through a clear model.", "teacher_to_class", allocations["modeling"], "Notice and reproduce the model with support.", skill="MIXED", cognitive_demand="UNDERSTAND", scaffolding=4),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", "Build controlled accuracy before freer communication.", "pairs", allocations["guided_practice"], "Use the target language in a supported exchange.", skill="MIXED", cognitive_demand="APPLY", scaffolding=3),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", "Use the target language to exchange meaningful information.", "pairs_or_small_groups", allocations["communicative_practice"], "Complete a meaningful interaction task.", skill="SPEAKING", cognitive_demand="APPLY", scaffolding=2, language_target=objective),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", "Demonstrate more independent performance of the objective.", "individual_or_pairs", allocations["production"], "Produce language demonstrating the lesson objective.", skill="MIXED", cognitive_demand="CREATE", scaffolding=1),
+        ActivityPlan(f"act-{uuid4().hex[:10]}", "Collect direct evidence of objective attainment.", "individual", allocations["assessment"], "Provide an observable performance or response.", objective, skill="MIXED", cognitive_demand="APPLY", scaffolding=1),
     ]
     decision = LearningPlanDecision(
         plan_id=f"plan-{uuid4().hex[:12]}", objective=objective, sequence=sequence,
