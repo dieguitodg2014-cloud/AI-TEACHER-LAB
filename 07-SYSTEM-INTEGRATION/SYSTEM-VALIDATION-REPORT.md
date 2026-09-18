@@ -110,3 +110,24 @@ No new architectural layer is required for this validation gate.
 **MVP CORE IMPLEMENTED - FINAL AUTOMATED VALIDATION PENDING**
 
 The architecture should now be treated as frozen for the MVP. Further work should focus on execution, testing, bug fixing, and real classroom validation rather than adding new conceptual engines.
+
+## MVP-Next Boundary
+
+The MVP boundary is intentionally frozen at the accepted lesson-generation workflow. The following capabilities are explicitly deferred and must not be treated as missing MVP architecture:
+
+1. **Course Memory** — persistent course/session state across lessons.
+2. **Learning Evidence** — executable capture and storage of learner performance evidence.
+3. **Adaptation** — automatic pedagogical adaptation driven by accumulated learner evidence.
+4. **Weighted QC** — the full weighted quality-scoring model beyond the current structural/alignment MVP checks.
+5. **Broader external-tool automation** — additional production connectors and operational fallback chains beyond the current configured runtime and human-handoff path.
+6. **Formal automated certification** — repeatable CI execution and recorded passing evidence for the full test suite.
+
+### MVP-Next rule
+
+New work should enter one of these deferred tracks only when there is a concrete implementation requirement. Do not introduce new engines, abstractions, or provider-specific logic into the frozen MVP path merely to anticipate future features.
+
+### Recommended order after MVP certification
+
+**Automated test certification → Weighted QC → Course Memory → Learning Evidence → Adaptation → broader external-tool automation.**
+
+This ordering preserves the existing acceptance boundary while adding learner-state capabilities only after the generation core is repeatably verified.
