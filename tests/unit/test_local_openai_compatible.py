@@ -119,6 +119,25 @@ class LocalOpenAICompatibleTests(unittest.TestCase):
         ):
             self.assertIn(f'"{field}"', prompt)
 
+    def test_topic_control_is_explicit_in_prompt(self):
+        payload = {
+            "choices": [
+                {"message": {"content": '{\"level\":\"A2\",\"objective\":\"x\",\"duration_minutes\":90,\"activities\":[{}]}'}}
+            ]
+        }
+        generator = create_local_openai_compatible_generator(base_url="http://test")
+
+        with patch("tools.connectors.local_openai_compatible.request.urlopen", return_value=FakeResponse(payload)) as mocked:
+            generator({"topic": "Present Perfect", "prior_knowledge": ["Past Simple"]}, [])
+
+        sent = json.loads(mocked.call_args.args[0].data.decode("utf-8"))
+        prompt = sent["messages"][1]["content"]
+        self.assertIn("TOPIC CONTROL", prompt)
+        self.assertIn("approved topic", prompt)
+        self.assertIn("Present Perfect", prompt)
+        self.assertIn("do not teach Past Perfect", prompt)
+        self.assertIn("Prior knowledge is background knowledge, not the target topic", prompt)
+
     def test_generation_controls_are_sent(self):
         payload = {
             "choices": [
