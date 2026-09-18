@@ -8,10 +8,6 @@ from typing import Any, Callable
 
 from core.foundation.models import Context, FrozenMapping, LearningPlanDecision
 from core.orchestration.provider_contract import validate_provider_output
-from core.pedagogy.activity_contract import ActivityGenerationContract
-from core.pedagogy.activity_validator import validate_activity
-from core.pedagogy.activity_contract import ActivityGenerationContract
-from core.pedagogy.activity_validator import validate_activity
 from core.quality.generation_qc import review_generated_lesson
 from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
 
@@ -126,7 +122,6 @@ def generate_with_revision(
     assessment_decision = generation_request.get("assessment_decision")
     approved_sequence = generation_request.get("sequence")
     activity_contracts = generation_request.get("activity_contracts", [])
-    activity_contracts = generation_request.get("activity_contracts", [])
 
     if not isinstance(expected_level, str) or not isinstance(expected_objective, str):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
@@ -181,22 +176,6 @@ def generate_with_revision(
             }
 
         lesson = _repair_generic_production_fields(lesson, expected_objective, errors)
-        activity_errors: list[str] = []
-        if activity_contracts:
-            activities = lesson.get("activities", [])
-            if not isinstance(activities, list) or len(activities) != len(activity_contracts):
-                activity_errors.append("ACTIVITY_CONTRACT_COUNT_MISMATCH")
-            else:
-                for activity, contract_data in zip(activities, activity_contracts):
-                    if not isinstance(contract_data, Mapping):
-                        activity_errors.append("INVALID_ACTIVITY_CONTRACT")
-                        continue
-                    try:
-                        contract = ActivityGenerationContract(**dict(contract_data))
-                    except (TypeError, ValueError):
-                        activity_errors.append("INVALID_ACTIVITY_CONTRACT")
-                        continue
-                    activity_errors.extend(validate_activity(activity, contract))
         qc_result = review_generated_lesson(
             lesson,
             level=expected_level,
@@ -206,6 +185,7 @@ def generate_with_revision(
             constraints=constraints,
             assessment_decision=assessment_decision,
             approved_sequence=approved_sequence,
+            activity_contracts=activity_contracts,
         )
         errors = activity_errors + list(qc_result["blocking_errors"])
         if qc_result["status"] != "READY":
