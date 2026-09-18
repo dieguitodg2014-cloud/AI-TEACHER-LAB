@@ -122,6 +122,7 @@ def generate_with_revision(
     assessment_decision = generation_request.get("assessment_decision")
     approved_sequence = generation_request.get("sequence")
     activity_contracts = generation_request.get("activity_contracts", [])
+    resource_decision = generation_request.get("resource_decision")
 
     if not isinstance(expected_level, str) or not isinstance(expected_objective, str):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
@@ -186,6 +187,7 @@ def generate_with_revision(
             assessment_decision=assessment_decision,
             approved_sequence=approved_sequence,
             activity_contracts=activity_contracts,
+            resource_decision=resource_decision,
         )
         errors = list(qc_result["blocking_errors"])
         if qc_result["status"] != "READY":

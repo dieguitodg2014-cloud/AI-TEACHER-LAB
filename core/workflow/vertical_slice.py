@@ -298,6 +298,7 @@ def run_lesson_planning(
         learning_plan,
         asdict(context_result.context),
         assessment_decision,
+        asdict(resource_decision) if resource_decision is not None else None,
     )
     orchestration = GenerationOrchestrator(selected_tools, generators)
     generation = orchestration.run(

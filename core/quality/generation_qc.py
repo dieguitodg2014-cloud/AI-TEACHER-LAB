@@ -8,6 +8,7 @@ from typing import Any
 from core.generation.output_validator import validate_generated_lesson
 from core.pedagogy.activity_contract import ActivityGenerationContract
 from core.pedagogy.activity_validator import validate_activity
+from core.quality.weighted_qc import score_weighted_qc
 
 
 def _assessment_alignment_errors(
@@ -129,6 +130,7 @@ def review_generated_lesson(
     assessment_decision: dict[str, Any] | None = None,
     approved_sequence: list[dict[str, Any]] | None = None,
     activity_contracts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None = None,
+    resource_decision: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
@@ -190,16 +192,22 @@ def review_generated_lesson(
         "assessment_alignment": assessment_alignment,
     }
 
-    failed_checks = sum(not value for value in checks.values())
-    score = 100.0 if failed_checks == 0 else max(0.0, 100.0 - (failed_checks * 20.0))
+    weighted = score_weighted_qc(
+        checks=checks,
+        blocking_errors=blocking_errors,
+        lesson=lesson,
+        activity_contracts=activity_contracts,
+        resource_decision=resource_decision,
+    )
     critical_failure = bool(blocking_errors)
 
     return {
         "qc_id": "generation-qc-mvp",
         "status": "READY" if not blocking_errors else "REJECT_AND_REDESIGN",
-        "score": score,
+        "score": weighted["score"],
         "critical_failure": critical_failure,
         "checks": checks,
+        "weighted_qc": weighted,
         "revision_required": bool(blocking_errors),
         "feedback": list(blocking_errors),
         "blocking_errors": list(blocking_errors),

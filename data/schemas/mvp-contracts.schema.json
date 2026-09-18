@@ -135,7 +135,7 @@
     "QCResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["qc_id", "status", "score", "critical_failure", "checks"],
+      "required": ["qc_id", "status", "score", "critical_failure", "checks", "weighted_qc"],
       "properties": {
         "qc_id": {"type": "string", "minLength": 1},
         "status": {"type": "string", "enum": ["READY", "ACCEPTABLE", "REVISION_REQUIRED", "REJECT_AND_REDESIGN"]},
@@ -156,7 +156,17 @@
         },
         "revision_required": {"type": "boolean"},
         "feedback": {"type": "array", "items": {"type": "string"}},
-        "blocking_errors": {"type": "array", "items": {"type": "string"}}
+        "blocking_errors": {"type": "array", "items": {"type": "string"}},
+        "weighted_qc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["score", "weights", "dimensions"],
+          "properties": {
+            "score": {"type": "number", "minimum": 0, "maximum": 100},
+            "weights": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 100}},
+            "dimensions": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 100}}
+          }
+        }
       }
     }
   }

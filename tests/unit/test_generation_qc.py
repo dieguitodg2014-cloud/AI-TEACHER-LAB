@@ -32,6 +32,40 @@ class GenerationQCTests(unittest.TestCase):
         self.assertEqual(result["checks"]["linguistic_accuracy"], True)
         self.assertEqual(result["checks"]["assessment_alignment"], True)
 
+    def test_qc_exposes_weighted_dimensions_and_weights(self):
+        result = review_generated_lesson(
+            self._lesson(),
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+        )
+
+        self.assertEqual(result["score"], 100.0)
+        self.assertEqual(sum(result["weighted_qc"]["weights"].values()), 100.0)
+        self.assertEqual(
+            set(result["weighted_qc"]["dimensions"]),
+            set(result["weighted_qc"]["weights"]),
+        )
+        self.assertEqual(result["weighted_qc"]["dimensions"]["resource_efficiency"], 100.0)
+
+    def test_qc_scores_resource_efficiency_from_authoritative_decision(self):
+        lesson = self._lesson()
+        lesson["resources"] = [{"type": "audio"}]
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            resource_decision={
+                "action": "NO_RESOURCE_REQUIRED",
+                "purpose": "Support the lesson objective",
+            },
+        )
+
+        self.assertEqual(result["weighted_qc"]["dimensions"]["resource_efficiency"], 0.0)
+        self.assertLess(result["score"], 100.0)
+
     def test_qc_rejects_misaligned_lesson(self):
         lesson = self._lesson()
         lesson["level"] = "B1"
