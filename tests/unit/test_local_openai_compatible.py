@@ -2,6 +2,7 @@ import json
 import unittest
 from unittest.mock import patch
 
+from core.foundation.models import FrozenMapping
 from tools.connectors.local_openai_compatible import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TIMEOUT_SECONDS,
@@ -61,6 +62,27 @@ class LocalOpenAICompatibleTests(unittest.TestCase):
         self.assertEqual(result["level"], "A2")
         self.assertEqual(result["duration_minutes"], 90)
         self.assertTrue(result["activities"])
+
+    def test_frozen_mapping_request_is_json_serializable(self):
+        payload = {
+            "choices": [
+                {"message": {"content": '{"level":"A2","objective":"x","duration_minutes":90,"activities":[{}]}'}}
+            ]
+        }
+        generator = create_local_openai_compatible_generator(base_url="http://test")
+
+        request_data = FrozenMapping({
+            "level": "A2",
+            "teacher_preferences": FrozenMapping({"mode": "guided"}),
+            "sequence": [{"stage": "presentation", "minutes": 10}],
+        })
+        with patch("tools.connectors.local_openai_compatible.request.urlopen", return_value=FakeResponse(payload)) as mocked:
+            generator(request_data, [])
+
+        sent = json.loads(mocked.call_args.args[0].data.decode("utf-8"))
+        prompt = sent["messages"][1]["content"]
+        self.assertIn('"teacher_preferences": {', prompt)
+        self.assertIn('"mode": "guided"', prompt)
 
     def test_generation_controls_are_sent(self):
         payload = {
