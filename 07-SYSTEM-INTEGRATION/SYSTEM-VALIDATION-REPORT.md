@@ -83,13 +83,13 @@ The configured-runtime regression test explicitly verifies this expected behavio
 | Adaptation | IMPLEMENTED | Deterministic bounded next-step recommendation; level and contract preserved |
 | Learning-state integration | IMPLEMENTED | Explicit completion boundary connecting evidence, memory, and adaptation |
 | Full external tool automation | PARTIAL | Human handoff supported; connector automation remains future work |
-| Automated test execution / CI | PENDING | CI workflow exists; recent commit has not yet produced a workflow run |
+| Automated test execution / CI | CERTIFIED | Repository test suite certified through GitHub Actions |
 
 ## Important Validation Limitations
 
 The Quality Control implementation now includes a deterministic weighted scoring layer over the approved QC evidence. The score covers learning validity, pedagogical alignment, level appropriacy, scaffolding alignment, language accuracy evidence, communicative value, practical feasibility, assessment alignment, and resource efficiency when an authoritative resource decision is available. Blocking validation remains authoritative: a weighted score never overrides a critical contract failure.
 
-The repository contains unit and integration tests for the implemented components, and the MVP certification path has now been executed successfully in GitHub Actions. The certification PR passed its CI check and the resulting merge commit also passed the main-branch CI workflow.
+The repository contains unit and integration tests for the implemented components, and the MVP certification path has been executed successfully in GitHub Actions. The certification PR passed its CI check. Main-branch CI remains the authoritative post-merge verification for each merge.
 
 The real local runtime has been validated manually. This is evidence of executable integration, not a substitute for a repeatable automated test suite.
 
@@ -109,7 +109,7 @@ The architecture should now be treated as frozen for the MVP. Further work shoul
 
 ## MVP-Next Boundary
 
-The MVP boundary is intentionally frozen at the accepted lesson-generation workflow. The following capabilities are explicitly deferred and must not be treated as missing MVP architecture:
+The MVP boundary is intentionally frozen at the accepted lesson-generation workflow. The following items describe the completed MVP-Next extensions and the remaining deferred scope:
 
 1. **Course Memory** — completed in MVP-Next.
 2. **Learning Evidence** — completed in MVP-Next.
