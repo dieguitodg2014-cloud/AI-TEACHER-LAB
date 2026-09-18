@@ -102,6 +102,10 @@ class ActivityPlan:
     minutes: int
     student_production: str = ""
     assessment_link: str = ""
+    skill: str = "MIXED"
+    cognitive_demand: str = "APPLY"
+    scaffolding: int = 2
+    language_target: str = ""
 
 
 @dataclass(frozen=True)
