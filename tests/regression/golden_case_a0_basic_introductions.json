@@ -1,0 +1,22 @@
+{
+  "case_id": "golden-a0-basic-introductions-001",
+  "name": "A0 Basic Introductions",
+  "request": {
+    "level": "A0",
+    "audience": "adult absolute beginners",
+    "duration_minutes": 60,
+    "objective": "Introduce yourself and give basic personal information.",
+    "topic": "Personal Information",
+    "constraints": ["Use very simple language"]
+  },
+  "expected_invariants": {
+    "level": "A0",
+    "duration_minutes": 60,
+    "objective": "Introduce yourself and give basic personal information.",
+    "required_learning_plan_stages": ["presentation", "modeling", "guided_practice", "communicative_practice", "production", "assessment"],
+    "resource_decision_must_be_explicit": true,
+    "tool_selection_must_be_capability_based": true,
+    "qc_must_be_run_before_final_approval": true
+  },
+  "success_criteria": ["The system preserves A0 level, objective, and duration.", "The plan contains observable evidence of learning.", "The sequence remains pedagogically staged."]
+}
