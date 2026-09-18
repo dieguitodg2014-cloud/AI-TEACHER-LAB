@@ -1,5 +1,6 @@
 import unittest
 
+from core.generation.lesson_generator import build_generation_request
 from core.generation.revision import generate_with_revision
 
 
@@ -133,6 +134,41 @@ class GenerationRevisionTests(unittest.TestCase):
         self.assertEqual(result["attempts"], 2)
         self.assertIn("INTERACTION_MISMATCH", calls[1])
         self.assertEqual(result["qc"]["status"], "READY")
+
+    def test_build_generation_request_binds_approved_topic_to_activity_contract(self):
+        class Activity:
+            activity_id = "activity-1"
+            skill = "MIXED"
+            interaction = "pairs"
+            cognitive_demand = "APPLY"
+            scaffolding = 2
+            minutes = 15
+            language_target = ""
+            assessment_link = ""
+            student_production = "Students discuss a past experience."
+            purpose = "Practice the approved topic."
+
+        class Plan:
+            objective = "Discuss past experiences and ask follow-up questions."
+            sequence = [Activity()]
+            evidence_of_learning = "Observable performance."
+            resource_need = "NO_RESOURCE_REQUIRED"
+
+        request = build_generation_request(
+            Plan(),
+            {
+                "level": "A2",
+                "audience": "adult ESL learners",
+                "duration_minutes": 90,
+                "topic": "Present Perfect",
+                "prior_knowledge": ["Past Simple"],
+                "constraints": [],
+            },
+        )
+
+        self.assertEqual(request["topic"], "Present Perfect")
+        self.assertEqual(request["activity_contracts"][0]["must_include"], ["Present Perfect"])
+        self.assertEqual(request["activity_contracts"][0]["must_not_include"], [])
 
     def test_repeated_failure_is_rejected(self):
         def generator(request, errors):
