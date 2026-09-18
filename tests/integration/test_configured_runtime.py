@@ -35,15 +35,16 @@ def test_configured_runtime_resolves_generator_and_runs_vertical_slice(tmp_path,
             "topic": generation_request["topic"],
             "activities": [
                 {
-                    "stage": stage,
-                    "minutes": activity["minutes"],
-                    "purpose": stage["purpose"],
+                    **contract,
+                    "stage": stage["purpose"],
+                    "minutes": contract["duration_minutes"],
+                    "purpose": contract["objective"],
                     "instructions": "Run the activity.",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
+                    "student_production": contract["evidence"],
                     "assessment_link": "Teacher observes the learner response during the task.",
                 }
-                for stage, activity in zip(
-                    generation_request["sequence"],
+                for contract, stage in zip(
+                    generation_request["activity_contracts"],
                     generation_request["sequence"],
                 )
             ],
@@ -97,13 +98,11 @@ def test_provider_cannot_redefine_approved_pedagogical_objective(tmp_path, monke
             "duration_minutes": generation_request["duration_minutes"],
             "activities": [
                 {
-                    "minutes": activity["minutes"],
-                    "purpose": activity["purpose"],
-                    "instructions": "Run the approved activity.",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
-                    "assessment_link": "Teacher observes the learner response during the task.",
+                    **contract,
+                    "student_production": contract["evidence"],
+                    "assessment_link": "Teacher observes the learner response.",
                 }
-                for activity in generation_request["sequence"]
+                for contract in generation_request["activity_contracts"]
             ],
         }
 
