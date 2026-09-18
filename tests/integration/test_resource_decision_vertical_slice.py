@@ -28,10 +28,15 @@ class ResourceDecisionVerticalSliceTests(unittest.TestCase):
                     {
                         **contract,
                         "name": "resource decision test",
-                        "student_production": contract["evidence"],
-                        "assessment_link": "Teacher observes the learner response during the activity.",
+                        "minutes": stage["minutes"],
+                        "purpose": stage["purpose"],
+                        "student_production": stage["student_production"],
+                        "assessment_link": stage["assessment_link"],
                     }
-                    for contract in request["activity_contracts"]
+                    for contract, stage in zip(
+                        request["activity_contracts"],
+                        request["sequence"],
+                    )
                 ],
             }
 
