@@ -33,7 +33,24 @@ def build_generation_request(
         "duration_minutes": context.get("duration_minutes"),
         "topic": context.get("topic"),
         "prior_knowledge": list(context.get("prior_knowledge", [])),
-        "activity_contracts": [\n            {\n                "activity_id": activity.activity_id,\n                "level": context.get("level"),\n                "objective": plan.objective,\n                "skill": activity.skill,\n                "interaction": activity.interaction,\n                "cognitive_demand": activity.cognitive_demand,\n                "scaffolding": activity.scaffolding,\n                "duration_minutes": activity.minutes,\n                "language_target": activity.language_target,\n                "must_include": [],\n                "must_not_include": [],\n                "evidence": activity.assessment_link or activity.student_production,\n            }\n            for activity in plan.sequence\n        ],\n        "sequence": [
+        "activity_contracts": [
+            {
+                "activity_id": activity.activity_id,
+                "level": context.get("level"),
+                "objective": plan.objective,
+                "skill": activity.skill,
+                "interaction": activity.interaction,
+                "cognitive_demand": activity.cognitive_demand,
+                "scaffolding": activity.scaffolding,
+                "duration_minutes": activity.minutes,
+                "language_target": activity.language_target,
+                "must_include": [],
+                "must_not_include": [],
+                "evidence": activity.assessment_link or activity.student_production,
+            }
+            for activity in plan.sequence
+        ],
+        "sequence": [
             {
                 "purpose": activity.purpose,
                 "interaction": activity.interaction,
