@@ -37,11 +37,11 @@ def test_configured_runtime_resolves_generator_and_runs_vertical_slice(tmp_path,
                 {
                     **contract,
                     "stage": stage["purpose"],
-                    "minutes": contract["duration_minutes"],
-                    "purpose": contract["objective"],
+                    "minutes": stage["minutes"],
+                    "purpose": stage["purpose"],
                     "instructions": "Run the activity.",
-                    "student_production": contract["evidence"],
-                    "assessment_link": "Teacher observes the learner response during the task.",
+                    "student_production": stage["student_production"],
+                    "assessment_link": stage["assessment_link"],
                 }
                 for contract, stage in zip(
                     generation_request["activity_contracts"],

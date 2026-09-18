@@ -68,7 +68,7 @@ class GenerationRevisionTests(unittest.TestCase):
         def generator(provider_request, errors):
             with self.assertRaises(TypeError):
                 provider_request["level"] = "B2"
-            with self.assertRaises(TypeError):
+            with self.assertRaises(AttributeError):
                 provider_request["constraints"].append("new constraint")
             with self.assertRaises(TypeError):
                 provider_request["assessment_decision"]["success_criteria"] += ("new",)
