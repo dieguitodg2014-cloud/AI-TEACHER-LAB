@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Protocol
 
 from core.foundation.models import AssessmentDecision
@@ -12,7 +13,7 @@ class LessonGenerator(Protocol):
 
     def __call__(
         self,
-        generation_request: dict[str, Any],
+        generation_request: Mapping[str, Any],
         previous_errors: list[str],
     ) -> dict[str, Any]:
         """Generate a lesson from a constrained request and prior QC errors."""
