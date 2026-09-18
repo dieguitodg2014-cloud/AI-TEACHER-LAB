@@ -88,7 +88,7 @@ class ConfiguredGenerationVerticalSliceTests(unittest.TestCase):
             )
 
         self.assertEqual(result.status, "HUMAN_HANDOFF")
-        self.assertEqual(result.generation["errors"], ["GENERATOR_UNAVAILABLE"])
+        self.assertEqual(result.generation["errors"], ("GENERATOR_UNAVAILABLE",))
 
 
 if __name__ == "__main__":
