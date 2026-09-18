@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -64,7 +65,7 @@ class VerticalSliceResult:
         object.__setattr__(self, "errors", tuple(self.errors))
 
     @property
-    def resource_generation(self) -> dict[str, Any] | None:
+    def resource_generation(self) -> Mapping[str, Any] | None:
         """Backward-compatible alias for the resource-generation result.
 
         ``generation`` is the established public field used by the workflow
