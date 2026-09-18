@@ -22,7 +22,7 @@ class VerticalSliceStatusContractTests(unittest.TestCase):
         self.assertEqual(result.status, "MISSING_CONTEXT")
         self.assertIsNone(result.context)
         self.assertTrue(result.missing)
-        self.assertEqual(result.errors, [])
+        self.assertEqual(result.errors, ())
 
     def test_planning_is_distinguished_from_execution(self):
         result = run_lesson_planning(self._request())
@@ -44,7 +44,7 @@ class VerticalSliceStatusContractTests(unittest.TestCase):
         result = run_lesson_planning(self._request(), tools=[tool])
 
         self.assertEqual(result.status, "HUMAN_HANDOFF")
-        self.assertEqual(result.errors, ["GENERATOR_UNAVAILABLE"])
+        self.assertEqual(result.errors, ("GENERATOR_UNAVAILABLE",))
         self.assertIsNotNone(result.generation)
         self.assertEqual(result.generation["status"], "HUMAN_HANDOFF")
 
@@ -74,7 +74,7 @@ class VerticalSliceStatusContractTests(unittest.TestCase):
         )
 
         self.assertEqual(result.status, "HUMAN_HANDOFF")
-        self.assertEqual(result.errors, ["NO_SUITABLE_TOOL"])
+        self.assertEqual(result.errors, ("NO_SUITABLE_TOOL",))
 
 
 if __name__ == "__main__":

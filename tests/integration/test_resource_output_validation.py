@@ -49,13 +49,8 @@ def test_vertical_slice_requests_revision_for_incomplete_quality_evidence():
     assert result.resource_handoff["status"] == "REVISION_REQUIRED"
     assert result.resource_handoff["workflow"] == "NotebookLM"
     assert result.resource_handoff["validation_id"] == result.resource_validation.validation_id
-    assert result.resource_handoff["failed_checks"] == ["quality_criteria_acknowledged"]
-    assert result.resource_handoff["return_contract"]["required_fields"] == [
-        "resource_type",
-        "level",
-        "objective",
-        "content",
-    ]
+    assert result.resource_handoff["failed_checks"] == ("quality_criteria_acknowledged",)
+    assert result.resource_handoff["return_contract"]["required_fields"] == ("resource_type", "level", "objective", "content")
 
 
 def test_vertical_slice_requests_revision_for_objective_declaration_mismatch():

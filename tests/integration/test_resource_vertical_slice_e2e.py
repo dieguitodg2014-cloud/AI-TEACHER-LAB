@@ -80,7 +80,7 @@ class ResourceVerticalSliceE2ETests(unittest.TestCase):
         self.assertEqual(result.resource_task.task_type, "RESOURCE_PRODUCTION")
         self.assertIsNone(result.resource_tool)
         self.assertIsNotNone(result.resource_handoff)
-        self.assertEqual(result.errors, ["NO_SUITABLE_RESOURCE_TOOL"])
+        self.assertEqual(result.errors, ("NO_SUITABLE_RESOURCE_TOOL",))
 
 
 if __name__ == "__main__":
