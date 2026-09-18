@@ -42,8 +42,10 @@ def main() -> int:
     print("STARTING LOCAL RUNTIME TEST")
     print(f"MODEL: {args.model}")
     print(f"BASE_URL: {args.base_url}")
-    print(f"TIMEOUT_SECONDS: {os.getenv(\"AI_TEACHER_LAB_PROVIDER_TIMEOUT_SECONDS\", \"default\")}")
-    print(f"MAX_TOKENS: {os.getenv(\"AI_TEACHER_LAB_PROVIDER_MAX_TOKENS\", \"default\")}")
+    timeout_setting = os.getenv("AI_TEACHER_LAB_PROVIDER_TIMEOUT_SECONDS", "default")
+    max_tokens_setting = os.getenv("AI_TEACHER_LAB_PROVIDER_MAX_TOKENS", "default")
+    print(f"TIMEOUT_SECONDS: {timeout_setting}")
+    print(f"MAX_TOKENS: {max_tokens_setting}")
     print("The configured runtime may perform up to 3 provider attempts.")
     print("Waiting for the local provider...")
 
