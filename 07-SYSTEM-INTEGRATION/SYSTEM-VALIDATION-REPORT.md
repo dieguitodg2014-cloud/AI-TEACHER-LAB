@@ -15,7 +15,7 @@ The system must transform a teacher request through a consistent chain:
 
 **Teacher Request -> Context -> Level Control -> Pedagogical Decision -> Resource Decision -> Task Packaging -> Tool Selection -> Generation or Human Handoff -> Validation -> Quality Control**
 
-Classroom use, learner evidence, and adaptation remain downstream stages and are not yet represented as a complete executable runtime in the current MVP.
+Classroom use remains downstream of the executable runtime. MVP-Next now includes an explicit post-lesson learner-state cycle: completed lesson -> observable evidence -> Course Memory -> bounded Adaptation.
 
 ## Historical Structural Validation
 
@@ -78,8 +78,10 @@ The configured-runtime regression test explicitly verifies this expected behavio
 | Generated Output Validation | IMPLEMENTED | Topic/constraint/structure checks |
 | Revision Loop | IMPLEMENTED | Deterministic integration tests exist |
 | Generation QC | WEIGHTED QC IMPLEMENTED | Structural/alignment checks plus deterministic weighted scoring across learning validity, pedagogy, level, scaffolding, language, communication, feasibility, assessment, and resource efficiency |
-| Course Memory | DESIGNED | Not complete executable MVP |
-| Learning Evidence / Adaptation | DESIGNED | Not complete executable MVP |
+| Course Memory | IMPLEMENTED | Immutable course/session state with in-memory and durable JSON stores |
+| Learning Evidence | IMPLEMENTED | Immutable observable evidence with in-memory and durable JSON stores |
+| Adaptation | IMPLEMENTED | Deterministic bounded next-step recommendation; level and contract preserved |
+| Learning-state integration | IMPLEMENTED | Explicit completion boundary connecting evidence, memory, and adaptation |
 | Full external tool automation | PARTIAL | Human handoff supported; connector automation remains future work |
 | Automated test execution / CI | PENDING | CI workflow exists; recent commit has not yet produced a workflow run |
 
@@ -101,7 +103,7 @@ No new architectural layer is required for the frozen MVP validation gate.
 
 ## Current Overall Status
 
-**MVP CORE IMPLEMENTED - AUTOMATED CI CERTIFIED; WEIGHTED QC IMPLEMENTED**
+**MVP CORE IMPLEMENTED - AUTOMATED CI CERTIFIED; WEIGHTED QC IMPLEMENTED; MVP-NEXT LEARNING STATE INTEGRATED**
 
 The architecture should now be treated as frozen for the MVP. Further work should focus on execution, testing, bug fixing, and real classroom validation rather than adding new conceptual engines.
 
@@ -109,9 +111,9 @@ The architecture should now be treated as frozen for the MVP. Further work shoul
 
 The MVP boundary is intentionally frozen at the accepted lesson-generation workflow. The following capabilities are explicitly deferred and must not be treated as missing MVP architecture:
 
-1. **Course Memory** — persistent course/session state across lessons.
-2. **Learning Evidence** — executable capture and storage of learner performance evidence.
-3. **Adaptation** — automatic pedagogical adaptation driven by accumulated learner evidence.
+1. **Course Memory** — completed in MVP-Next.
+2. **Learning Evidence** — completed in MVP-Next.
+3. **Adaptation** — completed in MVP-Next.
 4. **Broader QC semantics** — richer linguistic and classroom-usability evaluation beyond the current deterministic weighted evidence model.
 5. **Broader external-tool automation** — additional production connectors and operational fallback chains beyond the current configured runtime and human-handoff path.
 6. **Broader automated certification scope** — additional runtime/environment-specific certification beyond the repository CI suite.
@@ -122,6 +124,6 @@ New work should enter one of these deferred tracks only when there is a concrete
 
 ### Recommended order after MVP certification
 
-**Automated test certification → Weighted QC → Course Memory → Learning Evidence → Adaptation → broader external-tool automation.**
+**Automated test certification → Weighted QC → Course Memory → Learning Evidence → Adaptation → integrated MVP-Next validation → broader external-tool automation.**
 
 This ordering preserves the existing acceptance boundary while adding learner-state capabilities only after the generation core is repeatably verified.
