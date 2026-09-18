@@ -40,7 +40,9 @@ The current implementation contains an executable vertical slice connecting the 
 9. Lesson generation through the configured local OpenAI-compatible connector.
 10. Generated-output validation.
 11. Revision loop for Quality Control failures.
-12. Structured QC result before approval.
+12. Structured Generation QC result.
+13. Independent lesson validation against authoritative Context and approved learning plan.
+14. Acceptance gate: only READY results can become teacher-facing output.
 
 The vertical slice exposes these results through `VerticalSliceResult`, keeping context, level, learning plan, resource decision, resource task, selected resource tool, human handoff, generation result, missing context, and errors together in one controlled result object. fileciteturn306file0
 
@@ -79,11 +81,11 @@ The configured-runtime regression test explicitly verifies this expected behavio
 | Course Memory | DESIGNED | Not complete executable MVP |
 | Learning Evidence / Adaptation | DESIGNED | Not complete executable MVP |
 | Full external tool automation | PARTIAL | Human handoff supported; connector automation remains future work |
-| Automated test execution / CI | NOT YET COMPLETE | Tests exist, but no CI execution has been established |
+| Automated test execution / CI | PENDING | CI workflow exists; recent commit has not yet produced a workflow run |
 
 ## Important Validation Limitations
 
-The current Quality Control implementation is an MVP implementation. It validates core structural and alignment conditions, but it does not yet implement the complete weighted QC model defined by the architecture, including the full communicative, scaffolding, language, assessment, and resource-efficiency scoring system.
+The current Quality Control implementation is an MVP implementation. It validates core structural and alignment conditions, including activity contracts, but it does not yet implement the complete weighted QC model defined by the architecture, including the full communicative, scaffolding, language, assessment, and resource-efficiency scoring system.
 
 The repository contains unit and integration tests for the implemented components, but the current validation record does not claim that those automated tests have passed in CI. They have been created as executable verification artifacts and still require actual automated execution.
 
@@ -91,7 +93,7 @@ The real local runtime has been validated manually. This is evidence of executab
 
 ## Final MVP Gate
 
-The MVP is considered **FUNCTIONALLY INTEGRATED BUT NOT YET FORMALLY TEST-CERTIFIED**.
+The MVP is considered **FUNCTIONALLY INTEGRATED BUT NOT YET FORMALLY TEST-CERTIFIED**. The acceptance boundary is now explicit: generation must pass Generation QC and the independent lesson validator before teacher-facing output can be produced.
 
 The critical architecture-to-code path is implemented and a real local generation path has been demonstrated. The remaining strictly necessary validation work is:
 
