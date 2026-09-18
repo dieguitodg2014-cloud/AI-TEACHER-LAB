@@ -28,7 +28,7 @@ class VerticalSliceStatusContractTests(unittest.TestCase):
         result = run_lesson_planning(self._request())
         self.assertEqual(result.status, "PLANNED")
         self.assertIsNone(result.generation)
-        self.assertEqual(result.errors, [])
+        self.assertEqual(result.errors, ())
 
     def test_missing_generator_is_human_handoff(self):
         tool = ToolCandidate(
