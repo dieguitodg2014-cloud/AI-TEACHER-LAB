@@ -9,7 +9,7 @@ from typing import Any, Callable
 from core.assessment.decision_engine import decide_assessment
 from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
-from core.foundation.models import AssessmentDecision, Context, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
+from core.foundation.models import AssessmentDecision, Context, FrozenMapping, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
 from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
@@ -27,6 +27,20 @@ from tools.registry.config_loader import load_tool_registry_config
 DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
 
 
+def _materialize(value: Any) -> Any:
+    if isinstance(value, FrozenMapping):
+        return {key: _materialize(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_materialize(item) for item in value]
+    if isinstance(value, frozenset):
+        return [_materialize(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _materialize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_materialize(item) for item in value]
+    return value
+
+
 @dataclass(frozen=True)
 class VerticalSliceResult:
     status: str
@@ -37,11 +51,17 @@ class VerticalSliceResult:
     resource_decision: ResourceDecision | None
     resource_task: TaskPacket | None
     resource_tool: ToolCandidate | None
-    resource_handoff: dict[str, Any] | None
+    resource_handoff: FrozenMapping | None
     resource_validation: ResourceValidationResult | None
-    generation: dict[str, Any] | None
-    missing: list[str]
-    errors: list[str]
+    generation: FrozenMapping | None
+    missing: tuple[str, ...]
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "resource_handoff", FrozenMapping(self.resource_handoff) if self.resource_handoff is not None else None)
+        object.__setattr__(self, "generation", FrozenMapping(self.generation) if self.generation is not None else None)
+        object.__setattr__(self, "missing", tuple(self.missing))
+        object.__setattr__(self, "errors", tuple(self.errors))
 
     @property
     def resource_generation(self) -> dict[str, Any] | None:
@@ -292,6 +312,10 @@ def run_lesson_planning(
 def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
     """Serialize the workflow result for an API, CLI, or future interface."""
     payload = asdict(result)
+    payload["resource_handoff"] = _materialize(payload["resource_handoff"])
+    payload["generation"] = _materialize(payload["generation"])
+    payload["missing"] = list(payload["missing"])
+    payload["errors"] = list(payload["errors"])
     if payload["assessment_decision"] is not None:
         payload["assessment_decision"]["success_criteria"] = list(
             payload["assessment_decision"]["success_criteria"]
