@@ -1,0 +1,22 @@
+{
+  "case_id": "golden-b1-past-experiences-001",
+  "name": "B1 Past Experiences",
+  "request": {
+    "level": "B1",
+    "audience": "adult intermediate ESL learners",
+    "duration_minutes": 90,
+    "objective": "Discuss past experiences and explain what happened.",
+    "topic": "Past Experiences",
+    "constraints": ["Include meaningful pair interaction"]
+  },
+  "expected_invariants": {
+    "level": "B1",
+    "duration_minutes": 90,
+    "objective": "Discuss past experiences and explain what happened.",
+    "required_learning_plan_stages": ["presentation", "modeling", "guided_practice", "communicative_practice", "production", "assessment"],
+    "resource_decision_must_be_explicit": true,
+    "tool_selection_must_be_capability_based": true,
+    "qc_must_be_run_before_final_approval": true
+  },
+  "success_criteria": ["The system preserves B1 level, objective, and duration.", "The plan contains observable evidence of learning.", "The communicative stage is retained."]
+}
