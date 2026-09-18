@@ -24,11 +24,15 @@ class ResourceDecisionVerticalSliceTests(unittest.TestCase):
                 "level": request["level"],
                 "objective": request["objective"],
                 "duration_minutes": request["duration_minutes"],
-                "activities": [{
-                    "name": "resource decision test",
-                    "student_production": "Students give an observable response demonstrating the objective.",
-                    "assessment_link": "Teacher observes the learner response during the activity.",
-                }],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "resource decision test",
+                        "student_production": contract["evidence"],
+                        "assessment_link": "Teacher observes the learner response during the activity.",
+                    }
+                    for contract in request["activity_contracts"]
+                ],
             }
 
         return generator
