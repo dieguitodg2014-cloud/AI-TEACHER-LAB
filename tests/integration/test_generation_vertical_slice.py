@@ -33,11 +33,15 @@ class GenerationVerticalSliceTests(unittest.TestCase):
                 "objective": request["objective"],
                 "duration_minutes": request["duration_minutes"],
                 "topic": request["topic"],
-                "activities": [{
-                    "name": "communicative task",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
-                    "assessment_link": "Teacher observes the learner response during the task.",
-                }],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "approved activity",
+                        "student_production": contract["evidence"] or "Students complete the approved task.",
+                        "assessment_link": "Teacher observes the learner response.",
+                    }
+                    for contract in request["activity_contracts"]
+                ],
             }
 
         result = run_lesson_planning(
@@ -60,11 +64,15 @@ class GenerationVerticalSliceTests(unittest.TestCase):
                 "objective": request["objective"],
                 "duration_minutes": request["duration_minutes"],
                 "topic": request["topic"],
-                "activities": [{
-                    "name": "communicative task",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
-                    "assessment_link": "Teacher observes the learner response during the task.",
-                }],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "approved activity",
+                        "student_production": contract["evidence"] or "Students complete the approved task.",
+                        "assessment_link": "Teacher observes the learner response.",
+                    }
+                    for contract in request["activity_contracts"]
+                ],
             }
 
         result = run_lesson_planning(
@@ -100,11 +108,15 @@ class GenerationVerticalSliceTests(unittest.TestCase):
                 "objective": request["objective"],
                 "duration_minutes": request["duration_minutes"],
                 "topic": request["topic"],
-                "activities": [{
-                    "name": "communicative task",
-                    "student_production": "Students discuss a past experience and ask a follow-up question.",
-                    "assessment_link": "Teacher observes the learner response during the task.",
-                }],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "approved activity",
+                        "student_production": contract["evidence"] or "Students complete the approved task.",
+                        "assessment_link": "Teacher observes the learner response.",
+                    }
+                    for contract in request["activity_contracts"]
+                ],
             }
 
         result = run_lesson_planning(
