@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from core.foundation.models import Context, LearningPlanDecision
+from core.foundation.models import Context, FrozenMapping, LearningPlanDecision
 from core.orchestration.provider_contract import validate_provider_output
 from core.quality.generation_qc import review_generated_lesson
 from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult
@@ -127,16 +127,19 @@ def generate_with_revision(
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if expected_topic is not None and not isinstance(expected_topic, str):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
-    if not isinstance(constraints, list):
+    if not isinstance(constraints, (list, tuple)):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
-    if assessment_decision is not None and not isinstance(assessment_decision, dict):
+    if assessment_decision is not None and not isinstance(assessment_decision, (dict, FrozenMapping)):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
-    if approved_sequence is not None and not isinstance(approved_sequence, list):
+    if approved_sequence is not None and not isinstance(approved_sequence, (list, tuple)):
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if not isinstance(max_revisions, int) or max_revisions < 0:
         return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
     if independent_validator is not None and validation_context is None:
         return {"status": "FAILED", "lesson": None, "errors": ["VALIDATION_CONTEXT_REQUIRED"]}
+
+    # Providers receive a deep immutable snapshot of the approved request.
+    provider_request = FrozenMapping(generation_request)
 
     attempts = 0
     errors: list[str] = []
@@ -146,7 +149,7 @@ def generate_with_revision(
 
     while attempts <= max_revisions:
         try:
-            lesson = generator(generation_request, errors)
+            lesson = generator(provider_request, errors)
         except Exception as exc:
             return {
                 "status": "FAILED",
