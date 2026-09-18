@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Mapping
 from urllib import error, request
 
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1/chat/completions"
@@ -17,6 +17,15 @@ class LocalProviderError(RuntimeError):
     """Controlled error raised when the local provider cannot generate output."""
 
 
+def _json_safe(value: Any) -> Any:
+    """Convert immutable contract containers into JSON-serializable values."""
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]) -> str:
     """Build a constrained generation prompt from the approved learning plan."""
     return (
@@ -24,7 +33,7 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         "The pedagogical plan below is authoritative. Do not change the level, "
         "objective, duration, sequence, assessment decision, or constraints. "
         "Generate only the lesson artifact. Do not add commentary.\n\n"
-        f"APPROVED REQUEST:\n{json.dumps(generation_request, ensure_ascii=False, indent=2)}\n\n"
+        f"APPROVED REQUEST:\n{json.dumps(_json_safe(generation_request), ensure_ascii=False, indent=2)}\n\n"
         f"PREVIOUS QC ERRORS:\n{json.dumps(previous_errors, ensure_ascii=False)}\n\n"
         "REVISION RULES:\n"
         "If PREVIOUS QC ERRORS is not empty, treat every listed error as a blocking defect "
