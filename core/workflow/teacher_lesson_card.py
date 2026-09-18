@@ -77,7 +77,7 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         resource = {
             "required_output": result.resource_task.required_output,
             "purpose": result.resource_decision.purpose if result.resource_decision else "",
-            "tool_id": result.resource_tool.id if result.resource_tool is not None else "",
+            "tool_id": result.resource_tool.tool_id if result.resource_tool is not None else "",
         }
 
     return TeacherLessonCard(
