@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from core.foundation.models import Context, TaskPacket
+from core.foundation.models import Context, FrozenMapping, TaskPacket
 from core.orchestration.resource_handoff import build_resource_revision_handoff
 from core.resources.output_validator import ResourceValidationResult, validate_resource_output
 
@@ -22,8 +22,16 @@ class ResourceReturnResult:
     status: str
     task_id: str
     validation: ResourceValidationResult
-    revision_handoff: dict[str, Any] | None
-    errors: list[str]
+    revision_handoff: FrozenMapping | None
+    errors: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "revision_handoff",
+            FrozenMapping(self.revision_handoff) if self.revision_handoff is not None else None,
+        )
+        object.__setattr__(self, "errors", tuple(self.errors))
 
 
 def receive_resource(
@@ -73,11 +81,28 @@ def receive_resource(
     )
 
 
+def _materialize(value: Any) -> Any:
+    """Convert immutable contract containers to JSON-compatible containers."""
+    if isinstance(value, FrozenMapping):
+        return {key: _materialize(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_materialize(item) for item in value]
+    if isinstance(value, frozenset):
+        return [_materialize(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _materialize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_materialize(item) for item in value]
+    return value
+
+
 def resource_return_to_dict(result: ResourceReturnResult) -> dict[str, Any]:
-    """Serialize a resource-return result with JSON-friendly validation fields."""
+    """Serialize a resource-return result with JSON-friendly contract fields."""
     payload = asdict(result)
+    payload["revision_handoff"] = _materialize(payload["revision_handoff"])
     validation = payload["validation"]
     validation["checks"] = dict(validation["checks"])
     validation["feedback"] = list(validation["feedback"])
     validation["blocking_errors"] = list(validation["blocking_errors"])
+    payload["errors"] = list(payload["errors"])
     return payload
