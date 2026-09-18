@@ -118,6 +118,13 @@ def test_provider_cannot_redefine_approved_pedagogical_objective(tmp_path, monke
             "topic": "Present Perfect",
             "constraints": ["Students know Past Simple", "Question formation is a difficulty"],
         },
+        tool_config_path=config_path,
+    )
+
+    assert result.status != "READY"
+    assert result.generation["tool_id"] == "test-generator"
+    assert result.generation["result"]["qc"] is not None
+
 
 def test_runtime_connector_failure_cannot_reach_teacher_facing_acceptance(monkeypatch):
     def failing_loader(config_path):
