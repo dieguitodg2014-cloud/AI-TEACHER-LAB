@@ -49,7 +49,7 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         "Generate only the lesson artifact. Do not add commentary.\n\n"
         f"APPROVED REQUEST:\n{json.dumps(_json_safe(generation_request), ensure_ascii=False, indent=2)}\n\n"
         f"PREVIOUS QC ERRORS:\n{json.dumps(previous_errors, ensure_ascii=False)}\n\n"
-        "ACTIVITY CONTRACT RULES:\n"
+        "TOPIC CONTROL — HARD CONSTRAINT:\n"\n        "The approved topic in APPROVED REQUEST is authoritative. Teach and practice exactly that topic. " "Do not substitute a related grammar topic or concept. For example, if the approved topic is Present Perfect, " "do not teach Past Perfect. Prior knowledge is background knowledge, not the target topic. " "The generated lesson must explicitly teach or practice the approved topic.\n"        "ACTIVITY CONTRACT RULES:\n"
         "Each object in activity_contracts defines one activity in the exact approved order. For EVERY generated activity, "
         "copy these contract-controlled fields exactly: activity_id, level, objective, skill, interaction, cognitive_demand, "
         "scaffolding, duration_minutes, language_target, and evidence. Do not omit them, rename them, or invent different values. "
