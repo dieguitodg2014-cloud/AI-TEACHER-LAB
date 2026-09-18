@@ -60,6 +60,35 @@ class GenerationRevisionTests(unittest.TestCase):
         self.assertEqual(result["qc"]["score"], 100.0)
         self.assertEqual(result["qc"]["blocking_errors"], [])
 
+    def test_provider_cannot_mutate_generation_request(self):
+        request = self._request()
+        request["constraints"] = ["stay communicative"]
+        request["assessment_decision"] = {"success_criteria": ["ask a question"]}
+
+        def generator(provider_request, errors):
+            with self.assertRaises(TypeError):
+                provider_request["level"] = "B2"
+            with self.assertRaises(TypeError):
+                provider_request["constraints"].append("new constraint")
+            with self.assertRaises(TypeError):
+                provider_request["assessment_decision"]["success_criteria"] += ("new",)
+            return {
+                "level": provider_request["level"],
+                "objective": provider_request["objective"],
+                "duration_minutes": provider_request["duration_minutes"],
+                "activities": [{"name": "discussion"}],
+            }
+
+        result = generate_with_revision(generator, request)
+
+        self.assertEqual(result["status"], "READY")
+        self.assertEqual(request["level"], "A2")
+        self.assertEqual(request["constraints"], ["stay communicative"])
+        self.assertEqual(
+            request["assessment_decision"]["success_criteria"],
+            ["ask a question"],
+        )
+
     def test_repeated_failure_is_rejected(self):
         def generator(request, errors):
             return {
