@@ -71,13 +71,29 @@ class TestResourceReturn(unittest.TestCase):
         self.assertTrue(result.validation.critical_failure)
         self.assertTrue(result.errors)
 
-    def test_return_result_is_serializable(self):
+    def test_validation_result_collections_are_immutable(self):
+        result = receive_resource(
+            self.context,
+            self.task,
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
+        )
+
+        self.assertIsInstance(result.validation.feedback, tuple)
+        self.assertIsInstance(result.validation.blocking_errors, tuple)
+        self.assertEqual(result.validation.checks["quality_criteria_acknowledged"], False)
+        with self.assertRaises(TypeError):
+            result.validation.checks["quality_criteria_acknowledged"] = True
+
+    def test_return_result_serialization_materializes_validation_collections(self):
         result = receive_resource(self.context, self.task, self._resource())
         payload = resource_return_to_dict(result)
 
         self.assertEqual(payload["status"], "READY")
         self.assertEqual(payload["task_id"], self.task.task_id)
         self.assertEqual(payload["validation"]["status"], "READY")
+        self.assertIsInstance(payload["validation"]["checks"], dict)
+        self.assertIsInstance(payload["validation"]["feedback"], list)
+        self.assertIsInstance(payload["validation"]["blocking_errors"], list)
 
 
 if __name__ == "__main__":

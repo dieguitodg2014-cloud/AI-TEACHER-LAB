@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import uuid4
 
-from core.foundation.models import TaskPacket
+from core.foundation.models import FrozenMapping, TaskPacket
 
 
 ValidationStatus = Literal["READY", "REVISION_REQUIRED", "REJECT", "REJECT_AND_REDESIGN"]
@@ -53,15 +53,20 @@ _PRODUCTION_STATUSES = {"PRODUCED", "READY"}
 
 @dataclass(frozen=True)
 class ResourceValidationResult:
-    """Result of validating a produced resource against a TaskPacket."""
+    """Immutable result of validating a produced resource against a TaskPacket."""
 
     validation_id: str
     status: ValidationStatus
     score: float
     critical_failure: bool
-    checks: dict[str, bool]
-    feedback: list[str] = field(default_factory=list)
-    blocking_errors: list[str] = field(default_factory=list)
+    checks: FrozenMapping
+    feedback: tuple[str, ...] = field(default_factory=tuple)
+    blocking_errors: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "checks", FrozenMapping(self.checks))
+        object.__setattr__(self, "feedback", tuple(self.feedback))
+        object.__setattr__(self, "blocking_errors", tuple(self.blocking_errors))
 
 
 def validate_resource_output(
