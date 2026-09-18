@@ -76,7 +76,11 @@ class GenerationRevisionTests(unittest.TestCase):
                 "level": provider_request["level"],
                 "objective": provider_request["objective"],
                 "duration_minutes": provider_request["duration_minutes"],
-                "activities": [{"name": "discussion"}],
+                "activities": [{
+                    "name": "discussion",
+                    "student_production": "Students discuss a past experience.",
+                    "assessment_link": "Teacher observes the learner response.",
+                }],
             }
 
         result = generate_with_revision(generator, request)
@@ -88,7 +92,6 @@ class GenerationRevisionTests(unittest.TestCase):
             request["assessment_decision"]["success_criteria"],
             ["ask a question"],
         )
-
 
     def test_activity_contract_failure_triggers_revision(self):
         request = self._request()
