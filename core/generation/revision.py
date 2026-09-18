@@ -187,7 +187,7 @@ def generate_with_revision(
             approved_sequence=approved_sequence,
             activity_contracts=activity_contracts,
         )
-        errors = activity_errors + list(qc_result["blocking_errors"])
+        errors = list(qc_result["blocking_errors"])
         if qc_result["status"] != "READY":
             attempts += 1
             continue
