@@ -175,7 +175,7 @@ class JsonCourseMemoryStore:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(data, handle, ensure_ascii=False, indent=2, sort_keys=True)
-                handle.write("\\n")
+                handle.write("\n")
             os.replace(temp_path, self.path)
         finally:
             if os.path.exists(temp_path):
