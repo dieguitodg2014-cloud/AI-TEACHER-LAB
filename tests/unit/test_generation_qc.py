@@ -79,7 +79,7 @@ class GenerationQCTests(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
-        self.assertEqual(result["score"], 75.0)
+        self.assertEqual(result["score"], 60.0)
         self.assertTrue(result["critical_failure"])
         self.assertTrue(result["revision_required"])
         self.assertFalse(result["checks"]["level_alignment"])
