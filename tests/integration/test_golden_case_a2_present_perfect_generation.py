@@ -51,6 +51,7 @@ class GoldenCaseA2PresentPerfectGenerationTests(unittest.TestCase):
                         "duration_minutes": contract["duration_minutes"],
                         "language_target": contract["language_target"],
                         "evidence": contract["evidence"],
+                        "topic": contract["must_include"][0],
                         "student_production": "Students complete the approved task.",
                         "assessment_link": "Teacher observes the learner response.",
                     }
