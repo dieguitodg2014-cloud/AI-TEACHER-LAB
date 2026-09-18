@@ -97,6 +97,40 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("CONTENT_FORBIDDEN_TERM", result["blocking_errors"])
         self.assertFalse(result["checks"]["content_alignment"])
 
+
+    def test_qc_rejects_activity_contract_mismatch(self):
+        contract = {
+            "activity_id": "activity-1",
+            "level": "A2",
+            "objective": "Discuss past experiences and ask follow-up questions.",
+            "skill": "SPEAKING",
+            "interaction": "pairs",
+            "cognitive_demand": "APPLY",
+            "scaffolding": 2,
+            "duration_minutes": 15,
+            "language_target": "Discuss past experiences and ask follow-up questions.",
+            "evidence": "Teacher observes the learner response.",
+        }
+        lesson = self._lesson()
+        lesson["activities"] = [{
+            **contract,
+            "interaction": "individual",
+            "evidence": "Teacher observes the learner response.",
+        }]
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            activity_contracts=[contract],
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("INTERACTION_MISMATCH", result["blocking_errors"])
+        self.assertTrue(result["critical_failure"])
+        self.assertTrue(result["revision_required"])
+
     def test_qc_handles_malformed_provider_output(self):
         result = review_generated_lesson(
             None,
