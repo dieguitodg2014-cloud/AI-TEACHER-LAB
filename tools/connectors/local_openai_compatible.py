@@ -11,6 +11,8 @@ from urllib import error, request
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1/chat/completions"
 DEFAULT_TIMEOUT_SECONDS = 180
 DEFAULT_MAX_TOKENS = 1400
+TIMEOUT_ENV_VAR = "AI_TEACHER_LAB_PROVIDER_TIMEOUT_SECONDS"
+MAX_TOKENS_ENV_VAR = "AI_TEACHER_LAB_PROVIDER_MAX_TOKENS"
 
 
 class LocalProviderError(RuntimeError):
@@ -24,6 +26,18 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple, set, frozenset)):
         return [_json_safe(item) for item in value]
     return value
+
+
+def _positive_int_from_env(name: str, default: int) -> int:
+    """Read a positive integer environment override, falling back safely."""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]) -> str:
@@ -107,17 +121,19 @@ def create_local_openai_compatible_generator(
     base_url: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
-    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
+    timeout_seconds: int | None = None,
+    max_tokens: int | None = None,
 ):
     """Return a callable implementing the LessonGenerator contract.
 
     Values default to environment variables so secrets and machine-specific
     settings remain outside the repository.
     """
-    if timeout_seconds <= 0:
+    resolved_timeout = timeout_seconds if timeout_seconds is not None else _positive_int_from_env(TIMEOUT_ENV_VAR, DEFAULT_TIMEOUT_SECONDS)
+    resolved_max_tokens = max_tokens if max_tokens is not None else _positive_int_from_env(MAX_TOKENS_ENV_VAR, DEFAULT_MAX_TOKENS)
+    if resolved_timeout <= 0:
         raise ValueError("timeout_seconds must be positive")
-    if max_tokens <= 0:
+    if resolved_max_tokens <= 0:
         raise ValueError("max_tokens must be positive")
 
     endpoint = base_url or os.getenv("AI_TEACHER_LAB_PROVIDER_URL", DEFAULT_BASE_URL)
@@ -135,7 +151,7 @@ def create_local_openai_compatible_generator(
                 {"role": "user", "content": _build_prompt(generation_request, previous_errors)},
             ],
             "temperature": 0.2,
-            "max_tokens": max_tokens,
+            "max_tokens": resolved_max_tokens,
         }
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -144,7 +160,7 @@ def create_local_openai_compatible_generator(
 
         req = request.Request(endpoint, data=body, headers=headers, method="POST")
         try:
-            with request.urlopen(req, timeout=timeout_seconds) as response:
+            with request.urlopen(req, timeout=resolved_timeout) as response:
                 raw = response.read().decode("utf-8")
         except TimeoutError as exc:
             raise LocalProviderError("PROVIDER_TIMEOUT") from exc
