@@ -35,6 +35,13 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         "Generate only the lesson artifact. Do not add commentary.\n\n"
         f"APPROVED REQUEST:\n{json.dumps(_json_safe(generation_request), ensure_ascii=False, indent=2)}\n\n"
         f"PREVIOUS QC ERRORS:\n{json.dumps(previous_errors, ensure_ascii=False)}\n\n"
+        "ACTIVITY CONTRACT RULES:\n"
+        "Each object in activity_contracts defines one activity in the exact approved order. For EVERY generated activity, "
+        "copy these contract-controlled fields exactly: activity_id, level, objective, skill, interaction, cognitive_demand, "
+        "scaffolding, duration_minutes, language_target, and evidence. Do not omit them, rename them, or invent different values. "
+        "These fields are machine-checked contract metadata, not optional commentary.\n"
+        "student_production and assessment_link are instructional content fields. Preserve their intent, but rewrite them "
+        "when needed to make learner action and assessment evidence observable.\n\n"
         "REVISION RULES:\n"
         "If PREVIOUS QC ERRORS is not empty, treat every listed error as a blocking defect "
         "from the previous attempt. Regenerate the affected lesson content so that the defect "
@@ -66,7 +73,12 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         '  "objective": "...",\n'
         '  "duration_minutes": 90,\n'
         '  "activities": [\n'
-        '    {"stage": "...", "minutes": 10, "purpose": "...", "instructions": "...", "student_production": "...", "assessment_link": "..."}\n'
+        "    {\n"
+        '      "activity_id": "...", "level": "...", "objective": "...", "skill": "...",\n'
+        '      "interaction": "...", "cognitive_demand": "...", "scaffolding": 2, "duration_minutes": 10,\n'
+        '      "language_target": "...", "evidence": "...", "stage": "...", "purpose": "...",\n'
+        '      "instructions": "...", "student_production": "...", "assessment_link": "..."\n'
+        "    }\n"
         "  ]\n"
         "}\n\n"
         "Use the approved sequence exactly. Include student_production and assessment_link "
