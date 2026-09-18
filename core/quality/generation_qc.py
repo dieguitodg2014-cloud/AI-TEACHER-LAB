@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from core.generation.output_validator import validate_generated_lesson
+from core.pedagogy.activity_contract import ActivityGenerationContract
+from core.pedagogy.activity_validator import validate_activity
 
 
 def _assessment_alignment_errors(
@@ -89,6 +91,32 @@ def _approved_sequence_errors(
     return []
 
 
+
+def _activity_contract_errors(
+    lesson: dict[str, Any],
+    activity_contracts: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None,
+) -> list[str]:
+    """Validate generated activities against the approved per-activity contracts."""
+    if not activity_contracts:
+        return []
+
+    activities = lesson.get("activities")
+    if not isinstance(activities, list) or len(activities) != len(activity_contracts):
+        return ["ACTIVITY_CONTRACT_COUNT_MISMATCH"]
+
+    errors: list[str] = []
+    for activity, contract_data in zip(activities, activity_contracts):
+        if not isinstance(contract_data, dict):
+            errors.append("INVALID_ACTIVITY_CONTRACT")
+            continue
+        try:
+            contract = ActivityGenerationContract(**contract_data)
+        except (TypeError, ValueError):
+            errors.append("INVALID_ACTIVITY_CONTRACT")
+            continue
+        errors.extend(validate_activity(activity, contract))
+    return errors
+
 def review_generated_lesson(
     lesson: dict[str, Any],
     *,
@@ -99,6 +127,7 @@ def review_generated_lesson(
     constraints: list[Any] | None = None,
     assessment_decision: dict[str, Any] | None = None,
     approved_sequence: list[dict[str, Any]] | None = None,
+    activity_contracts: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
@@ -113,6 +142,8 @@ def review_generated_lesson(
         blocking_errors.extend(_approved_sequence_errors(lesson, approved_sequence))
     if not blocking_errors and assessment_decision is not None:
         blocking_errors.extend(_assessment_alignment_errors(lesson, assessment_decision))
+    if not blocking_errors:
+        blocking_errors.extend(_activity_contract_errors(lesson, activity_contracts))
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = not any(
@@ -134,7 +165,10 @@ def review_generated_lesson(
 
     # The remaining dimensions are not yet deeply evaluated by the MVP validator.
     # They therefore remain explicitly conservative rather than being invented.
-    communicative_value = activity_presence
+    communicative_value = activity_presence and not any(
+        error.startswith(("ACTIVITY_", "INVALID_ACTIVITY_CONTRACT", "SKILL_MISMATCH", "INTERACTION_MISMATCH", "COGNITIVE_DEMAND_MISMATCH", "SCAFFOLDING_MISMATCH", "LANGUAGE_TARGET_MISMATCH", "EVIDENCE_MISSING", "MUST_INCLUDE_MISSING", "MUST_NOT_INCLUDE_PRESENT"))
+        for error in blocking_errors
+    )
     linguistic_accuracy = True
     assessment_alignment = not any(
         error in blocking_errors
