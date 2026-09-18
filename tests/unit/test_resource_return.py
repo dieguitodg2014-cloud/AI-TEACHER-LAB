@@ -2,7 +2,7 @@ import unittest
 
 from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
-from core.foundation.models import TaskPacket
+from core.foundation.models import FrozenMapping, TaskPacket
 from core.orchestration.resource_return import receive_resource, resource_return_to_dict
 
 
@@ -84,16 +84,39 @@ class TestResourceReturn(unittest.TestCase):
         with self.assertRaises(TypeError):
             result.validation.checks["quality_criteria_acknowledged"] = True
 
-    def test_return_result_serialization_materializes_validation_collections(self):
+    def test_return_result_contract_is_immutable(self):
         result = receive_resource(self.context, self.task, self._resource())
+
+        self.assertIsInstance(result.errors, tuple)
+        with self.assertRaises((AttributeError, TypeError)):
+            result.errors += ("unexpected",)
+
+        revised = receive_resource(
+            self.context,
+            self.task,
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
+        )
+        self.assertIsInstance(revised.revision_handoff, FrozenMapping)
+        with self.assertRaises(TypeError):
+            revised.revision_handoff["status"] = "READY"
+
+    def test_return_result_serialization_materializes_contract_containers(self):
+        result = receive_resource(
+            self.context,
+            self.task,
+            self._resource(quality_criteria_addressed=[self.task.quality_criteria[0]]),
+        )
         payload = resource_return_to_dict(result)
 
-        self.assertEqual(payload["status"], "READY")
+        self.assertEqual(payload["status"], "REVISION_REQUIRED")
         self.assertEqual(payload["task_id"], self.task.task_id)
-        self.assertEqual(payload["validation"]["status"], "READY")
+        self.assertEqual(payload["validation"]["status"], "REVISION_REQUIRED")
+        self.assertIsInstance(payload["revision_handoff"], dict)
+        self.assertIsInstance(payload["revision_handoff"]["failed_checks"], list)
         self.assertIsInstance(payload["validation"]["checks"], dict)
         self.assertIsInstance(payload["validation"]["feedback"], list)
         self.assertIsInstance(payload["validation"]["blocking_errors"], list)
+        self.assertIsInstance(payload["errors"], list)
 
 
 if __name__ == "__main__":
