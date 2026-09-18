@@ -39,6 +39,14 @@ def main() -> int:
         print("INVALID_GOLDEN_CASE:request", file=sys.stderr)
         return 2
 
+    print("STARTING LOCAL RUNTIME TEST")
+    print(f"MODEL: {args.model}")
+    print(f"BASE_URL: {args.base_url}")
+    print(f"TIMEOUT_SECONDS: {os.getenv(\"AI_TEACHER_LAB_PROVIDER_TIMEOUT_SECONDS\", \"default\")}")
+    print(f"MAX_TOKENS: {os.getenv(\"AI_TEACHER_LAB_PROVIDER_MAX_TOKENS\", \"default\")}")
+    print("The configured runtime may perform up to 3 provider attempts.")
+    print("Waiting for the local provider...")
+
     result = run_configured_lesson_planning(request)
 
     output = {
