@@ -50,9 +50,11 @@ The configured runtime resolves generators from `config/tools.json` and then exe
 
 ## Runtime Evidence
 
-A real local execution using the configured Gemma 3n E4B connector has produced a successful lesson-generation result with the expected A2 context, 90-minute duration, objective alignment, explicit topic control, forbidden-term enforcement, one generation attempt, and QC READY result.
+A real local execution using the configured Gemma 3n E4B connector was attempted against LM Studio on the developer machine. The pedagogical pipeline reached the configured local lesson-generation provider with the expected A2 context, 90-minute duration, objective, approved topic, prior knowledge, and constraints, but the provider did not return a lesson within the configured 120-second timeout. The runtime result was `FAILED` with `EXECUTION_ERROR / PROVIDER_TIMEOUT` after one provider attempt.
 
-This demonstrates that the core generation path is executable with the current local connector.
+A separate direct LM Studio smoke test confirmed that `127.0.0.1:1234` was reachable and that Gemma could answer small requests, while larger lesson-generation requests exceeded the current runtime timeout on the tested hardware/configuration. This is a manual environment limitation and is not treated as evidence that the repository CI path is broken.
+
+The local runtime therefore remains an environment-specific manual validation target rather than a certified production execution path.
 
 ## Resource Orchestration Evidence
 
