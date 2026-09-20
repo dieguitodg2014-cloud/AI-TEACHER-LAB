@@ -36,6 +36,20 @@ class TeacherLessonCardContractTests(unittest.TestCase):
                 "objective": generation_request["objective"],
                 "duration_minutes": generation_request["duration_minutes"],
                 "topic": generation_request["topic"],
+                "teacher_execution": {
+                    "teacher_explanation": "Explain the target language with a simple model before practice.",
+                    "teacher_talk": ["Listen first.", "Now practice with your partner."],
+                    "ccqs": ["Is this happening now?"],
+                    "examples": ["I have visited Cartagena."],
+                    "common_errors": {"missing auxiliary": "Model have/has + past participle."},
+                    "scaffolding": ["Provide a sentence frame before free practice."],
+                    "materials": ["board", "student worksheet"],
+                    "worksheet": {"items": ["Complete the sentence."]},
+                    "role_cards": ["Partner A asks; Partner B answers."],
+                    "answer_key": {"items": ["have visited"]},
+                    "assessment_checklist": ["Uses the target language accurately."],
+                    "exit_ticket": {"prompt": "Write one example."},
+                },
                 "activities": [
                     {
                         **contract,
@@ -57,7 +71,19 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertEqual(result.status, "READY")
         card = teacher_lesson_card_from_result(result)
 
-        self.assertEqual(card.version, "v3")
+        self.assertEqual(card.version, "v4")
+        self.assertEqual(
+            card.execution_content.teacher_explanation,
+            "Explain the target language with a simple model before practice.",
+        )
+        self.assertIn("Listen first.", card.execution_content.teacher_talk)
+        self.assertIn("Is this happening now?", card.execution_content.ccqs)
+        self.assertIn("I have visited Cartagena.", card.execution_content.examples)
+        self.assertEqual(card.execution_content.common_errors["missing auxiliary"], "Model have/has + past participle.")
+        self.assertIn("Provide a sentence frame before free practice.", card.execution_content.scaffolding)
+        self.assertEqual(card.execution_content.worksheet["items"][0], "Complete the sentence.")
+        self.assertEqual(card.execution_content.answer_key["items"][0], "have visited")
+        self.assertEqual(card.execution_content.exit_ticket["prompt"], "Write one example.")
         self.assertEqual(card.level, "A2")
         self.assertEqual(card.audience, "adult ESL learners")
         self.assertEqual(card.objective, request["objective"])
@@ -83,6 +109,12 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertIn("SPEAKING", rendered)
         self.assertIn("Scaffolding:", rendered)
         self.assertIn("Teacher instructions:", rendered)
+        self.assertIn("Teacher execution support", rendered)
+        self.assertIn("Teacher explanation:", rendered)
+        self.assertIn("CCQs:", rendered)
+        self.assertIn("Student worksheet:", rendered)
+        self.assertIn("Answer key:", rendered)
+        self.assertIn("Exit ticket:", rendered)
 
         with self.assertRaises(FrozenInstanceError):
             card.activities += (card.activities[0],)

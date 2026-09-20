@@ -63,6 +63,21 @@ def build_generation_request(
         ],
         "evidence_of_learning": plan.evidence_of_learning,
         "resource_need": plan.resource_need,
+        "teacher_execution_contract": {
+            "teacher_explanation": "Clear teacher-facing explanation of the target language and lesson focus.",
+            "teacher_talk": ["Ready-to-use teacher prompts and model language."],
+            "ccqs": ["Concept-checking questions appropriate to the target language."],
+            "examples": ["Accurate level-appropriate examples."],
+            "common_errors": {"error": "correction or brief corrective guidance"},
+            "scaffolding": ["Concrete support a teacher can provide before or during practice."],
+            "materials": ["Materials needed to run the lesson."],
+            "worksheet": {"title": "Student worksheet", "items": []},
+            "role_cards": ["Optional speaking or role-card content when required by the lesson."],
+            "answer_key": {"answers": []},
+            "assessment_checklist": ["Observable criteria linked to the approved assessment."],
+            "exit_ticket": {"prompt": "A short final check of learning."},
+        },
+        "resource_need": plan.resource_need,
         "constraints": list(context.get("constraints", [])),
     }
 
