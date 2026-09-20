@@ -91,6 +91,11 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         '  "level": "...",\n'
         '  "objective": "...",\n'
         '  "duration_minutes": 90,\n'
+        '  "teacher_execution": {\n'
+        '    "teacher_explanation": "...", "teacher_talk": ["..."], "ccqs": ["..."],\n'
+        '    "examples": ["..."], "common_errors": {}, "scaffolding": ["..."], "materials": ["..."],\n'
+        '    "worksheet": {}, "role_cards": ["..."], "answer_key": {}, "assessment_checklist": ["..."], "exit_ticket": {}\n'
+        '  },\n'
         '  "activities": [\n'
         "    {\n"
         '      "activity_id": "...", "level": "...", "objective": "...", "skill": "...",\n'
