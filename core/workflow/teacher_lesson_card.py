@@ -6,7 +6,7 @@ make pedagogical, provider, QC, or acceptance decisions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.foundation.models import FrozenMapping, Level
@@ -53,7 +53,7 @@ class TeacherLessonCard:
     prior_knowledge: tuple[str, ...] = ()
     constraints: tuple[str, ...] = ()
     activities: tuple[TeacherLessonActivity, ...] = ()
-    assessment: FrozenMapping = FrozenMapping()
+    assessment: FrozenMapping = field(default_factory=FrozenMapping)
     resource: FrozenMapping | None = None
 
     def __post_init__(self) -> None:
