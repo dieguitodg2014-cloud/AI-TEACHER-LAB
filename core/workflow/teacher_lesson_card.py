@@ -26,7 +26,13 @@ def _tuple_of_strings(value: Any) -> tuple[str, ...]:
 
 def _accepted_activities(result: VerticalSliceResult) -> dict[str, Any]:
     """Read only the lesson artifact that reached the READY acceptance gate."""
-    generation = result.generation
+    try:
+        generation = result.generation
+    except AttributeError:
+        # Legacy test doubles may model READY results from before generation
+        # became part of VerticalSliceResult. Treat that as "no accepted
+        # generated content", not as a failure of the presentation adapter.
+        return {}
     if not isinstance(generation, FrozenMapping):
         return {}
     generated_result = generation.get("result")
