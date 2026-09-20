@@ -24,9 +24,30 @@ def _tuple_of_strings(value: Any) -> tuple[str, ...]:
     return ()
 
 
+def _accepted_activities(result: VerticalSliceResult) -> dict[str, Any]:
+    """Read only the lesson artifact that reached the READY acceptance gate."""
+    generation = result.generation
+    if not isinstance(generation, FrozenMapping):
+        return {}
+    generated_result = generation.get("result")
+    if not isinstance(generated_result, FrozenMapping):
+        return {}
+    lesson = generated_result.get("lesson")
+    if not isinstance(lesson, FrozenMapping):
+        return {}
+    activities = lesson.get("activities")
+    if not isinstance(activities, tuple):
+        return {}
+    return {
+        str(activity.get("activity_id")): activity
+        for activity in activities
+        if isinstance(activity, FrozenMapping) and activity.get("activity_id")
+    }
+
+
 @dataclass(frozen=True)
 class TeacherLessonActivity:
-    """Classroom-facing activity contract derived from an approved plan."""
+    """Classroom-facing activity contract derived from approved and accepted content."""
 
     activity_id: str
     purpose: str
@@ -38,6 +59,8 @@ class TeacherLessonActivity:
     cognitive_demand: str = "APPLY"
     scaffolding: int = 2
     language_target: str = ""
+    stage: str = ""
+    instructions: str = ""
 
 
 @dataclass(frozen=True)
@@ -73,18 +96,27 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
     if result.context is None or result.learning_plan is None or result.assessment_decision is None:
         raise ValueError("Accepted result is missing required teacher-facing decisions")
 
+    accepted_activities = _accepted_activities(result)
     activities = tuple(
         TeacherLessonActivity(
             activity_id=activity.activity_id,
             purpose=activity.purpose,
             interaction=activity.interaction,
             minutes=activity.minutes,
-            student_production=activity.student_production,
-            assessment_link=activity.assessment_link,
+            student_production=accepted_activities.get(activity.activity_id, {}).get(
+                "student_production", activity.student_production
+            ),
+            assessment_link=accepted_activities.get(activity.activity_id, {}).get(
+                "assessment_link", activity.assessment_link
+            ),
             skill=activity.skill,
             cognitive_demand=activity.cognitive_demand,
             scaffolding=activity.scaffolding,
             language_target=activity.language_target,
+            stage=str(accepted_activities.get(activity.activity_id, {}).get("stage", "")),
+            instructions=str(
+                accepted_activities.get(activity.activity_id, {}).get("instructions", "")
+            ),
         )
         for activity in result.learning_plan.sequence
     )
@@ -105,7 +137,7 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         }
 
     return TeacherLessonCard(
-        version="v2",
+        version="v3",
         level=result.context.level,
         audience=result.context.audience,
         objective=result.context.objective,
