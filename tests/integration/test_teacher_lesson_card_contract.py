@@ -39,7 +39,7 @@ class TeacherLessonCardContractTests(unittest.TestCase):
                 "teacher_execution": {
                     "teacher_explanation": "Explain the target language with a simple model before practice.",
                     "target_language": ["have/has + past participle"],
-                    "language_bank": ["Have you ever ...?"],
+                    "language_bank": ["Life experiences: Have you ever ...?"],
                     "teacher_talk": ["Listen first.", "Now practice with your partner."],
                     "ccqs": ["Is this happening now?"],
                     "examples": ["I have visited Cartagena."],
