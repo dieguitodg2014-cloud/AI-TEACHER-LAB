@@ -65,6 +65,8 @@ def build_generation_request(
         "resource_need": plan.resource_need,
         "teacher_execution_contract": {
             "teacher_explanation": "Clear teacher-facing explanation of the target language and lesson focus.",
+            "target_language": ["Exact target structures or forms to teach and practice."],
+            "language_bank": ["Level-appropriate words, phrases, and sentence frames learners can use."],
             "teacher_talk": ["Ready-to-use teacher prompts and model language."],
             "ccqs": ["Concept-checking questions appropriate to the target language."],
             "examples": ["Accurate level-appropriate examples."],
