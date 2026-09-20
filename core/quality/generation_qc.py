@@ -133,7 +133,7 @@ def _teacher_execution_errors(lesson: dict[str, Any]) -> list[str]:
         return ["INVALID_TEACHER_EXECUTION"]
 
     sequence_fields = (
-        "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
+        "target_language", "language_bank", "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
         "role_cards", "assessment_checklist",
     )
     mapping_fields = ("common_errors", "worksheet", "answer_key", "exit_ticket")
