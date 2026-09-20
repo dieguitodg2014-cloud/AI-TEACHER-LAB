@@ -119,6 +119,35 @@ def _activity_contract_errors(
         errors.extend(validate_activity(activity, contract))
     return errors
 
+
+def _teacher_execution_errors(lesson: dict[str, Any]) -> list[str]:
+    """Validate teacher execution support when a provider supplies it.
+
+    The field is optional for backward compatibility. If present, its structure is
+    contract-checked before the lesson can be accepted.
+    """
+    execution = lesson.get("teacher_execution")
+    if execution is None:
+        return []
+    if not isinstance(execution, Mapping):
+        return ["INVALID_TEACHER_EXECUTION"]
+
+    sequence_fields = (
+        "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
+        "role_cards", "assessment_checklist",
+    )
+    mapping_fields = ("common_errors", "worksheet", "answer_key", "exit_ticket")
+    if not isinstance(execution.get("teacher_explanation", ""), str):
+        return ["INVALID_TEACHER_EXECUTION"]
+    for field in sequence_fields:
+        value = execution.get(field, [])
+        if not isinstance(value, (list, tuple)) or not all(isinstance(item, str) for item in value):
+            return ["INVALID_TEACHER_EXECUTION"]
+    for field in mapping_fields:
+        if not isinstance(execution.get(field, {}), Mapping):
+            return ["INVALID_TEACHER_EXECUTION"]
+    return []
+
 def review_generated_lesson(
     lesson: dict[str, Any],
     *,
@@ -147,6 +176,8 @@ def review_generated_lesson(
         blocking_errors.extend(_assessment_alignment_errors(lesson, assessment_decision))
     if not blocking_errors:
         blocking_errors.extend(_activity_contract_errors(lesson, activity_contracts))
+    if not blocking_errors:
+        blocking_errors.extend(_teacher_execution_errors(lesson))
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = not any(
