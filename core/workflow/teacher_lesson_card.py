@@ -6,16 +6,27 @@ make pedagogical, provider, QC, or acceptance decisions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.foundation.models import FrozenMapping, Level
 from core.workflow.vertical_slice import VerticalSliceResult
 
 
+def _tuple_of_strings(value: Any) -> tuple[str, ...]:
+    """Normalize approved context collections while tolerating legacy test doubles."""
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return tuple(str(item) for item in value)
+    return ()
+
+
 @dataclass(frozen=True)
 class TeacherLessonActivity:
-    """Classroom-facing activity summary derived from an approved plan."""
+    """Classroom-facing activity contract derived from an approved plan."""
 
     activity_id: str
     purpose: str
@@ -23,6 +34,10 @@ class TeacherLessonActivity:
     minutes: int
     student_production: str = ""
     assessment_link: str = ""
+    skill: str = "MIXED"
+    cognitive_demand: str = "APPLY"
+    scaffolding: int = 2
+    language_target: str = ""
 
 
 @dataclass(frozen=True)
@@ -34,12 +49,17 @@ class TeacherLessonCard:
     audience: str
     objective: str
     duration_minutes: int
-    activities: tuple[TeacherLessonActivity, ...]
-    assessment: FrozenMapping
+    topic: str | None = None
+    prior_knowledge: tuple[str, ...] = ()
+    constraints: tuple[str, ...] = ()
+    activities: tuple[TeacherLessonActivity, ...] = ()
+    assessment: FrozenMapping = field(default_factory=FrozenMapping)
     resource: FrozenMapping | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "activities", tuple(self.activities))
+        object.__setattr__(self, "prior_knowledge", _tuple_of_strings(self.prior_knowledge))
+        object.__setattr__(self, "constraints", _tuple_of_strings(self.constraints))
         if self.resource is not None and not isinstance(self.resource, FrozenMapping):
             object.__setattr__(self, "resource", FrozenMapping(self.resource))
         if not isinstance(self.assessment, FrozenMapping):
@@ -61,6 +81,10 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
             minutes=activity.minutes,
             student_production=activity.student_production,
             assessment_link=activity.assessment_link,
+            skill=activity.skill,
+            cognitive_demand=activity.cognitive_demand,
+            scaffolding=activity.scaffolding,
+            language_target=activity.language_target,
         )
         for activity in result.learning_plan.sequence
     )
@@ -81,11 +105,14 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         }
 
     return TeacherLessonCard(
-        version="v1",
+        version="v2",
         level=result.context.level,
         audience=result.context.audience,
         objective=result.context.objective,
         duration_minutes=result.context.duration_minutes,
+        topic=getattr(result.context, "topic", None),
+        prior_knowledge=_tuple_of_strings(getattr(result.context, "prior_knowledge", ())),
+        constraints=_tuple_of_strings(getattr(result.context, "constraints", ())),
         activities=activities,
         assessment=FrozenMapping(assessment),
         resource=FrozenMapping(resource) if resource is not None else None,

@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 
 from core.orchestration.tool_selector import ToolCandidate
 from core.workflow.teacher_lesson_card import teacher_lesson_card_from_result
+from core.workflow.teacher_lesson_card_renderer import render_teacher_lesson_card
 from core.workflow.vertical_slice import run_lesson_planning
 
 
@@ -55,14 +56,27 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertEqual(result.status, "READY")
         card = teacher_lesson_card_from_result(result)
 
-        self.assertEqual(card.version, "v1")
+        self.assertEqual(card.version, "v2")
         self.assertEqual(card.level, "A2")
         self.assertEqual(card.audience, "adult ESL learners")
         self.assertEqual(card.objective, request["objective"])
         self.assertEqual(card.duration_minutes, 90)
+        self.assertEqual(card.topic, "life experiences")
+        self.assertEqual(card.prior_knowledge, ())
+        self.assertEqual(card.constraints, ())
         self.assertTrue(card.activities)
+        self.assertEqual(card.activities[3].skill, "SPEAKING")
+        self.assertEqual(card.activities[3].cognitive_demand, "APPLY")
+        self.assertEqual(card.activities[3].scaffolding, 2)
+        self.assertEqual(card.activities[3].language_target, request["objective"])
         self.assertEqual(card.assessment["type"], result.assessment_decision.type)
         self.assertEqual(card.assessment["evidence"], result.assessment_decision.evidence)
+
+        rendered = render_teacher_lesson_card(card)
+        self.assertIn("Approved lesson context", rendered)
+        self.assertIn("life experiences", rendered)
+        self.assertIn("SPEAKING", rendered)
+        self.assertIn("Scaffolding:", rendered)
 
         with self.assertRaises(FrozenInstanceError):
             card.activities += (card.activities[0],)
