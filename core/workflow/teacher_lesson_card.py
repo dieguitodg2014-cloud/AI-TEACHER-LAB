@@ -13,6 +13,17 @@ from core.foundation.models import FrozenMapping, Level
 from core.workflow.vertical_slice import VerticalSliceResult
 
 
+def _tuple_of_strings(value: Any) -> tuple[str, ...]:
+    """Normalize approved context collections while tolerating legacy test doubles."""
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return tuple(str(item) for item in value)
+    return ()
+
+
 @dataclass(frozen=True)
 class TeacherLessonActivity:
     """Classroom-facing activity contract derived from an approved plan."""
@@ -38,17 +49,17 @@ class TeacherLessonCard:
     audience: str
     objective: str
     duration_minutes: int
-    topic: str | None
-    prior_knowledge: tuple[str, ...]
-    constraints: tuple[str, ...]
-    activities: tuple[TeacherLessonActivity, ...]
-    assessment: FrozenMapping
+    topic: str | None = None
+    prior_knowledge: tuple[str, ...] = ()
+    constraints: tuple[str, ...] = ()
+    activities: tuple[TeacherLessonActivity, ...] = ()
+    assessment: FrozenMapping = FrozenMapping()
     resource: FrozenMapping | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "activities", tuple(self.activities))
-        object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
-        object.__setattr__(self, "constraints", tuple(self.constraints))
+        object.__setattr__(self, "prior_knowledge", _tuple_of_strings(self.prior_knowledge))
+        object.__setattr__(self, "constraints", _tuple_of_strings(self.constraints))
         if self.resource is not None and not isinstance(self.resource, FrozenMapping):
             object.__setattr__(self, "resource", FrozenMapping(self.resource))
         if not isinstance(self.assessment, FrozenMapping):
@@ -99,9 +110,9 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         audience=result.context.audience,
         objective=result.context.objective,
         duration_minutes=result.context.duration_minutes,
-        topic=result.context.topic,
-        prior_knowledge=result.context.prior_knowledge,
-        constraints=result.context.constraints,
+        topic=getattr(result.context, "topic", None),
+        prior_knowledge=_tuple_of_strings(getattr(result.context, "prior_knowledge", ())),
+        constraints=_tuple_of_strings(getattr(result.context, "constraints", ())),
         activities=activities,
         assessment=FrozenMapping(assessment),
         resource=FrozenMapping(resource) if resource is not None else None,
