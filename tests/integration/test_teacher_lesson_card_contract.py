@@ -38,6 +38,8 @@ class TeacherLessonCardContractTests(unittest.TestCase):
                 "topic": generation_request["topic"],
                 "teacher_execution": {
                     "teacher_explanation": "Explain the target language with a simple model before practice.",
+                    "target_language": ["have/has + past participle", "Have you ever ...?"],
+                    "language_bank": ["I have ...", "Have you ever ...?", "Yes, I have.", "No, I haven't."],
                     "teacher_talk": ["Listen first.", "Now practice with your partner."],
                     "ccqs": ["Is this happening now?"],
                     "examples": ["I have visited Cartagena."],
@@ -76,6 +78,8 @@ class TeacherLessonCardContractTests(unittest.TestCase):
             card.execution_content.teacher_explanation,
             "Explain the target language with a simple model before practice.",
         )
+        self.assertIn("have/has + past participle", card.execution_content.target_language)
+        self.assertIn("Have you ever ...?", card.execution_content.language_bank)
         self.assertIn("Listen first.", card.execution_content.teacher_talk)
         self.assertIn("Is this happening now?", card.execution_content.ccqs)
         self.assertIn("I have visited Cartagena.", card.execution_content.examples)
@@ -111,6 +115,8 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertIn("Teacher instructions:", rendered)
         self.assertIn("Teacher execution support", rendered)
         self.assertIn("Teacher explanation:", rendered)
+        self.assertIn("Target language:", rendered)
+        self.assertIn("Language bank:", rendered)
         self.assertIn("CCQs:", rendered)
         self.assertIn("Student worksheet:", rendered)
         self.assertIn("Answer key:", rendered)
