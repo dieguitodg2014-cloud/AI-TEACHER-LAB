@@ -40,6 +40,7 @@ class TeacherLessonCardContractTests(unittest.TestCase):
                     {
                         **contract,
                         "name": "approved activity",
+                        "instructions": "Model the target language, then have learners practice with a partner.",
                         "student_production": contract["evidence"] or "Students complete the approved task.",
                         "assessment_link": "Teacher observes the learner response.",
                     }
@@ -56,7 +57,7 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertEqual(result.status, "READY")
         card = teacher_lesson_card_from_result(result)
 
-        self.assertEqual(card.version, "v2")
+        self.assertEqual(card.version, "v3")
         self.assertEqual(card.level, "A2")
         self.assertEqual(card.audience, "adult ESL learners")
         self.assertEqual(card.objective, request["objective"])
@@ -69,6 +70,10 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertEqual(card.activities[3].cognitive_demand, "APPLY")
         self.assertEqual(card.activities[3].scaffolding, 2)
         self.assertEqual(card.activities[3].language_target, request["objective"])
+        self.assertEqual(
+            card.activities[3].instructions,
+            "Model the target language, then have learners practice with a partner.",
+        )
         self.assertEqual(card.assessment["type"], result.assessment_decision.type)
         self.assertEqual(card.assessment["evidence"], result.assessment_decision.evidence)
 
@@ -77,6 +82,7 @@ class TeacherLessonCardContractTests(unittest.TestCase):
         self.assertIn("life experiences", rendered)
         self.assertIn("SPEAKING", rendered)
         self.assertIn("Scaffolding:", rendered)
+        self.assertIn("Teacher instructions:", rendered)
 
         with self.assertRaises(FrozenInstanceError):
             card.activities += (card.activities[0],)
