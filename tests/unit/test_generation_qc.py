@@ -154,6 +154,50 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("CONTENT_TOPIC_MISSING", result["blocking_errors"])
         self.assertFalse(result["checks"]["content_alignment"])
 
+    def test_qc_accepts_well_formed_teacher_execution_support(self):
+        lesson = self._lesson()
+        lesson["teacher_execution"] = {
+            "teacher_explanation": "Explain the target language simply.",
+            "teacher_talk": ["Listen and repeat."],
+            "ccqs": ["Is it happening now?"],
+            "examples": ["I have visited Cartagena."],
+            "common_errors": {"error": "correction"},
+            "scaffolding": ["Use a sentence frame."],
+            "materials": ["worksheet"],
+            "worksheet": {"items": ["Complete 1-3."]},
+            "role_cards": ["Partner A asks."],
+            "answer_key": {"items": ["have visited"]},
+            "assessment_checklist": ["Uses the target accurately."],
+            "exit_ticket": {"prompt": "Write one sentence."},
+        }
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+        )
+
+        self.assertEqual(result["status"], "READY")
+        self.assertNotIn("INVALID_TEACHER_EXECUTION", result["blocking_errors"])
+
+    def test_qc_rejects_malformed_teacher_execution_support(self):
+        lesson = self._lesson()
+        lesson["teacher_execution"] = {
+            "teacher_explanation": "Explain the target language.",
+            "teacher_talk": "This must be a list.",
+        }
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("INVALID_TEACHER_EXECUTION", result["blocking_errors"])
+
     def test_qc_rejects_explicit_forbidden_term(self):
         lesson = self._lesson()
         lesson["activities"][0]["instructions"] = "Practice used to with a partner."
