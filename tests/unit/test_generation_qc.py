@@ -376,7 +376,7 @@ if __name__ == "__main__":
             "level": "A2",
             "objective": "Give advice",
             "duration_minutes": 90,
-            "activities": [{"name": "advice"}],
+            "activities": [{"name": "advice", "instructions": "Practice should."}],
             "teacher_execution": {
                 "teacher_explanation": "Explain should for advice.",
                 "target_language": ["should + base verb"],
