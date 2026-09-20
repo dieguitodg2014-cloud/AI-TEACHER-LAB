@@ -1,4 +1,4 @@
-"""Presentation-only renderer for TeacherLessonCard v2."""
+"""Presentation-only renderer for TeacherLessonCard v3."""
 
 from __future__ import annotations
 
@@ -10,12 +10,13 @@ from core.workflow.teacher_lesson_card import TeacherLessonCard
 def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
     """Render an immutable TeacherLessonCard as self-contained HTML.
 
-    This function only reads the approved card. It does not make pedagogical,
+    This function only reads the accepted card. It does not make pedagogical,
     provider, QC, resource, or acceptance decisions.
     """
     activities = "".join(
         "<li>"
-        f"<strong>{escape(activity.purpose)}</strong> "
+        + (f"<div><strong>Stage:</strong> {escape(activity.stage)}</div>" if activity.stage else "")
+        + f"<strong>{escape(activity.purpose)}</strong> "
         f"<span>{activity.minutes} min</span>"
         f"<div><strong>Interaction:</strong> {escape(activity.interaction)}</div>"
         f"<div><strong>Skill:</strong> {escape(activity.skill)}</div>"
@@ -24,6 +25,11 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
         + (
             f"<p><strong>Language target:</strong> {escape(activity.language_target)}</p>"
             if activity.language_target
+            else ""
+        )
+        + (
+            f"<p><strong>Teacher instructions:</strong> {escape(activity.instructions)}</p>"
+            if activity.instructions
             else ""
         )
         + (
