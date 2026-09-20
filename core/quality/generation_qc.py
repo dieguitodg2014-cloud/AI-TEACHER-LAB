@@ -133,7 +133,7 @@ def _teacher_execution_errors(lesson: dict[str, Any]) -> list[str]:
         return ["INVALID_TEACHER_EXECUTION"]
 
     sequence_fields = (
-        "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
+        "target_language", "language_bank", "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
         "role_cards", "assessment_checklist",
     )
     mapping_fields = ("common_errors", "worksheet", "answer_key", "exit_ticket")
@@ -147,6 +147,43 @@ def _teacher_execution_errors(lesson: dict[str, Any]) -> list[str]:
         if not isinstance(execution.get(field, {}), Mapping):
             return ["INVALID_TEACHER_EXECUTION"]
     return []
+
+def _teacher_execution_semantic_errors(
+    lesson: dict[str, Any],
+    *,
+    topic: str | None,
+    constraints: list[Any] | None,
+) -> list[str]:
+    """Check that teacher execution support stays aligned with approved targets."""
+    execution = lesson.get("teacher_execution")
+    if not isinstance(execution, Mapping):
+        return []
+
+    fields = (
+        "teacher_explanation", "target_language", "language_bank",
+        "teacher_talk", "ccqs", "examples", "scaffolding",
+        "materials", "role_cards", "assessment_checklist",
+        "common_errors", "worksheet", "answer_key", "exit_ticket",
+    )
+    text = " ".join(str(execution.get(field, "")) for field in fields).casefold()
+    errors: list[str] = []
+
+    if topic:
+        from core.generation.output_validator import _topic_match
+        if not _topic_match(topic, text):
+            errors.append("TEACHER_EXECUTION_TOPIC_MISSING")
+
+    import re
+    forbidden: list[str] = []
+    for constraint in constraints or []:
+        if isinstance(constraint, str):
+            match = re.match(r"\s*FORBIDDEN_TERMS\s*:\s*(.+)\s*$", constraint, re.IGNORECASE)
+            if match:
+                forbidden.extend(term.strip() for term in match.group(1).split(",") if term.strip())
+    if any(term.casefold() in text for term in forbidden):
+        errors.append("TEACHER_EXECUTION_FORBIDDEN_TERM")
+    return errors
+
 
 def review_generated_lesson(
     lesson: dict[str, Any],
@@ -178,6 +215,8 @@ def review_generated_lesson(
         blocking_errors.extend(_activity_contract_errors(lesson, activity_contracts))
     if not blocking_errors:
         blocking_errors.extend(_teacher_execution_errors(lesson))
+    if not blocking_errors:
+        blocking_errors.extend(_teacher_execution_semantic_errors(lesson, topic=topic, constraints=constraints))
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = not any(

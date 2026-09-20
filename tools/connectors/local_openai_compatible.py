@@ -54,6 +54,11 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         "Do not substitute a related grammar topic or concept. For example, if the approved topic is Present Perfect, "
         "do not teach Past Perfect. Prior knowledge is background knowledge, not the target topic. "
         "The generated lesson must explicitly teach or practice the approved topic.\n"
+        "TEACHER EXECUTION RULES:\n"
+        "teacher_execution is required by the current teacher-facing contract. Include target_language and language_bank explicitly. "
+        "target_language must state the exact language structures or forms being taught and practiced. language_bank must provide "
+        "level-appropriate words, phrases, and sentence frames that directly support the approved topic and objective. Do not substitute "
+        "unrelated grammar or vocabulary.\n"
         "ACTIVITY CONTRACT RULES:\n"
         "Each object in activity_contracts defines one activity in the exact approved order. For EVERY generated activity, "
         "copy these contract-controlled fields exactly: activity_id, level, objective, skill, interaction, cognitive_demand, "
@@ -92,7 +97,8 @@ def _build_prompt(generation_request: dict[str, Any], previous_errors: list[str]
         '  "objective": "...",\n'
         '  "duration_minutes": 90,\n'
         '  "teacher_execution": {\n'
-        '    "teacher_explanation": "...", "teacher_talk": ["..."], "ccqs": ["..."],\n'
+        '    "teacher_explanation": "...", "target_language": ["..."], "language_bank": ["..."],\n'
+        '    "teacher_talk": ["..."], "ccqs": ["..."],\n'
         '    "examples": ["..."], "common_errors": {}, "scaffolding": ["..."], "materials": ["..."],\n'
         '    "worksheet": {}, "role_cards": ["..."], "answer_key": {}, "assessment_checklist": ["..."], "exit_ticket": {}\n'
         '  },\n'
