@@ -1,7 +1,8 @@
 """Teacher-facing presentation contract for accepted lessons.
 
-This module only materializes already-approved workflow decisions. It does not
-make pedagogical, provider, QC, or acceptance decisions.
+This module only materializes already-approved workflow decisions and accepted
+generated content. It does not make pedagogical, provider, QC, or acceptance
+decisions.
 """
 
 from __future__ import annotations
@@ -24,22 +25,32 @@ def _tuple_of_strings(value: Any) -> tuple[str, ...]:
     return ()
 
 
-def _accepted_activities(result: VerticalSliceResult) -> dict[str, Any]:
+def _frozen_mapping(value: Any) -> FrozenMapping:
+    if isinstance(value, FrozenMapping):
+        return value
+    if isinstance(value, dict):
+        return FrozenMapping(value)
+    return FrozenMapping()
+
+
+def _accepted_generation(result: VerticalSliceResult) -> FrozenMapping | None:
     """Read only the lesson artifact that reached the READY acceptance gate."""
     try:
         generation = result.generation
     except AttributeError:
-        # Legacy test doubles may model READY results from before generation
-        # became part of VerticalSliceResult. Treat that as "no accepted
-        # generated content", not as a failure of the presentation adapter.
-        return {}
+        return None
     if not isinstance(generation, FrozenMapping):
-        return {}
+        return None
     generated_result = generation.get("result")
     if not isinstance(generated_result, FrozenMapping):
-        return {}
+        return None
     lesson = generated_result.get("lesson")
-    if not isinstance(lesson, FrozenMapping):
+    return lesson if isinstance(lesson, FrozenMapping) else None
+
+
+def _accepted_activities(result: VerticalSliceResult) -> dict[str, Any]:
+    lesson = _accepted_generation(result)
+    if lesson is None:
         return {}
     activities = lesson.get("activities")
     if not isinstance(activities, tuple):
@@ -49,6 +60,38 @@ def _accepted_activities(result: VerticalSliceResult) -> dict[str, Any]:
         for activity in activities
         if isinstance(activity, FrozenMapping) and activity.get("activity_id")
     }
+
+
+@dataclass(frozen=True)
+class TeacherExecutionContent:
+    """Optional generated execution support for a teacher-facing lesson."""
+
+    teacher_explanation: str = ""
+    teacher_talk: tuple[str, ...] = ()
+    ccqs: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+    common_errors: FrozenMapping = field(default_factory=FrozenMapping)
+    scaffolding: tuple[str, ...] = ()
+    materials: tuple[str, ...] = ()
+    worksheet: FrozenMapping = field(default_factory=FrozenMapping)
+    role_cards: tuple[str, ...] = ()
+    answer_key: FrozenMapping = field(default_factory=FrozenMapping)
+    assessment_checklist: tuple[str, ...] = ()
+    exit_ticket: FrozenMapping = field(default_factory=FrozenMapping)
+
+    def __post_init__(self) -> None:
+        for name in (
+            "teacher_talk",
+            "ccqs",
+            "examples",
+            "scaffolding",
+            "materials",
+            "role_cards",
+            "assessment_checklist",
+        ):
+            object.__setattr__(self, name, _tuple_of_strings(getattr(self, name)))
+        for name in ("common_errors", "worksheet", "answer_key", "exit_ticket"):
+            object.__setattr__(self, name, _frozen_mapping(getattr(self, name)))
 
 
 @dataclass(frozen=True)
@@ -82,6 +125,7 @@ class TeacherLessonCard:
     prior_knowledge: tuple[str, ...] = ()
     constraints: tuple[str, ...] = ()
     activities: tuple[TeacherLessonActivity, ...] = ()
+    execution_content: TeacherExecutionContent = field(default_factory=TeacherExecutionContent)
     assessment: FrozenMapping = field(default_factory=FrozenMapping)
     resource: FrozenMapping | None = None
 
@@ -89,6 +133,12 @@ class TeacherLessonCard:
         object.__setattr__(self, "activities", tuple(self.activities))
         object.__setattr__(self, "prior_knowledge", _tuple_of_strings(self.prior_knowledge))
         object.__setattr__(self, "constraints", _tuple_of_strings(self.constraints))
+        if not isinstance(self.execution_content, TeacherExecutionContent):
+            object.__setattr__(
+                self,
+                "execution_content",
+                TeacherExecutionContent(**dict(self.execution_content)),
+            )
         if self.resource is not None and not isinstance(self.resource, FrozenMapping):
             object.__setattr__(self, "resource", FrozenMapping(self.resource))
         if not isinstance(self.assessment, FrozenMapping):
@@ -103,6 +153,14 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         raise ValueError("Accepted result is missing required teacher-facing decisions")
 
     accepted_activities = _accepted_activities(result)
+    lesson = _accepted_generation(result)
+    raw_execution = lesson.get("teacher_execution", {}) if lesson is not None else {}
+    execution_content = (
+        TeacherExecutionContent(**dict(raw_execution))
+        if isinstance(raw_execution, FrozenMapping)
+        else TeacherExecutionContent()
+    )
+
     activities = tuple(
         TeacherLessonActivity(
             activity_id=activity.activity_id,
@@ -143,7 +201,7 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         }
 
     return TeacherLessonCard(
-        version="v3",
+        version="v4",
         level=result.context.level,
         audience=result.context.audience,
         objective=result.context.objective,
@@ -152,6 +210,7 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         prior_knowledge=_tuple_of_strings(getattr(result.context, "prior_knowledge", ())),
         constraints=_tuple_of_strings(getattr(result.context, "constraints", ())),
         activities=activities,
+        execution_content=execution_content,
         assessment=FrozenMapping(assessment),
         resource=FrozenMapping(resource) if resource is not None else None,
     )
