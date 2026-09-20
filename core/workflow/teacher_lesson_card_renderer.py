@@ -1,4 +1,4 @@
-"""Presentation-only renderer for TeacherLessonCard v1."""
+"""Presentation-only renderer for TeacherLessonCard v2."""
 
 from __future__ import annotations
 
@@ -17,9 +17,17 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
         "<li>"
         f"<strong>{escape(activity.purpose)}</strong> "
         f"<span>{activity.minutes} min</span>"
-        f"<div>{escape(activity.interaction)}</div>"
+        f"<div><strong>Interaction:</strong> {escape(activity.interaction)}</div>"
+        f"<div><strong>Skill:</strong> {escape(activity.skill)}</div>"
+        f"<div><strong>Cognitive demand:</strong> {escape(activity.cognitive_demand)}</div>"
+        f"<div><strong>Scaffolding:</strong> {activity.scaffolding}/4</div>"
         + (
-            f"<p>{escape(activity.student_production)}</p>"
+            f"<p><strong>Language target:</strong> {escape(activity.language_target)}</p>"
+            if activity.language_target
+            else ""
+        )
+        + (
+            f"<p><strong>Student production:</strong> {escape(activity.student_production)}</p>"
             if activity.student_production
             else ""
         )
@@ -33,10 +41,18 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
     )
 
     assessment = card.assessment
+    context_html = (
+        "<section><h2>Approved lesson context</h2>"
+        f"<p><strong>Topic:</strong> {escape(card.topic or '')}</p>"
+        f"<p><strong>Prior knowledge:</strong> {escape(', '.join(card.prior_knowledge))}</p>"
+        f"<p><strong>Constraints:</strong> {escape(', '.join(card.constraints))}</p>"
+        "</section>"
+    )
+
     resource_html = ""
     if card.resource is not None:
         resource_html = (
-            "<section class=\"resource\"><h2>Resource</h2>"
+            "<section class="resource"><h2>Resource</h2>"
             f"<p><strong>{escape(str(card.resource.get('required_output', '')))}</strong></p>"
             f"<p>{escape(str(card.resource.get('purpose', '')))}</p>"
             "</section>"
@@ -55,6 +71,7 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
 <h1>{escape(card.objective)}</h1>
 <p><strong>{escape(card.level)}</strong> · {escape(card.audience)} · {card.duration_minutes} min</p>
 </header>
+{context_html}
 <section>
 <h2>Lesson sequence</h2>
 <ol>{activities}</ol>
