@@ -15,7 +15,7 @@ from core.workflow.vertical_slice import VerticalSliceResult
 
 @dataclass(frozen=True)
 class TeacherLessonActivity:
-    """Classroom-facing activity summary derived from an approved plan."""
+    """Classroom-facing activity contract derived from an approved plan."""
 
     activity_id: str
     purpose: str
@@ -23,6 +23,10 @@ class TeacherLessonActivity:
     minutes: int
     student_production: str = ""
     assessment_link: str = ""
+    skill: str = "MIXED"
+    cognitive_demand: str = "APPLY"
+    scaffolding: int = 2
+    language_target: str = ""
 
 
 @dataclass(frozen=True)
@@ -34,12 +38,17 @@ class TeacherLessonCard:
     audience: str
     objective: str
     duration_minutes: int
+    topic: str | None
+    prior_knowledge: tuple[str, ...]
+    constraints: tuple[str, ...]
     activities: tuple[TeacherLessonActivity, ...]
     assessment: FrozenMapping
     resource: FrozenMapping | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "activities", tuple(self.activities))
+        object.__setattr__(self, "prior_knowledge", tuple(self.prior_knowledge))
+        object.__setattr__(self, "constraints", tuple(self.constraints))
         if self.resource is not None and not isinstance(self.resource, FrozenMapping):
             object.__setattr__(self, "resource", FrozenMapping(self.resource))
         if not isinstance(self.assessment, FrozenMapping):
@@ -61,6 +70,10 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
             minutes=activity.minutes,
             student_production=activity.student_production,
             assessment_link=activity.assessment_link,
+            skill=activity.skill,
+            cognitive_demand=activity.cognitive_demand,
+            scaffolding=activity.scaffolding,
+            language_target=activity.language_target,
         )
         for activity in result.learning_plan.sequence
     )
@@ -81,11 +94,14 @@ def teacher_lesson_card_from_result(result: VerticalSliceResult) -> TeacherLesso
         }
 
     return TeacherLessonCard(
-        version="v1",
+        version="v2",
         level=result.context.level,
         audience=result.context.audience,
         objective=result.context.objective,
         duration_minutes=result.context.duration_minutes,
+        topic=result.context.topic,
+        prior_knowledge=result.context.prior_knowledge,
+        constraints=result.context.constraints,
         activities=activities,
         assessment=FrozenMapping(assessment),
         resource=FrozenMapping(resource) if resource is not None else None,
