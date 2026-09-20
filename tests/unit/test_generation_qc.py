@@ -339,7 +339,7 @@ class GenerationQCTests(unittest.TestCase):
             "level": "A2",
             "objective": "Give advice",
             "duration_minutes": 90,
-            "activities": [{}],
+            "activities": [{"name": "advice", "instructions": "Practice should."}],
             "teacher_execution": {
                 "teacher_explanation": "Explain past simple.",
                 "target_language": ["past simple"],
