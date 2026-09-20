@@ -115,6 +115,45 @@ class GenerationQCTests(unittest.TestCase):
         self.assertIn("CONTENT_TOPIC_MISSING", result["blocking_errors"])
         self.assertFalse(result["checks"]["content_alignment"])
 
+    def test_qc_accepts_compound_target_topic_with_natural_punctuation(self):
+        lesson = self._lesson()
+        lesson["activities"][0]["instructions"] = (
+            "Practice should and shouldn't. "
+            "Ask your partner: Why don't you try it? "
+            "Make a suggestion with Let's."
+        )
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            topic="Should / Why don't you...? / Let's...?",
+        )
+
+        self.assertEqual(result["status"], "READY")
+        self.assertNotIn("CONTENT_TOPIC_MISSING", result["blocking_errors"])
+        self.assertTrue(result["checks"]["content_alignment"])
+
+    def test_qc_rejects_compound_topic_when_one_target_is_absent(self):
+        lesson = self._lesson()
+        lesson["activities"][0]["instructions"] = (
+            "Practice should and shouldn't. "
+            "Ask your partner: Why don't you try it?"
+        )
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            topic="Should / Why don't you...? / Let's...?",
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn("CONTENT_TOPIC_MISSING", result["blocking_errors"])
+        self.assertFalse(result["checks"]["content_alignment"])
+
     def test_qc_rejects_explicit_forbidden_term(self):
         lesson = self._lesson()
         lesson["activities"][0]["instructions"] = "Practice used to with a partner."
@@ -130,7 +169,6 @@ class GenerationQCTests(unittest.TestCase):
         self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
         self.assertIn("CONTENT_FORBIDDEN_TERM", result["blocking_errors"])
         self.assertFalse(result["checks"]["content_alignment"])
-
 
     def test_qc_rejects_activity_contract_mismatch(self):
         contract = {
