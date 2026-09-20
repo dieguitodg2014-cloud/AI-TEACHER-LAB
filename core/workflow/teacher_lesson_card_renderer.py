@@ -53,7 +53,7 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
     if execution.target_language:
         execution_sections.append("<p><strong>Target language:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.target_language) + "</ul>")
     if execution.language_bank:
-        execution_sections.append("<p><strong>Language bank:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.language_bank) + "</ul>"
+        execution_sections.append("<p><strong>Language bank:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.language_bank) + "</ul>")
     if execution.teacher_talk:
         execution_sections.append("<p><strong>Teacher talk:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.teacher_talk) + "</ul>")
     if execution.ccqs:
