@@ -1,4 +1,4 @@
-"""Presentation-only renderer for TeacherLessonCard v3."""
+"""Presentation-only renderer for TeacherLessonCard v4."""
 
 from __future__ import annotations
 
@@ -46,6 +46,36 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
         for activity in card.activities
     )
 
+    execution = card.execution_content
+    execution_sections = []
+    if execution.teacher_explanation:
+        execution_sections.append(f"<p><strong>Teacher explanation:</strong> {escape(execution.teacher_explanation)}</p>")
+    if execution.teacher_talk:
+        execution_sections.append("<p><strong>Teacher talk:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.teacher_talk) + "</ul>")
+    if execution.ccqs:
+        execution_sections.append("<p><strong>CCQs:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.ccqs) + "</ul>")
+    if execution.examples:
+        execution_sections.append("<p><strong>Examples:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.examples) + "</ul>")
+    if execution.common_errors:
+        execution_sections.append("<p><strong>Common errors:</strong></p><pre>" + escape(str(dict(execution.common_errors))) + "</pre>")
+    if execution.scaffolding:
+        execution_sections.append("<p><strong>Scaffolding:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.scaffolding) + "</ul>")
+    if execution.materials:
+        execution_sections.append("<p><strong>Materials:</strong> " + escape(", ".join(execution.materials)) + "</p>")
+    if execution.worksheet:
+        execution_sections.append("<p><strong>Student worksheet:</strong></p><pre>" + escape(str(dict(execution.worksheet))) + "</pre>")
+    if execution.role_cards:
+        execution_sections.append("<p><strong>Role cards:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.role_cards) + "</ul>")
+    if execution.answer_key:
+        execution_sections.append("<p><strong>Answer key:</strong></p><pre>" + escape(str(dict(execution.answer_key))) + "</pre>")
+    if execution.assessment_checklist:
+        execution_sections.append("<p><strong>Assessment checklist:</strong></p><ul>" + "".join(f"<li>{escape(item)}</li>" for item in execution.assessment_checklist) + "</ul>")
+    if execution.exit_ticket:
+        execution_sections.append("<p><strong>Exit ticket:</strong></p><pre>" + escape(str(dict(execution.exit_ticket))) + "</pre>")
+    execution_html = ""
+    if execution_sections:
+        execution_html = "<section><h2>Teacher execution support</h2>" + "".join(execution_sections) + "</section>"
+
     assessment = card.assessment
     context_html = (
         "<section><h2>Approved lesson context</h2>"
@@ -88,6 +118,7 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
 <p>{escape(str(assessment.get('target', '')))}</p>
 <p>{escape(str(assessment.get('evidence', '')))}</p>
 </section>
+{execution_html}
 {resource_html}
 </main>
 </body>
