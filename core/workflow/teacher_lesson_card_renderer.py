@@ -52,7 +52,7 @@ def render_teacher_lesson_card(card: TeacherLessonCard) -> str:
     resource_html = ""
     if card.resource is not None:
         resource_html = (
-            "<section class="resource"><h2>Resource</h2>"
+            '<section class="resource"><h2>Resource</h2>'
             f"<p><strong>{escape(str(card.resource.get('required_output', '')))}</strong></p>"
             f"<p>{escape(str(card.resource.get('purpose', '')))}</p>"
             "</section>"
