@@ -67,6 +67,8 @@ class TeacherExecutionContent:
     """Optional generated execution support for a teacher-facing lesson."""
 
     teacher_explanation: str = ""
+    target_language: tuple[str, ...] = ()
+    language_bank: tuple[str, ...] = ()
     teacher_talk: tuple[str, ...] = ()
     ccqs: tuple[str, ...] = ()
     examples: tuple[str, ...] = ()
@@ -81,6 +83,8 @@ class TeacherExecutionContent:
 
     def __post_init__(self) -> None:
         for name in (
+            "target_language",
+            "language_bank",
             "teacher_talk",
             "ccqs",
             "examples",
