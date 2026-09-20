@@ -15,8 +15,19 @@ def _flatten_text(value: Any) -> str:
     return str(value)
 
 
+def _topic_components(expected_topic: str) -> list[str]:
+    """Extract compound target components from a teacher topic label."""
+    parts = re.split(r"\s*(?:/|\||,|;|&|\+)\s*|\s+and\s+", expected_topic, flags=re.IGNORECASE)
+    components = []
+    for part in parts:
+        cleaned = re.sub(r"\s*[?.!:]+\s*$", "", part).strip()
+        if cleaned:
+            components.append(cleaned)
+    return components
+
+
 def _topic_match(expected_topic: str, generated_text: str) -> bool:
-    """Match a topic label without making a modality suffix mandatory."""
+    """Match simple or compound topic labels without punctuation brittleness."""
     expected = expected_topic.casefold().strip()
     generated = generated_text.casefold()
 
@@ -24,7 +35,14 @@ def _topic_match(expected_topic: str, generated_text: str) -> bool:
         return True
 
     core_topic = re.split(r"\s+-\s+|\s*:\s*", expected, maxsplit=1)[0].strip()
-    return bool(core_topic) and core_topic in generated
+    if core_topic and core_topic in generated:
+        return True
+
+    components = _topic_components(expected_topic)
+    if len(components) <= 1:
+        return False
+
+    return all(component.casefold() in generated for component in components)
 
 
 def _forbidden_terms(constraints: list[Any]) -> list[str]:
