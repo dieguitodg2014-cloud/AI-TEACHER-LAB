@@ -10,20 +10,42 @@ from typing import Any, Callable
 from core.assessment.decision_engine import decide_assessment
 from core.context.engine import build_context
 from core.context.request_interpreter import interpret_request
-from core.foundation.models import AssessmentDecision, Context, FrozenMapping, LearningPlanDecision, LevelDecision, ResourceDecision, TaskPacket
+from core.foundation.models import (
+    AssessmentDecision,
+    Context,
+    FrozenMapping,
+    LearningPlanDecision,
+    LevelDecision,
+    ResourceDecision,
+    TaskPacket,
+)
 from core.generation.lesson_generator import build_generation_request
 from core.orchestration.generation_orchestrator import GenerationOrchestrator
-from core.orchestration.resource_handoff import build_resource_handoff, build_resource_revision_handoff
-from core.orchestration.resource_orchestrator import execute_resource_generation, select_resource_tool
+from core.orchestration.resource_handoff import (
+    build_resource_handoff,
+    build_resource_revision_handoff,
+)
+from core.orchestration.resource_orchestrator import (
+    execute_resource_generation,
+    select_resource_tool,
+)
 from core.orchestration.task_packets import build_resource_task_packet
 from core.orchestration.tool_selector import ToolCandidate
 from core.pedagogy.decision_engine import decide_learning_plan
 from core.progression.level_control import decide_level
 from core.resources.decision_engine import apply_resource_decision, decide_resource
-from core.resources.output_validator import ResourceValidationResult, validate_resource_output
-from core.validation.lesson_quality import LessonQualityValidator, LessonValidationResult, validate_lesson_structure
+from core.resources.output_validator import (
+    ResourceValidationResult,
+    validate_resource_output,
+)
+from core.validation.lesson_quality import (
+    LessonQualityValidator,
+    LessonValidationResult,
+    validate_lesson_structure,
+)
 from tools.registry import ToolRegistry
 from tools.registry.config_loader import load_tool_registry_config
+
 
 DEFAULT_TOOL_CONFIG = Path(__file__).resolve().parents[2] / "config" / "tools.json"
 
@@ -59,8 +81,20 @@ class VerticalSliceResult:
     errors: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "resource_handoff", FrozenMapping(self.resource_handoff) if self.resource_handoff is not None else None)
-        object.__setattr__(self, "generation", FrozenMapping(self.generation) if self.generation is not None else None)
+        object.__setattr__(
+            self,
+            "resource_handoff",
+            FrozenMapping(self.resource_handoff)
+            if self.resource_handoff is not None
+            else None,
+        )
+        object.__setattr__(
+            self,
+            "generation",
+            FrozenMapping(self.generation)
+            if self.generation is not None
+            else None,
+        )
         object.__setattr__(self, "missing", tuple(self.missing))
         object.__setattr__(self, "errors", tuple(self.errors))
 
@@ -84,7 +118,9 @@ def run_lesson_planning(
     tool_config_path: str | Path | None = None,
     produced_resource: dict[str, Any] | None = None,
     revision_count: int = 0,
-    independent_validator: Callable[..., LessonValidationResult] | LessonQualityValidator | None = validate_lesson_structure,
+    independent_validator: Callable[..., LessonValidationResult]
+    | LessonQualityValidator
+    | None = validate_lesson_structure,
 ) -> VerticalSliceResult:
     """Run context, pedagogy, assessment, lesson validation, resources and generation.
 
@@ -95,26 +131,91 @@ def run_lesson_planning(
     this end-to-end workflow.
     """
     structured_request = interpret_request(request)
+
+    teacher_facing = structured_request.get("teacher_facing", False)
+    if not isinstance(teacher_facing, bool):
+        return VerticalSliceResult(
+            "FAILED",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
+            ["INVALID_GENERATION_REQUEST"],
+        )
+
     context_result = build_context(structured_request)
 
-    if context_result.errors or context_result.missing or context_result.context is None:
-        return VerticalSliceResult("MISSING_CONTEXT" if context_result.missing else "FAILED", context_result.context, None, None, None, None, None, None, None, None, None, context_result.missing, context_result.errors)
+    if (
+        context_result.errors
+        or context_result.missing
+        or context_result.context is None
+    ):
+        return VerticalSliceResult(
+            "MISSING_CONTEXT" if context_result.missing else "FAILED",
+            context_result.context,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            context_result.missing,
+            context_result.errors,
+        )
 
     try:
         level_decision = decide_level(context_result.context)
-        learning_plan = decide_learning_plan(context_result.context, level_decision)
+        learning_plan = decide_learning_plan(
+            context_result.context,
+            level_decision,
+        )
         assessment_decision = decide_assessment(
             objective=context_result.context.objective,
             level_decision=level_decision,
             learning_plan=learning_plan,
         )
-        resource_decision = decide_resource(context_result.context, learning_plan)
-        learning_plan = apply_resource_decision(learning_plan, resource_decision)
-        resource_task = build_resource_task_packet(context_result.context, learning_plan, resource_decision)
+        resource_decision = decide_resource(
+            context_result.context,
+            learning_plan,
+        )
+        learning_plan = apply_resource_decision(
+            learning_plan,
+            resource_decision,
+        )
+        resource_task = build_resource_task_packet(
+            context_result.context,
+            learning_plan,
+            resource_decision,
+        )
     except (ValueError, OSError, KeyError) as exc:
-        return VerticalSliceResult("FAILED", context_result.context, None, None, None, None, None, None, None, None, None, [], [str(exc)])
+        return VerticalSliceResult(
+            "FAILED",
+            context_result.context,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
+            [str(exc)],
+        )
 
     resource_validation = None
+
     if produced_resource is not None:
         if resource_task is None:
             resource_validation = ResourceValidationResult(
@@ -123,7 +224,9 @@ def run_lesson_planning(
                 score=0.0,
                 critical_failure=True,
                 checks={"resource_task_exists": False},
-                blocking_errors=["A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."],
+                blocking_errors=[
+                    "A produced resource was supplied, but the pedagogical decision did not create a Resource TaskPacket."
+                ],
             )
         else:
             resource_validation = validate_resource_output(
@@ -134,7 +237,10 @@ def run_lesson_planning(
 
         if resource_validation.status != "READY":
             revision_handoff = None
-            if resource_validation.status == "REVISION_REQUIRED" and resource_task is not None:
+            if (
+                resource_validation.status == "REVISION_REQUIRED"
+                and resource_task is not None
+            ):
                 revision_handoff = build_resource_revision_handoff(
                     context_result.context,
                     resource_task,
@@ -154,33 +260,79 @@ def run_lesson_planning(
                 resource_validation,
                 None,
                 [],
-                list(resource_validation.blocking_errors) + list(resource_validation.feedback),
+                list(resource_validation.blocking_errors)
+                + list(resource_validation.feedback),
             )
 
     if tools is None and generators is None:
         resource_handoff = (
-            build_resource_handoff(context_result.context, resource_task)
+            build_resource_handoff(
+                context_result.context,
+                resource_task,
+            )
             if resource_task is not None and produced_resource is None
             else None
         )
-        return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, resource_handoff, resource_validation, None, [], [])
+
+        return VerticalSliceResult(
+            "PLANNED",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            None,
+            resource_handoff,
+            resource_validation,
+            None,
+            [],
+            [],
+        )
 
     free_first = True
+
     try:
         if tools is None:
-            configured_tools, policy = load_tool_registry_config(tool_config_path or DEFAULT_TOOL_CONFIG)
+            configured_tools, policy = load_tool_registry_config(
+                tool_config_path or DEFAULT_TOOL_CONFIG
+            )
             registry = ToolRegistry(configured_tools)
             selected_tools = registry.list_available()
             free_first = bool(policy.get("free_first", True))
         else:
             selected_tools = tools
     except (OSError, ValueError, TypeError) as exc:
-        return VerticalSliceResult("FAILED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, None, None, resource_validation, None, [], [f"TOOL_REGISTRY_ERROR:{exc}"])
+        return VerticalSliceResult(
+            "FAILED",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            None,
+            None,
+            resource_validation,
+            None,
+            [],
+            [f"TOOL_REGISTRY_ERROR:{exc}"],
+        )
 
-    resource_tool = select_resource_tool(resource_task, selected_tools, free_first=free_first)
+    resource_tool = select_resource_tool(
+        resource_task,
+        selected_tools,
+        free_first=free_first,
+    )
+
     resource_handoff = (
-        build_resource_handoff(context_result.context, resource_task)
-        if resource_task is not None and resource_tool is None and produced_resource is None
+        build_resource_handoff(
+            context_result.context,
+            resource_task,
+        )
+        if resource_task is not None
+        and resource_tool is None
+        and produced_resource is None
         else None
     )
 
@@ -195,7 +347,11 @@ def run_lesson_planning(
                 resource_decision,
                 resource_task,
                 None,
-                resource_handoff or build_resource_handoff(context_result.context, resource_task),
+                resource_handoff
+                or build_resource_handoff(
+                    context_result.context,
+                    resource_task,
+                ),
                 resource_validation,
                 None,
                 [],
@@ -207,6 +363,7 @@ def run_lesson_planning(
             resource_tool,
             generators,
         )
+
         if resource_generation["status"] != "PRODUCED":
             return VerticalSliceResult(
                 "HUMAN_HANDOFF",
@@ -217,7 +374,10 @@ def run_lesson_planning(
                 resource_decision,
                 resource_task,
                 resource_tool,
-                build_resource_handoff(context_result.context, resource_task),
+                build_resource_handoff(
+                    context_result.context,
+                    resource_task,
+                ),
                 resource_validation,
                 resource_generation,
                 [],
@@ -229,14 +389,17 @@ def run_lesson_planning(
             resource_generation["result"],
             revision_count=revision_count,
         )
+
         if resource_validation.status != "READY":
             revision_handoff = None
+
             if resource_validation.status == "REVISION_REQUIRED":
                 revision_handoff = build_resource_revision_handoff(
                     context_result.context,
                     resource_task,
                     resource_validation,
                 )
+
             return VerticalSliceResult(
                 resource_validation.status,
                 context_result.context,
@@ -250,7 +413,8 @@ def run_lesson_planning(
                 resource_validation,
                 resource_generation,
                 [],
-                list(resource_validation.blocking_errors) + list(resource_validation.feedback),
+                list(resource_validation.blocking_errors)
+                + list(resource_validation.feedback),
             )
 
         return VerticalSliceResult(
@@ -271,11 +435,47 @@ def run_lesson_planning(
 
     if generators is None:
         has_resource_capability = any(
-            "resource_generation" in tool.capabilities for tool in selected_tools
+            "resource_generation" in tool.capabilities
+            for tool in selected_tools
         )
+
         if resource_task is not None or has_resource_capability:
-            return VerticalSliceResult("PLANNED", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, None, [], [])
-        return VerticalSliceResult("HUMAN_HANDOFF", context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, {"status": "HUMAN_HANDOFF", "tool_id": None, "result": None, "errors": ["GENERATOR_UNAVAILABLE"]}, [], ["GENERATOR_UNAVAILABLE"])
+            return VerticalSliceResult(
+                "PLANNED",
+                context_result.context,
+                level_decision,
+                learning_plan,
+                assessment_decision,
+                resource_decision,
+                resource_task,
+                resource_tool,
+                resource_handoff,
+                resource_validation,
+                None,
+                [],
+                [],
+            )
+
+        return VerticalSliceResult(
+            "HUMAN_HANDOFF",
+            context_result.context,
+            level_decision,
+            learning_plan,
+            assessment_decision,
+            resource_decision,
+            resource_task,
+            resource_tool,
+            resource_handoff,
+            resource_validation,
+            {
+                "status": "HUMAN_HANDOFF",
+                "tool_id": None,
+                "result": None,
+                "errors": ["GENERATOR_UNAVAILABLE"],
+            },
+            [],
+            ["GENERATOR_UNAVAILABLE"],
+        )
 
     if independent_validator is None:
         return VerticalSliceResult(
@@ -299,8 +499,11 @@ def run_lesson_planning(
         asdict(context_result.context),
         assessment_decision,
         asdict(resource_decision) if resource_decision is not None else None,
+        teacher_facing=teacher_facing,
     )
+
     orchestration = GenerationOrchestrator(selected_tools, generators)
+
     generation = orchestration.run(
         generation_request,
         free_first=free_first,
@@ -308,7 +511,22 @@ def run_lesson_planning(
         validation_context=context_result.context,
         learning_plan=learning_plan,
     )
-    return VerticalSliceResult(generation["status"], context_result.context, level_decision, learning_plan, assessment_decision, resource_decision, resource_task, resource_tool, resource_handoff, resource_validation, generation, [], generation.get("errors", []))
+
+    return VerticalSliceResult(
+        generation["status"],
+        context_result.context,
+        level_decision,
+        learning_plan,
+        assessment_decision,
+        resource_decision,
+        resource_task,
+        resource_tool,
+        resource_handoff,
+        resource_validation,
+        generation,
+        [],
+        generation.get("errors", []),
+    )
 
 
 def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
@@ -318,8 +536,10 @@ def result_to_dict(result: VerticalSliceResult) -> dict[str, Any]:
     payload["generation"] = _materialize(payload["generation"])
     payload["missing"] = list(payload["missing"])
     payload["errors"] = list(payload["errors"])
+
     if payload["assessment_decision"] is not None:
         payload["assessment_decision"]["success_criteria"] = list(
             payload["assessment_decision"]["success_criteria"]
         )
+
     return payload

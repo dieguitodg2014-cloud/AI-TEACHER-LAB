@@ -25,7 +25,11 @@ _GENERIC_PRODUCTION = {
 
 def _observable_action_from_objective(objective: str) -> str | None:
     """Extract the observable action phrase from a simple learner objective."""
-    match = re.match(r"^\s*(?:students|learners)\s+will\s+(.+?)\s*$", objective, flags=re.IGNORECASE)
+    match = re.match(
+        r"^\s*(?:students|learners)\s+will\s+(.+?)\s*$",
+        objective,
+        flags=re.IGNORECASE,
+    )
     if match:
         return match.group(1).strip().rstrip(".")
     return None
@@ -55,6 +59,7 @@ def _repair_generic_production_fields(
 
     repaired = dict(lesson)
     repaired_activities: list[Any] = []
+
     for activity in activities:
         if not isinstance(activity, dict):
             repaired_activities.append(activity)
@@ -88,6 +93,7 @@ def _run_independent_validator(
             learning_plan=learning_plan,
             request=request,
         )
+
     if callable(validator):
         return validator(
             context,
@@ -95,7 +101,10 @@ def _run_independent_validator(
             learning_plan=learning_plan,
             request=request,
         )
-    raise TypeError("independent_validator must be callable or implement LessonQualityValidator")
+
+    raise TypeError(
+        "independent_validator must be callable or implement LessonQualityValidator"
+    )
 
 
 def generate_with_revision(
@@ -123,25 +132,83 @@ def generate_with_revision(
     approved_sequence = generation_request.get("sequence")
     activity_contracts = generation_request.get("activity_contracts", [])
     resource_decision = generation_request.get("resource_decision")
+    teacher_facing = generation_request.get("teacher_facing", False)
 
     if not isinstance(expected_level, str) or not isinstance(expected_objective, str):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if not isinstance(expected_duration, int) or expected_duration <= 0:
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if expected_topic is not None and not isinstance(expected_topic, str):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if not isinstance(constraints, (list, tuple)):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
-    if assessment_decision is not None and not isinstance(assessment_decision, (dict, FrozenMapping)):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
-    if approved_sequence is not None and not isinstance(approved_sequence, (list, tuple)):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
+    if assessment_decision is not None and not isinstance(
+        assessment_decision,
+        (dict, FrozenMapping),
+    ):
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
+    if approved_sequence is not None and not isinstance(
+        approved_sequence,
+        (list, tuple),
+    ):
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if not isinstance(activity_contracts, (list, tuple)):
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
+    if not isinstance(teacher_facing, bool):
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if not isinstance(max_revisions, int) or max_revisions < 0:
-        return {"status": "FAILED", "lesson": None, "errors": ["INVALID_GENERATION_REQUEST"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["INVALID_GENERATION_REQUEST"],
+        }
+
     if independent_validator is not None and validation_context is None:
-        return {"status": "FAILED", "lesson": None, "errors": ["VALIDATION_CONTEXT_REQUIRED"]}
+        return {
+            "status": "FAILED",
+            "lesson": None,
+            "errors": ["VALIDATION_CONTEXT_REQUIRED"],
+        }
 
     # Providers receive a deep immutable snapshot of the approved request.
     provider_request = FrozenMapping(generation_request)
@@ -159,7 +226,10 @@ def generate_with_revision(
             return {
                 "status": "FAILED",
                 "lesson": None,
-                "errors": ["EXECUTION_ERROR", f"{type(exc).__name__}: {exc}"],
+                "errors": [
+                    "EXECUTION_ERROR",
+                    f"{type(exc).__name__}: {exc}",
+                ],
                 "attempts": attempts + 1,
                 "qc": None,
                 "independent_validation": None,
@@ -176,7 +246,12 @@ def generate_with_revision(
                 "independent_validation": None,
             }
 
-        lesson = _repair_generic_production_fields(lesson, expected_objective, errors)
+        lesson = _repair_generic_production_fields(
+            lesson,
+            expected_objective,
+            errors,
+        )
+
         qc_result = review_generated_lesson(
             lesson,
             level=expected_level,
@@ -188,8 +263,11 @@ def generate_with_revision(
             approved_sequence=approved_sequence,
             activity_contracts=activity_contracts,
             resource_decision=resource_decision,
+            teacher_facing=teacher_facing,
         )
+
         errors = list(qc_result["blocking_errors"])
+
         if qc_result["status"] != "READY":
             attempts += 1
             continue
@@ -202,6 +280,7 @@ def generate_with_revision(
                 learning_plan=learning_plan,
                 request=generation_request,
             )
+
             if independent_validation.status == "CRITICAL_FAILURE":
                 return {
                     "status": "HUMAN_HANDOFF",
@@ -211,6 +290,7 @@ def generate_with_revision(
                     "qc": qc_result,
                     "independent_validation": independent_validation,
                 }
+
             if independent_validation.status == "REVISION_REQUIRED":
                 errors = list(independent_validation.revision_required)
                 attempts += 1
