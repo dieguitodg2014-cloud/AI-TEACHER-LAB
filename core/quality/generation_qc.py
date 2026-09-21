@@ -8,6 +8,9 @@ from typing import Any
 from core.generation.output_validator import validate_generated_lesson
 from core.pedagogy.activity_contract import ActivityGenerationContract
 from core.pedagogy.activity_validator import validate_activity
+from core.quality.teacher_execution_completeness import (
+    validate_teacher_execution_completeness,
+)
 from core.quality.weighted_qc import score_weighted_qc
 
 
@@ -62,8 +65,10 @@ def _approved_sequence_errors(
         return ["PLAN_SEQUENCE_MISMATCH"]
 
     has_sequence_metadata = any(
-        isinstance(activity, dict) and any(
-            field in activity for field in ("stage", "minutes", "purpose", "instructions")
+        isinstance(activity, dict)
+        and any(
+            field in activity
+            for field in ("stage", "minutes", "purpose", "instructions")
         )
         for activity in activities
     )
@@ -82,21 +87,30 @@ def _approved_sequence_errors(
 
         approved_production = str(approved.get("student_production", "")).strip()
         generated_production = str(generated.get("student_production", "")).strip()
-        if approved_production and "student_production" in generated and not generated_production:
+        if (
+            approved_production
+            and "student_production" in generated
+            and not generated_production
+        ):
             return ["PLAN_PRODUCTION_REQUIREMENT_MISSING"]
 
         approved_assessment = str(approved.get("assessment_link", "")).strip()
         generated_assessment = str(generated.get("assessment_link", "")).strip()
-        if approved_assessment and "assessment_link" in generated and not generated_assessment:
+        if (
+            approved_assessment
+            and "assessment_link" in generated
+            and not generated_assessment
+        ):
             return ["PLAN_ASSESSMENT_LINK_MISSING"]
 
     return []
 
 
-
 def _activity_contract_errors(
     lesson: dict[str, Any],
-    activity_contracts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None,
+    activity_contracts: list[Mapping[str, Any]]
+    | tuple[Mapping[str, Any], ...]
+    | None,
 ) -> list[str]:
     """Validate generated activities against the approved per-activity contracts."""
     if not activity_contracts:
@@ -111,12 +125,15 @@ def _activity_contract_errors(
         if not isinstance(contract_data, Mapping):
             errors.append("INVALID_ACTIVITY_CONTRACT")
             continue
+
         try:
             contract = ActivityGenerationContract(**contract_data)
         except (TypeError, ValueError):
             errors.append("INVALID_ACTIVITY_CONTRACT")
             continue
+
         errors.extend(validate_activity(activity, contract))
+
     return errors
 
 
@@ -129,24 +146,44 @@ def _teacher_execution_errors(lesson: dict[str, Any]) -> list[str]:
     execution = lesson.get("teacher_execution")
     if execution is None:
         return []
+
     if not isinstance(execution, Mapping):
         return ["INVALID_TEACHER_EXECUTION"]
 
     sequence_fields = (
-        "target_language", "language_bank", "teacher_talk", "ccqs", "examples", "scaffolding", "materials",
-        "role_cards", "assessment_checklist",
+        "target_language",
+        "language_bank",
+        "teacher_talk",
+        "ccqs",
+        "examples",
+        "scaffolding",
+        "materials",
+        "role_cards",
+        "assessment_checklist",
     )
-    mapping_fields = ("common_errors", "worksheet", "answer_key", "exit_ticket")
+    mapping_fields = (
+        "common_errors",
+        "worksheet",
+        "answer_key",
+        "exit_ticket",
+    )
+
     if not isinstance(execution.get("teacher_explanation", ""), str):
         return ["INVALID_TEACHER_EXECUTION"]
+
     for field in sequence_fields:
         value = execution.get(field, [])
-        if not isinstance(value, (list, tuple)) or not all(isinstance(item, str) for item in value):
+        if not isinstance(value, (list, tuple)) or not all(
+            isinstance(item, str) for item in value
+        ):
             return ["INVALID_TEACHER_EXECUTION"]
+
     for field in mapping_fields:
         if not isinstance(execution.get(field, {}), Mapping):
             return ["INVALID_TEACHER_EXECUTION"]
+
     return []
+
 
 def _teacher_execution_semantic_errors(
     lesson: dict[str, Any],
@@ -160,28 +197,50 @@ def _teacher_execution_semantic_errors(
         return []
 
     fields = (
-        "teacher_explanation", "target_language", "language_bank",
-        "teacher_talk", "ccqs", "examples", "scaffolding",
-        "materials", "role_cards", "assessment_checklist",
-        "common_errors", "worksheet", "answer_key", "exit_ticket",
+        "teacher_explanation",
+        "target_language",
+        "language_bank",
+        "teacher_talk",
+        "ccqs",
+        "examples",
+        "scaffolding",
+        "materials",
+        "role_cards",
+        "assessment_checklist",
+        "common_errors",
+        "worksheet",
+        "answer_key",
+        "exit_ticket",
     )
     text = " ".join(str(execution.get(field, "")) for field in fields).casefold()
     errors: list[str] = []
 
     if topic:
         from core.generation.output_validator import _topic_match
+
         if not _topic_match(topic, text):
             errors.append("TEACHER_EXECUTION_TOPIC_MISSING")
 
     import re
+
     forbidden: list[str] = []
     for constraint in constraints or []:
         if isinstance(constraint, str):
-            match = re.match(r"\s*FORBIDDEN_TERMS\s*:\s*(.+)\s*$", constraint, re.IGNORECASE)
+            match = re.match(
+                r"\s*FORBIDDEN_TERMS\s*:\s*(.+)\s*$",
+                constraint,
+                re.IGNORECASE,
+            )
             if match:
-                forbidden.extend(term.strip() for term in match.group(1).split(",") if term.strip())
+                forbidden.extend(
+                    term.strip()
+                    for term in match.group(1).split(",")
+                    if term.strip()
+                )
+
     if any(term.casefold() in text for term in forbidden):
         errors.append("TEACHER_EXECUTION_FORBIDDEN_TERM")
+
     return errors
 
 
@@ -195,8 +254,11 @@ def review_generated_lesson(
     constraints: list[Any] | None = None,
     assessment_decision: dict[str, Any] | None = None,
     approved_sequence: list[dict[str, Any]] | None = None,
-    activity_contracts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None = None,
+    activity_contracts: list[Mapping[str, Any]]
+    | tuple[Mapping[str, Any], ...]
+    | None = None,
     resource_decision: Mapping[str, Any] | None = None,
+    teacher_facing: bool = False,
 ) -> dict[str, Any]:
     """Run the current MVP QC checks and return the official QCResult shape."""
     blocking_errors = validate_generated_lesson(
@@ -207,16 +269,38 @@ def review_generated_lesson(
         expected_topic=topic,
         constraints=constraints,
     )
+
     if not blocking_errors:
         blocking_errors.extend(_approved_sequence_errors(lesson, approved_sequence))
+
     if not blocking_errors and assessment_decision is not None:
-        blocking_errors.extend(_assessment_alignment_errors(lesson, assessment_decision))
+        blocking_errors.extend(
+            _assessment_alignment_errors(lesson, assessment_decision)
+        )
+
     if not blocking_errors:
-        blocking_errors.extend(_activity_contract_errors(lesson, activity_contracts))
+        blocking_errors.extend(
+            _activity_contract_errors(lesson, activity_contracts)
+        )
+
     if not blocking_errors:
         blocking_errors.extend(_teacher_execution_errors(lesson))
+
+    if not blocking_errors and teacher_facing:
+        blocking_errors.extend(
+            validate_teacher_execution_completeness(
+                lesson.get("teacher_execution")
+            )
+        )
+
     if not blocking_errors:
-        blocking_errors.extend(_teacher_execution_semantic_errors(lesson, topic=topic, constraints=constraints))
+        blocking_errors.extend(
+            _teacher_execution_semantic_errors(
+                lesson,
+                topic=topic,
+                constraints=constraints,
+            )
+        )
 
     level_alignment = "LEVEL_MISMATCH" not in blocking_errors
     objective_alignment = not any(
@@ -226,23 +310,41 @@ def review_generated_lesson(
             "PLAN_SEQUENCE_MISMATCH",
         )
     )
+
     content_alignment = not any(
         error in blocking_errors
         for error in ("CONTENT_TOPIC_MISSING", "CONTENT_FORBIDDEN_TERM")
     )
+
     time_realism = not any(
         error in blocking_errors
         for error in ("INVALID_DURATION", "DURATION_MISMATCH")
     )
+
     activity_presence = "MISSING_ACTIVITIES" not in blocking_errors
 
     # The remaining dimensions are not yet deeply evaluated by the MVP validator.
     # They therefore remain explicitly conservative rather than being invented.
     communicative_value = activity_presence and not any(
-        error.startswith(("ACTIVITY_", "INVALID_ACTIVITY_CONTRACT", "SKILL_MISMATCH", "INTERACTION_MISMATCH", "COGNITIVE_DEMAND_MISMATCH", "SCAFFOLDING_MISMATCH", "LANGUAGE_TARGET_MISMATCH", "EVIDENCE_MISSING", "MUST_INCLUDE_MISSING", "MUST_NOT_INCLUDE_PRESENT"))
+        error.startswith(
+            (
+                "ACTIVITY_",
+                "INVALID_ACTIVITY_CONTRACT",
+                "SKILL_MISMATCH",
+                "INTERACTION_MISMATCH",
+                "COGNITIVE_DEMAND_MISMATCH",
+                "SCAFFOLDING_MISMATCH",
+                "LANGUAGE_TARGET_MISMATCH",
+                "EVIDENCE_MISSING",
+                "MUST_INCLUDE_MISSING",
+                "MUST_NOT_INCLUDE_PRESENT",
+            )
+        )
         for error in blocking_errors
     )
+
     linguistic_accuracy = True
+
     assessment_alignment = not any(
         error in blocking_errors
         for error in (
@@ -269,6 +371,7 @@ def review_generated_lesson(
         activity_contracts=activity_contracts,
         resource_decision=resource_decision,
     )
+
     critical_failure = bool(blocking_errors)
 
     return {

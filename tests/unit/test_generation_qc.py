@@ -46,7 +46,10 @@ class GenerationQCTests(unittest.TestCase):
             set(result["weighted_qc"]["dimensions"]),
             set(result["weighted_qc"]["weights"]),
         )
-        self.assertEqual(result["weighted_qc"]["dimensions"]["resource_efficiency"], 100.0)
+        self.assertEqual(
+            result["weighted_qc"]["dimensions"]["resource_efficiency"],
+            100.0,
+        )
 
     def test_qc_scores_resource_efficiency_from_authoritative_decision(self):
         lesson = self._lesson()
@@ -63,7 +66,10 @@ class GenerationQCTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(result["weighted_qc"]["dimensions"]["resource_efficiency"], 0.0)
+        self.assertEqual(
+            result["weighted_qc"]["dimensions"]["resource_efficiency"],
+            0.0,
+        )
         self.assertLess(result["score"], 100.0)
 
     def test_qc_rejects_misaligned_lesson(self):
@@ -227,12 +233,15 @@ class GenerationQCTests(unittest.TestCase):
             "language_target": "Discuss past experiences and ask follow-up questions.",
             "evidence": "Teacher observes the learner response.",
         }
+
         lesson = self._lesson()
-        lesson["activities"] = [{
-            **contract,
-            "interaction": "individual",
-            "evidence": "Teacher observes the learner response.",
-        }]
+        lesson["activities"] = [
+            {
+                **contract,
+                "interaction": "individual",
+                "evidence": "Teacher observes the learner response.",
+            }
+        ]
 
         result = review_generated_lesson(
             lesson,
@@ -280,8 +289,12 @@ class GenerationQCTests(unittest.TestCase):
 
     def test_qc_accepts_performance_assessment_with_production_and_link(self):
         lesson = self._lesson()
-        lesson["activities"][0]["student_production"] = "Students discuss a past experience."
-        lesson["activities"][0]["assessment_link"] = "Teacher observes the learner response."
+        lesson["activities"][0]["student_production"] = (
+            "Students discuss a past experience."
+        )
+        lesson["activities"][0]["assessment_link"] = (
+            "Teacher observes the learner response."
+        )
 
         result = review_generated_lesson(
             lesson,
@@ -300,7 +313,6 @@ class GenerationQCTests(unittest.TestCase):
         self.assertEqual(result["status"], "READY")
         self.assertEqual(result["blocking_errors"], [])
         self.assertTrue(result["checks"]["assessment_alignment"])
-
 
     def test_teacher_execution_semantic_alignment(self):
         lesson = {
@@ -325,6 +337,7 @@ class GenerationQCTests(unittest.TestCase):
                 "exit_ticket": {},
             },
         }
+
         result = review_generated_lesson(
             lesson,
             level="A2",
@@ -332,6 +345,7 @@ class GenerationQCTests(unittest.TestCase):
             duration_minutes=90,
             topic="should",
         )
+
         self.assertEqual(result["status"], "READY")
 
     def test_teacher_execution_rejects_missing_topic(self):
@@ -357,6 +371,7 @@ class GenerationQCTests(unittest.TestCase):
                 "exit_ticket": {},
             },
         }
+
         result = review_generated_lesson(
             lesson,
             level="A2",
@@ -364,7 +379,58 @@ class GenerationQCTests(unittest.TestCase):
             duration_minutes=90,
             topic="should",
         )
+
         self.assertIn("TEACHER_EXECUTION_TOPIC_MISSING", result["blocking_errors"])
+
+    def test_teacher_facing_requires_teacher_execution(self):
+        result = review_generated_lesson(
+            self._lesson(),
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            teacher_facing=True,
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertIn(
+            "TEACHER_EXECUTION_MISSING",
+            result["blocking_errors"],
+        )
+
+    def test_teacher_facing_rejects_incomplete_teacher_execution(self):
+        lesson = self._lesson()
+        lesson["teacher_execution"] = {
+            "teacher_explanation": "Explain the target language simply.",
+            "teacher_talk": ["Listen and repeat."],
+        }
+
+        result = review_generated_lesson(
+            lesson,
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            teacher_facing=True,
+        )
+
+        self.assertEqual(result["status"], "REJECT_AND_REDESIGN")
+        self.assertTrue(
+            any(
+                error.startswith("TEACHER_EXECUTION_INCOMPLETE:")
+                for error in result["blocking_errors"]
+            )
+        )
+
+    def test_non_teacher_facing_keeps_legacy_optional_execution_behavior(self):
+        result = review_generated_lesson(
+            self._lesson(),
+            level="A2",
+            objective="Discuss past experiences and ask follow-up questions.",
+            duration_minutes=90,
+            teacher_facing=False,
+        )
+
+        self.assertEqual(result["status"], "READY")
+        self.assertEqual(result["blocking_errors"], [])
 
 
 if __name__ == "__main__":

@@ -25,8 +25,13 @@ def build_generation_request(
     context: dict[str, Any],
     assessment_decision: AssessmentDecision | None = None,
     resource_decision: Mapping[str, Any] | None = None,
+    *,
+    teacher_facing: bool = False,
 ) -> dict[str, Any]:
     """Create the constrained request sent to a generation adapter."""
+    if not isinstance(teacher_facing, bool):
+        raise TypeError("teacher_facing must be a bool")
+
     request = {
         "objective": plan.objective,
         "level": context.get("level"),
@@ -63,6 +68,7 @@ def build_generation_request(
         ],
         "evidence_of_learning": plan.evidence_of_learning,
         "resource_need": plan.resource_need,
+        "teacher_facing": teacher_facing,
         "teacher_execution_contract": {
             "teacher_explanation": "Clear teacher-facing explanation of the target language and lesson focus.",
             "target_language": ["Exact target structures or forms to teach and practice."],
@@ -79,7 +85,6 @@ def build_generation_request(
             "assessment_checklist": ["Observable criteria linked to the approved assessment."],
             "exit_ticket": {"prompt": "A short final check of learning."},
         },
-        "resource_need": plan.resource_need,
         "constraints": list(context.get("constraints", [])),
     }
 
