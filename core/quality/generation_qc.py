@@ -8,6 +8,7 @@ from typing import Any
 from core.generation.output_validator import validate_generated_lesson
 from core.pedagogy.activity_contract import ActivityGenerationContract
 from core.pedagogy.activity_validator import validate_activity
+from core.quality.alignment_validator import validate_teacher_facing_alignment
 from core.quality.teacher_execution_completeness import (
     validate_teacher_execution_completeness,
 )
@@ -291,6 +292,11 @@ def review_generated_lesson(
             validate_teacher_execution_completeness(
                 lesson.get("teacher_execution")
             )
+        )
+
+    if not blocking_errors and teacher_facing:
+        blocking_errors.extend(
+            validate_teacher_facing_alignment(lesson)
         )
 
     if not blocking_errors:

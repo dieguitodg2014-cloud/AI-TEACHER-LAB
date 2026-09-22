@@ -191,6 +191,7 @@ class GenerationVerticalSliceTests(unittest.TestCase):
                     {
                         **contract,
                         "name": "approved activity",
+                        "language_target": "Have you ever ...? / I have ...",
                         "student_production": (
                             contract["evidence"]
                             or "Students complete the approved task."
@@ -255,6 +256,13 @@ class GenerationVerticalSliceTests(unittest.TestCase):
                         "prompt": "Write one sentence about a life experience."
                     },
                 },
+                "assessment": {
+                    "evidence": "Students produce a spoken life-experience response.",
+                    "success_criteria": [
+                        "Learner asks a correct question.",
+                        "Learner gives an understandable answer.",
+                    ],
+                },
             }
 
         result = run_lesson_planning(
@@ -307,6 +315,97 @@ class GenerationVerticalSliceTests(unittest.TestCase):
         self.assertEqual(result.status, "REJECT")
         self.assertIn(
             "TEACHER_EXECUTION_MISSING",
+            result.errors,
+        )
+
+    def test_teacher_facing_alignment_failure_is_rejected_end_to_end(self):
+        request = {
+            **self.request,
+            "teacher_facing": True,
+        }
+
+        def generator(generation_request, errors):
+            return {
+                "level": generation_request["level"],
+                "objective": generation_request["objective"],
+                "duration_minutes": generation_request["duration_minutes"],
+                "topic": generation_request["topic"],
+                "activities": [
+                    {
+                        **contract,
+                        "name": "approved activity",
+                        "language_target": "Have you ever ...? / I have ...",
+                        "student_production": (
+                            contract["evidence"]
+                            or "Students complete the approved task."
+                        ),
+                        "assessment_link": (
+                            "Teacher observes the learner response."
+                        ),
+                    }
+                    for contract in generation_request["activity_contracts"]
+                ],
+                "teacher_execution": {
+                    "teacher_explanation": (
+                        "Explain how learners talk about life experiences."
+                    ),
+                    "target_language": [
+                        "Have you ever ...?",
+                    ],
+                    "language_bank": [
+                        "Have you ever ...?",
+                    ],
+                    "teacher_talk": [
+                        "Ask your partner."
+                    ],
+                    "ccqs": [
+                        "Are we asking about a life experience?"
+                    ],
+                    "examples": [
+                        "Have you ever visited Cartagena?"
+                    ],
+                    "common_errors": {
+                        "I have went": "I have gone"
+                    },
+                    "scaffolding": [
+                        "Provide the sentence frame: Have you ever ...?"
+                    ],
+                    "materials": [
+                        "Student worksheet"
+                    ],
+                    "worksheet": {
+                        "title": "Life Experiences"
+                    },
+                    "role_cards": [
+                        "Student A asks. Student B answers."
+                    ],
+                    "answer_key": {
+                        "answers": [
+                            "Have you ever traveled abroad?"
+                        ]
+                    },
+                    "assessment_checklist": [
+                        "Learner asks a correct question."
+                    ],
+                    "exit_ticket": {
+                        "prompt": "Write one sentence about a life experience."
+                    },
+                },
+                "assessment": {
+                    "evidence": "Students produce a spoken life-experience response.",
+                    "success_criteria": [],
+                },
+            }
+
+        result = run_lesson_planning(
+            request,
+            tools=self.tools,
+            generators={"test-generator": generator},
+        )
+
+        self.assertEqual(result.status, "REJECT")
+        self.assertIn(
+            "ALIGNMENT_ASSESSMENT_CRITERIA_MISSING",
             result.errors,
         )
 
