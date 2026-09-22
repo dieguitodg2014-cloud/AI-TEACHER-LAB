@@ -261,6 +261,7 @@ class GenerationRevisionTests(unittest.TestCase):
                 "duration_minutes": generation_request["duration_minutes"],
                 "activities": [{
                     "name": "discussion",
+                    "language_target": "Have you ever ...? / I have ...",
                     "student_production": (
                         "Students discuss a past experience."
                     ),
@@ -294,6 +295,15 @@ class GenerationRevisionTests(unittest.TestCase):
                     "exit_ticket": {
                         "prompt": "Write one Present Perfect sentence."
                     },
+                },
+                "assessment": {
+                    "evidence": (
+                        "Students produce a spoken life-experience response."
+                    ),
+                    "success_criteria": [
+                        "Learner asks a correct question.",
+                        "Learner gives an understandable answer.",
+                    ],
                 },
             }
 
