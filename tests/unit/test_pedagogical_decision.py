@@ -28,15 +28,13 @@ class PedagogicalDecisionEngineTests(unittest.TestCase):
         plan = decide_learning_plan(context, level)
         trajectory = build_lesson_trajectory(context, level)
 
-        self.assertEqual(len(plan.sequence), 8)
+        self.assertEqual(len(plan.sequence), 6)
         self.assertEqual(
             [activity.interaction for activity in plan.sequence],
             [
                 "teacher_to_class",
                 "teacher_to_class",
-                "teacher_to_class",
                 "pairs",
-                "pairs_or_small_groups",
                 "pairs_or_small_groups",
                 "individual_or_pairs",
                 "individual",
@@ -47,6 +45,8 @@ class PedagogicalDecisionEngineTests(unittest.TestCase):
         self.assertEqual(plan.total_minutes, 90)
         self.assertEqual(plan.objective, context.objective)
         self.assertEqual(plan.evidence_of_learning, trajectory.final_evidence)
+        self.assertEqual(len(trajectory.phases), 8)
+        self.assertEqual(trajectory.phases[-1].phase, "TRANSFER")
         self.assertEqual(plan.resource_need, "NO_RESOURCE_REQUIRED")
 
     def test_trajectory_moves_from_access_to_transfer(self):
