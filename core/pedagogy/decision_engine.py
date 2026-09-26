@@ -23,7 +23,7 @@ STAGES = (
 
 
 def decide_learning_plan(context: Context, level_decision: LevelDecision) -> LearningPlanDecision:
-    """Create a pedagogical plan from context and level boundaries."""
+    """Create a legacy-compatible activity plan driven by the new trajectory."""
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
 
@@ -35,20 +35,75 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     allocations = _allocate_minutes(duration)
     objective = context.objective
 
+    # The trajectory is now the pedagogical authority. The six activity slots
+    # remain temporarily stable so downstream contracts can migrate separately.
     activity_specs = (
-        ("experience", "Establish access to the target language/content through meaningful experience.", "teacher_to_class", "Identify or recognize the target language/content.", "MIXED", "UNDERSTAND", 4),
-        ("notice", "Guide learners to notice the target language/content and its relevant features.", "teacher_to_class", "Identify and notice the target language/content with support.", "MIXED", "UNDERSTAND", 4),
-        ("grammar_clarification", "Clarify form, meaning, or use only where clarification supports the stated objective.", "teacher_to_class", "State or recognize the clarified target language/content.", "MIXED", "UNDERSTAND", 3),
-        ("controlled_production", "Build controlled accuracy before freer communication.", "pairs", "Use the target language in a supported exchange.", "MIXED", "APPLY", 3),
-        ("guided_interaction", "Use the target language to exchange meaningful information with structured support.", "pairs_or_small_groups", "Complete a meaningful supported interaction.", "SPEAKING", "APPLY", 2),
-        ("expanded_production", "Increase learner independence while maintaining the lesson objective.", "pairs_or_small_groups", "Produce language demonstrating the objective with limited support.", "MIXED", "CREATE", 1),
-        ("communicative_task", "Complete a communicative task requiring purposeful use of the target language.", "individual_or_pairs", "Complete a communicative task demonstrating the objective.", "MIXED", "CREATE", 1),
-        ("transfer", "Transfer the target language or skill to a new but relevant context.", "individual", "Provide observable evidence of transfer and objective attainment.", "MIXED", "CREATE", 0),
+        (
+            "presentation",
+            "experience",
+            "teacher_to_class",
+            "Build access to the target language/content through experience, noticing, and concise clarification.",
+            "Identify or recognize the target language/content.",
+            "MIXED",
+            "UNDERSTAND",
+            4,
+        ),
+        (
+            "modeling",
+            "grammar_clarification",
+            "teacher_to_class",
+            "Make successful performance visible through a clear model grounded in the target language/content.",
+            "Notice and reproduce the model with support.",
+            "MIXED",
+            "UNDERSTAND",
+            4,
+        ),
+        (
+            "guided_practice",
+            "controlled_production",
+            "pairs",
+            "Move learners from access into controlled production with structured support.",
+            "Use the target language in a supported exchange.",
+            "MIXED",
+            "APPLY",
+            3,
+        ),
+        (
+            "communicative_practice",
+            "guided_interaction",
+            "pairs_or_small_groups",
+            "Build meaningful interaction while learners move toward the communicative task.",
+            "Complete a meaningful interaction task.",
+            "SPEAKING",
+            "APPLY",
+            2,
+        ),
+        (
+            "production",
+            "expanded_production",
+            "individual_or_pairs",
+            "Increase independence and prepare learners to transfer the objective to purposeful communication.",
+            "Produce language demonstrating the lesson objective.",
+            "MIXED",
+            "CREATE",
+            1,
+        ),
+        (
+            "assessment",
+            "transfer",
+            "individual",
+            "Collect final evidence of transfer and objective attainment in a relevant new context.",
+            "Provide an observable performance demonstrating the objective.",
+            "MIXED",
+            "APPLY",
+            0,
+        ),
     )
 
     sequence = []
-    for stage, purpose, interaction, production, skill, cognitive_demand, scaffolding in activity_specs:
-        language_target = objective if skill == "SPEAKING" else None
+    for stage, trajectory_phase, interaction, purpose, production, skill, cognitive_demand, scaffolding in activity_specs:
+        phase = next(item for item in trajectory.phases if item.phase == _phase_name(trajectory_phase))
+        language_target = objective if skill == "SPEAKING" else ""
         sequence.append(
             ActivityPlan(
                 f"act-{uuid4().hex[:10]}",
@@ -56,10 +111,10 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
                 interaction,
                 allocations[stage],
                 production,
-                assessment_link="Observable evidence collected against the lesson objective.",
+                assessment_link=f"Evidence collected from {phase.phase.lower()} toward the stated objective.",
                 skill=skill,
                 cognitive_demand=cognitive_demand,
-                scaffolding=scaffolding,
+                scaffolding=min(scaffolding, phase.scaffolding),
                 language_target=language_target,
             )
         )
@@ -76,6 +131,11 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     if errors:
         raise ValueError("Invalid learning plan: " + "; ".join(errors))
     return decision
+
+
+def _phase_name(name: str) -> str:
+    """Map an activity's trajectory anchor to the executable phase literal."""
+    return name.upper()
 
 
 def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> LessonTrajectory:
@@ -104,17 +164,15 @@ def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> 
 
 def _allocate_minutes(duration: int) -> dict[str, int]:
     weights = {
-        "experience": 0.10,
-        "notice": 0.10,
-        "grammar_clarification": 0.10,
-        "controlled_production": 0.15,
-        "guided_interaction": 0.17,
-        "expanded_production": 0.16,
-        "communicative_task": 0.15,
-        "transfer": 0.07,
+        "presentation": 0.15,
+        "modeling": 0.10,
+        "guided_practice": 0.20,
+        "communicative_practice": 0.25,
+        "production": 0.20,
+        "assessment": 0.10,
     }
     values = {stage: max(2, int(duration * weight)) for stage, weight in weights.items()}
-    values["communicative_task"] += duration - sum(values.values())
+    values["production"] += duration - sum(values.values())
     return values
 
 
