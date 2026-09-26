@@ -8,31 +8,68 @@ from uuid import uuid4
 
 from core.foundation.models import ActivityPlan, Context, LevelDecision, LearningPlanDecision
 from core.foundation.validation import validate_learning_plan
+from core.pedagogy.lesson_trajectory import LessonTrajectory, TrajectoryPhase
 
-STAGES = ("presentation", "modeling", "guided_practice", "communicative_practice", "production", "assessment")
+STAGES = (
+    "experience",
+    "notice",
+    "grammar_clarification",
+    "controlled_production",
+    "guided_interaction",
+    "expanded_production",
+    "communicative_task",
+    "transfer",
+)
 
 
 def decide_learning_plan(context: Context, level_decision: LevelDecision) -> LearningPlanDecision:
-    """Create a minimal pedagogical plan from context and level boundaries."""
+    """Create a pedagogical plan from context and level boundaries."""
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
+
     duration = context.duration_minutes
     if duration < 30:
         raise ValueError("A minimum of 30 minutes is required for the MVP plan")
+
+    trajectory = build_lesson_trajectory(context, level_decision)
     allocations = _allocate_minutes(duration)
     objective = context.objective
-    sequence = [
-        ActivityPlan(f"act-{uuid4().hex[:10]}", f"Establish language/content needed for: {objective}", "teacher_to_class", allocations["presentation"], "Identify or recognize the target language/content.", skill="MIXED", cognitive_demand="UNDERSTAND", scaffolding=4),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Make successful task performance visible through a clear model.", "teacher_to_class", allocations["modeling"], "Notice and reproduce the model with support.", skill="MIXED", cognitive_demand="UNDERSTAND", scaffolding=4),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Build controlled accuracy before freer communication.", "pairs", allocations["guided_practice"], "Use the target language in a supported exchange.", skill="MIXED", cognitive_demand="APPLY", scaffolding=3),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Use the target language to exchange meaningful information.", "pairs_or_small_groups", allocations["communicative_practice"], "Complete a meaningful interaction task.", skill="SPEAKING", cognitive_demand="APPLY", scaffolding=2, language_target=objective),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Demonstrate more independent performance of the objective.", "individual_or_pairs", allocations["production"], "Produce language demonstrating the lesson objective.", skill="MIXED", cognitive_demand="CREATE", scaffolding=1),
-        ActivityPlan(f"act-{uuid4().hex[:10]}", "Collect direct evidence of objective attainment.", "individual", allocations["assessment"], "Provide an observable performance or response.", objective, skill="MIXED", cognitive_demand="APPLY", scaffolding=1),
-    ]
+
+    activity_specs = (
+        ("experience", "Establish access to the target language/content through meaningful experience.", "teacher_to_class", "Identify or recognize the target language/content.", "MIXED", "UNDERSTAND", 4),
+        ("notice", "Guide learners to notice the target language/content and its relevant features.", "teacher_to_class", "Identify and notice the target language/content with support.", "MIXED", "UNDERSTAND", 4),
+        ("grammar_clarification", "Clarify form, meaning, or use only where clarification supports the stated objective.", "teacher_to_class", "State or recognize the clarified target language/content.", "MIXED", "UNDERSTAND", 3),
+        ("controlled_production", "Build controlled accuracy before freer communication.", "pairs", "Use the target language in a supported exchange.", "MIXED", "APPLY", 3),
+        ("guided_interaction", "Use the target language to exchange meaningful information with structured support.", "pairs_or_small_groups", "Complete a meaningful supported interaction.", "SPEAKING", "APPLY", 2),
+        ("expanded_production", "Increase learner independence while maintaining the lesson objective.", "pairs_or_small_groups", "Produce language demonstrating the objective with limited support.", "MIXED", "CREATE", 1),
+        ("communicative_task", "Complete a communicative task requiring purposeful use of the target language.", "individual_or_pairs", "Complete a communicative task demonstrating the objective.", "MIXED", "CREATE", 1),
+        ("transfer", "Transfer the target language or skill to a new but relevant context.", "individual", "Provide observable evidence of transfer and objective attainment.", "MIXED", "CREATE", 0),
+    )
+
+    sequence = []
+    for stage, purpose, interaction, production, skill, cognitive_demand, scaffolding in activity_specs:
+        language_target = objective if skill == "SPEAKING" else None
+        sequence.append(
+            ActivityPlan(
+                f"act-{uuid4().hex[:10]}",
+                purpose,
+                interaction,
+                allocations[stage],
+                production,
+                skill=skill,
+                cognitive_demand=cognitive_demand,
+                scaffolding=scaffolding,
+                language_target=language_target,
+            )
+        )
+
     decision = LearningPlanDecision(
-        plan_id=f"plan-{uuid4().hex[:12]}", objective=objective, sequence=sequence,
+        plan_id=f"plan-{uuid4().hex[:12]}",
+        objective=objective,
+        sequence=sequence,
         total_minutes=sum(activity.minutes for activity in sequence),
-        evidence_of_learning="Observable student performance demonstrating the stated objective.", resource_need="NO_RESOURCE_REQUIRED",
+        evidence_of_learning=trajectory.final_evidence,
+        resource_need="NO_RESOURCE_REQUIRED",
     )
     errors = validate_learning_plan(decision, duration)
     if errors:
@@ -40,10 +77,99 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     return decision
 
 
+def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> LessonTrajectory:
+    """Build the approved pedagogical progression before activity generation."""
+    if context.level != level_decision.level:
+        raise ValueError("Context level and LevelDecision level must match")
+
+    phases = (
+        TrajectoryPhase(
+            phase="EXPERIENCE",
+            production_level="P0",
+            interaction_level="I0",
+            demand_level="LOW",
+            scaffolding=4,
+            purpose="Give learners meaningful access to the target language/content.",
+        ),
+        TrajectoryPhase(
+            phase="NOTICE",
+            production_level="P0",
+            interaction_level="I0",
+            demand_level="LOW",
+            scaffolding=4,
+            purpose="Make relevant language/content features visible and understandable.",
+        ),
+        TrajectoryPhase(
+            phase="GRAMMAR_CLARIFICATION",
+            production_level="P0",
+            interaction_level="I0",
+            demand_level="MEDIUM",
+            scaffolding=3,
+            purpose="Clarify form, meaning, or use when needed for the stated objective.",
+        ),
+        TrajectoryPhase(
+            phase="CONTROLLED_PRODUCTION",
+            production_level="P1",
+            interaction_level="I1",
+            demand_level="MEDIUM",
+            scaffolding=3,
+            purpose="Move learners into supported, controlled production.",
+        ),
+        TrajectoryPhase(
+            phase="GUIDED_INTERACTION",
+            production_level="P1",
+            interaction_level="I2",
+            demand_level="MEDIUM",
+            scaffolding=2,
+            purpose="Build meaningful interaction with structured support.",
+        ),
+        TrajectoryPhase(
+            phase="EXPANDED_PRODUCTION",
+            production_level="P2",
+            interaction_level="I3",
+            demand_level="HIGH",
+            scaffolding=1,
+            purpose="Increase independence and expand purposeful production.",
+        ),
+        TrajectoryPhase(
+            phase="COMMUNICATIVE_TASK",
+            production_level="P2",
+            interaction_level="I3",
+            demand_level="HIGH",
+            scaffolding=1,
+            purpose="Require purposeful communication around the lesson objective.",
+        ),
+        TrajectoryPhase(
+            phase="TRANSFER",
+            production_level="P3",
+            interaction_level="I4",
+            demand_level="HIGH",
+            scaffolding=0,
+            purpose="Provide evidence that learning transfers to a new relevant context.",
+        ),
+    )
+
+    return LessonTrajectory(
+        starting_point="P0",
+        target_point="P3",
+        phases=phases,
+        final_evidence="Observable student performance demonstrating the stated objective and transferring it to a relevant new context.",
+    )
+
+
 def _allocate_minutes(duration: int) -> dict[str, int]:
-    weights = {"presentation": 0.12, "modeling": 0.10, "guided_practice": 0.20, "communicative_practice": 0.25, "production": 0.23, "assessment": 0.10}
+    weights = {
+        "experience": 0.10,
+        "notice": 0.10,
+        "grammar_clarification": 0.10,
+        "controlled_production": 0.15,
+        "guided_interaction": 0.17,
+        "expanded_production": 0.16,
+        "communicative_task": 0.15,
+        "transfer": 0.07,
+    }
     values = {stage: max(2, int(duration * weight)) for stage, weight in weights.items()}
-    values["production"] += duration - sum(values.values())
+    values["communicative_task"] += duration - sum(values.values())
     return values
 
 
