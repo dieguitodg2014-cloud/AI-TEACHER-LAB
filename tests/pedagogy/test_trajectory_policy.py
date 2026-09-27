@@ -23,8 +23,8 @@ def _decision(level: str) -> LevelDecision:
 @pytest.mark.parametrize(
     ("level", "production", "interaction", "demand", "start", "transfer"),
     [
-        ("A0", "P1", "I1", "LOW", 4, 1),
-        ("A1", "P1", "I2", "LOW", 4, 1),
+        ("A0", "P1", "I1", "LOW", 4, 0),
+        ("A1", "P1", "I2", "LOW", 4, 0),
         ("A2", "P2", "I2", "MEDIUM", 3, 0),
         ("B1", "P2", "I3", "MEDIUM", 2, 0),
         ("B2", "P2", "I4", "HIGH", 1, 0),
