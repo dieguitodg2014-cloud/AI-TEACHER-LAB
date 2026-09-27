@@ -1,40 +1,25 @@
-"""Contract for contextual signals that may adapt a lesson trajectory.
+"""Contract for explicit pedagogical context used by trajectory policy.
 
-This module defines explicit pedagogical inputs beyond CEFR level. It does not
-decide trajectory parameters yet; it prevents later policy logic from parsing
-free-form lesson text or silently inventing missing signals.
+This module defines the pedagogical signals that contextual trajectory
+adaptation may consume. It reuses the canonical skill and cognitive-demand
+vocabularies from the activity contract so the architecture has one shared
+set of values.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
-TrajectorySkill = Literal[
-    "LISTENING",
-    "SPEAKING",
-    "READING",
-    "WRITING",
-    "MIXED",
-]
-
-TrajectoryDemand = Literal[
-    "RECALL",
-    "RECOGNIZE",
-    "UNDERSTAND",
-    "APPLY",
-    "ANALYZE",
-    "CREATE",
-]
+from core.pedagogy.activity_contract import CognitiveDemand, Skill
 
 
 @dataclass(frozen=True)
 class TrajectoryContext:
-    """Explicit contextual signals available to trajectory policy."""
+    """Explicit pedagogical signals available to trajectory policy."""
 
     objective: str
-    skill: TrajectorySkill
-    cognitive_demand: TrajectoryDemand
+    skill: Skill
+    cognitive_demand: CognitiveDemand
 
     def __post_init__(self) -> None:
         if not self.objective.strip():
@@ -56,5 +41,6 @@ class TrajectoryContext:
             "CREATE",
         }:
             raise ValueError(
-                f"unsupported trajectory cognitive demand: {self.cognitive_demand}"
+                "unsupported trajectory cognitive demand: "
+                f"{self.cognitive_demand}"
             )
