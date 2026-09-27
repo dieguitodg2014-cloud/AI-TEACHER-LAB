@@ -32,8 +32,8 @@ class TrajectoryPolicy:
 def policy_for_level(level_decision: LevelDecision) -> TrajectoryPolicy:
     """Translate LevelDecision into executable trajectory boundaries."""
     policies = {
-        "A0": TrajectoryPolicy("P1", "I1", "LOW", 4, 1, "very_low"),
-        "A1": TrajectoryPolicy("P1", "I2", "LOW", 4, 1, "limited"),
+        "A0": TrajectoryPolicy("P1", "I1", "LOW", 4, 0, "very_low"),
+        "A1": TrajectoryPolicy("P1", "I2", "LOW", 4, 0, "limited"),
         "A2": TrajectoryPolicy("P2", "I2", "MEDIUM", 3, 0, "moderate"),
         "B1": TrajectoryPolicy("P2", "I3", "MEDIUM", 2, 0, "increasing"),
         "B2": TrajectoryPolicy("P2", "I4", "HIGH", 1, 0, "high"),
