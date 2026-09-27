@@ -9,6 +9,7 @@ from uuid import uuid4
 from core.foundation.models import ActivityPlan, Context, LevelDecision, LearningPlanDecision
 from core.foundation.validation import validate_learning_plan
 from core.pedagogy.lesson_trajectory import LessonTrajectory, TrajectoryPhase
+from core.pedagogy.trajectory_policy import policy_for_level
 
 STAGES = (
     "experience",
@@ -160,15 +161,17 @@ def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> 
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
 
+    policy = policy_for_level(level_decision)
+
     phases = (
-        TrajectoryPhase("EXPERIENCE", "P0", "I0", "LOW", 4, "Give learners meaningful access to the target language/content."),
-        TrajectoryPhase("NOTICE", "P0", "I0", "LOW", 4, "Make relevant language/content features visible and understandable."),
-        TrajectoryPhase("GRAMMAR_CLARIFICATION", "P0", "I0", "MEDIUM", 3, "Clarify form, meaning, or use when needed for the stated objective."),
-        TrajectoryPhase("CONTROLLED_PRODUCTION", "P1", "I1", "MEDIUM", 3, "Move learners into supported, controlled production."),
-        TrajectoryPhase("GUIDED_INTERACTION", "P1", "I2", "MEDIUM", 2, "Build meaningful interaction with structured support."),
-        TrajectoryPhase("EXPANDED_PRODUCTION", "P2", "I3", "HIGH", 1, "Increase independence and expand purposeful production."),
-        TrajectoryPhase("COMMUNICATIVE_TASK", "P2", "I3", "HIGH", 1, "Require purposeful communication around the lesson objective."),
-        TrajectoryPhase("TRANSFER", "P3", "I4", "HIGH", 0, "Provide evidence that learning transfers to a new relevant context."),
+        TrajectoryPhase("EXPERIENCE", "P0", "I0", "LOW", policy.starting_scaffolding, "Give learners meaningful access to the target language/content."),
+        TrajectoryPhase("NOTICE", "P0", "I0", "LOW", policy.starting_scaffolding, "Make relevant language/content features visible and understandable."),
+        TrajectoryPhase("GRAMMAR_CLARIFICATION", "P0", "I0", "MEDIUM", max(2, policy.starting_scaffolding - 1), "Clarify form, meaning, or use when needed for the stated objective."),
+        TrajectoryPhase("CONTROLLED_PRODUCTION", "P1", "I1", "MEDIUM", max(1, policy.starting_scaffolding - 1), "Move learners into supported, controlled production."),
+        TrajectoryPhase("GUIDED_INTERACTION", "P1", policy.default_interaction, "MEDIUM", max(1, policy.starting_scaffolding - 2), "Build meaningful interaction with structured support."),
+        TrajectoryPhase("EXPANDED_PRODUCTION", policy.default_production, policy.default_interaction, policy.default_demand, max(1, policy.transfer_scaffolding), "Increase independence and expand purposeful production."),
+        TrajectoryPhase("COMMUNICATIVE_TASK", policy.default_production, policy.default_interaction, policy.default_demand, policy.transfer_scaffolding, "Require purposeful communication around the lesson objective."),
+        TrajectoryPhase("TRANSFER", "P3", "I4", "HIGH", policy.transfer_scaffolding, "Provide evidence that learning transfers to a new relevant context."),
     )
 
     return LessonTrajectory(
