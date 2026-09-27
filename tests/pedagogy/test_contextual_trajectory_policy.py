@@ -46,10 +46,11 @@ def test_cognitive_demand_cannot_exceed_level_ceiling(level, demand, expected):
 
 
 @pytest.mark.parametrize("level", ["A0", "A1", "A2", "B1", "B2"])
-def test_speaking_requires_at_least_interaction_i2(level):
+def test_speaking_stays_within_level_interaction_ceiling(level):
     policy = policy_for_context(_decision(level), _context("SPEAKING", "RECALL"))
 
-    assert policy.default_interaction in {"I2", "I3", "I4"}
+    expected = {"A0": "I1", "A1": "I2", "A2": "I2", "B1": "I3", "B2": "I4"}[level]
+    assert policy.default_interaction == expected
 
 
 def test_non_speaking_skill_preserves_level_interaction():
