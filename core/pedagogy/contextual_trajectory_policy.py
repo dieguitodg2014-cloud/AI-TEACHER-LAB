@@ -33,6 +33,14 @@ _DEMAND_ORDER: tuple[DemandLevel, ...] = (
     "HIGH",
 )
 
+_LEVEL_INTERACTION_CEILING: dict[str, InteractionLevel] = {
+    "A0": "I1",
+    "A1": "I2",
+    "A2": "I2",
+    "B1": "I3",
+    "B2": "I4",
+}
+
 _LEVEL_DEMAND_CEILING: dict[str, DemandLevel] = {
     "A0": "LOW",
     "A1": "LOW",
@@ -58,15 +66,22 @@ def policy_for_context(
     """Refine the level policy using explicit skill and cognitive demand."""
     base = policy_for_level(level_decision)
 
-    interaction = base.default_interaction
+    requested_interaction = base.default_interaction
     if context.skill == "SPEAKING":
-        interaction = _max_interaction(interaction, "I2")
+        requested_interaction = _max_interaction(
+            requested_interaction,
+            "I2",
+        )
+
+    interaction = _min_interaction(
+        requested_interaction,
+        _LEVEL_INTERACTION_CEILING[level_decision.level],
+    )
 
     requested_demand = _CONTEXT_DEMAND[context.cognitive_demand]
-    ceiling = _LEVEL_DEMAND_CEILING[level_decision.level]
     demand = _min_demand(
         _max_demand(base.default_demand, requested_demand),
-        ceiling,
+        _LEVEL_DEMAND_CEILING[level_decision.level],
     )
 
     return replace(
@@ -82,6 +97,15 @@ def _max_interaction(
 ) -> InteractionLevel:
     return _INTERACTION_ORDER[
         max(_INTERACTION_ORDER.index(first), _INTERACTION_ORDER.index(second))
+    ]
+
+
+def _min_interaction(
+    first: InteractionLevel,
+    second: InteractionLevel,
+) -> InteractionLevel:
+    return _INTERACTION_ORDER[
+        min(_INTERACTION_ORDER.index(first), _INTERACTION_ORDER.index(second))
     ]
 
 
