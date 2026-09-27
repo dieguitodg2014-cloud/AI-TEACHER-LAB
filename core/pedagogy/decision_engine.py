@@ -124,7 +124,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
                 assessment_link=f"Evidence collected from {phase_names} toward the stated objective.",
                 skill=skill,
                 cognitive_demand=cognitive_demand,
-                scaffolding=min(scaffolding, min(phase.scaffolding for phase in phases)),
+                scaffolding=min(scaffolding, phases[0].scaffolding),
                 language_target=language_target,
             )
         )
