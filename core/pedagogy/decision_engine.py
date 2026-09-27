@@ -23,7 +23,7 @@ STAGES = (
 
 
 def decide_learning_plan(context: Context, level_decision: LevelDecision) -> LearningPlanDecision:
-    """Create a legacy-compatible activity plan driven by the new trajectory."""
+    """Create a legacy-compatible activity plan driven by the full trajectory."""
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
 
@@ -35,24 +35,24 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     allocations = _allocate_minutes(duration)
     objective = context.objective
 
-    # The trajectory is now the pedagogical authority. The six activity slots
-    # remain temporarily stable so downstream contracts can migrate separately.
+    # Six activity slots remain stable for downstream compatibility, but each
+    # slot explicitly covers the relevant trajectory phases.
     activity_specs = (
         (
             "presentation",
-            "experience",
+            ("experience", "notice"),
             "teacher_to_class",
-            "Build access to the target language/content through experience, noticing, and concise clarification.",
-            "Identify or recognize the target language/content.",
+            "Build access to the target language/content through meaningful experience and noticing.",
+            "Identify or recognize relevant target language/content.",
             "MIXED",
             "UNDERSTAND",
             4,
         ),
         (
             "modeling",
-            "grammar_clarification",
+            ("grammar_clarification",),
             "teacher_to_class",
-            "Make successful performance visible through a clear model grounded in the target language/content.",
+            "Make successful performance visible through a clear model and concise clarification grounded in the target language/content.",
             "Notice and reproduce the model with support.",
             "MIXED",
             "UNDERSTAND",
@@ -60,7 +60,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
         ),
         (
             "guided_practice",
-            "controlled_production",
+            ("controlled_production",),
             "pairs",
             "Move learners from access into controlled production with structured support.",
             "Use the target language in a supported exchange.",
@@ -70,9 +70,9 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
         ),
         (
             "communicative_practice",
-            "guided_interaction",
+            ("guided_interaction", "communicative_task"),
             "pairs_or_small_groups",
-            "Build meaningful interaction while learners move toward the communicative task.",
+            "Build meaningful interaction and require purposeful communication around the lesson objective.",
             "Complete a meaningful interaction task.",
             "SPEAKING",
             "APPLY",
@@ -80,7 +80,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
         ),
         (
             "production",
-            "expanded_production",
+            ("expanded_production",),
             "individual_or_pairs",
             "Increase independence and prepare learners to transfer the objective to purposeful communication.",
             "Produce language demonstrating the lesson objective.",
@@ -90,7 +90,7 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
         ),
         (
             "assessment",
-            "transfer",
+            ("transfer",),
             "individual",
             "Collect final evidence of transfer and objective attainment in a relevant new context.",
             "Provide an observable performance demonstrating the objective.",
@@ -101,8 +101,18 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     )
 
     sequence = []
-    for stage, trajectory_phase, interaction, purpose, production, skill, cognitive_demand, scaffolding in activity_specs:
-        phase = next(item for item in trajectory.phases if item.phase == _phase_name(trajectory_phase))
+    for (
+        stage,
+        trajectory_phases,
+        interaction,
+        purpose,
+        production,
+        skill,
+        cognitive_demand,
+        scaffolding,
+    ) in activity_specs:
+        phases = _resolve_trajectory_phases(trajectory, trajectory_phases)
+        phase_names = ", ".join(phase.phase.lower() for phase in phases)
         language_target = objective if skill == "SPEAKING" else ""
         sequence.append(
             ActivityPlan(
@@ -111,10 +121,10 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
                 interaction,
                 allocations[stage],
                 production,
-                assessment_link=f"Evidence collected from {phase.phase.lower()} toward the stated objective.",
+                assessment_link=f"Evidence collected from {phase_names} toward the stated objective.",
                 skill=skill,
                 cognitive_demand=cognitive_demand,
-                scaffolding=min(scaffolding, phase.scaffolding),
+                scaffolding=min(scaffolding, min(phase.scaffolding for phase in phases)),
                 language_target=language_target,
             )
         )
@@ -133,9 +143,16 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     return decision
 
 
-def _phase_name(name: str) -> str:
-    """Map an activity's trajectory anchor to the executable phase literal."""
-    return name.upper()
+def _resolve_trajectory_phases(
+    trajectory: LessonTrajectory,
+    phase_names: tuple[str, ...],
+) -> tuple[TrajectoryPhase, ...]:
+    """Resolve one or more explicit trajectory phases for an activity slot."""
+    phases_by_name = {phase.phase: phase for phase in trajectory.phases}
+    resolved = tuple(phases_by_name[name.upper()] for name in phase_names)
+    if not resolved:
+        raise ValueError("At least one trajectory phase is required")
+    return resolved
 
 
 def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> LessonTrajectory:
