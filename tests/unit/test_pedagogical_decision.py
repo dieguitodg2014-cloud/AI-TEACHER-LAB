@@ -49,6 +49,20 @@ class PedagogicalDecisionEngineTests(unittest.TestCase):
         self.assertEqual(trajectory.phases[-1].phase, "TRANSFER")
         self.assertEqual(plan.resource_need, "NO_RESOURCE_REQUIRED")
 
+    def test_activity_slots_cover_full_trajectory(self):
+        context = self._context()
+        level = decide_level(context)
+        plan = decide_learning_plan(context, level)
+
+        self.assertIn("experience", plan.sequence[0].assessment_link)
+        self.assertIn("notice", plan.sequence[0].assessment_link)
+        self.assertIn("grammar_clarification", plan.sequence[1].assessment_link)
+        self.assertIn("controlled_production", plan.sequence[2].assessment_link)
+        self.assertIn("guided_interaction", plan.sequence[3].assessment_link)
+        self.assertIn("communicative_task", plan.sequence[3].assessment_link)
+        self.assertIn("expanded_production", plan.sequence[4].assessment_link)
+        self.assertIn("transfer", plan.sequence[5].assessment_link)
+
     def test_trajectory_moves_from_access_to_transfer(self):
         context = self._context()
         level = decide_level(context)
