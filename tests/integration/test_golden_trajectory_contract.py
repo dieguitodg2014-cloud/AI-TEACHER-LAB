@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from core.pedagogy.decision_engine import build_lesson_trajectory
+from core.pedagogy.trajectory_policy import policy_for_level
 from core.workflow.vertical_slice import run_lesson_planning
 
 
@@ -44,6 +45,7 @@ class GoldenTrajectoryContractTests(unittest.TestCase):
                 result.context,
                 result.level_decision,
             )
+            policy = policy_for_level(result.level_decision)
 
             self.assertEqual(
                 [phase.phase for phase in trajectory.phases],
@@ -52,7 +54,11 @@ class GoldenTrajectoryContractTests(unittest.TestCase):
             )
             self.assertEqual(trajectory.starting_point, "P0")
             self.assertEqual(trajectory.target_point, "P3")
-            self.assertEqual(trajectory.phases[0].scaffolding, 4)
+            self.assertEqual(
+                trajectory.phases[0].scaffolding,
+                policy.starting_scaffolding,
+                case["case_id"],
+            )
             self.assertEqual(trajectory.phases[-1].scaffolding, 0)
             self.assertEqual(
                 trajectory.final_evidence,
