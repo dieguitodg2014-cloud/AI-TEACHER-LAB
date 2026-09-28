@@ -1,6 +1,7 @@
 import pytest
 
 from core.foundation.models import LevelDecision
+from core.pedagogy.pedagogical_skill_decision import PedagogicalSkillDecision
 from core.pedagogy.trajectory_context_policy import TrajectoryContext
 from core.pedagogy.trajectory_policy import policy_for_level
 
