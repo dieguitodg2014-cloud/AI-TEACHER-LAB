@@ -3,6 +3,7 @@ import pytest
 from core.context.engine import build_context
 from core.pedagogy import decision_engine
 from core.pedagogy.decision_engine import build_lesson_trajectory
+from core.pedagogy.skill_decision import decide_primary_skill_from_context
 from core.pedagogy.trajectory_policy import policy_for_level
 from core.progression.level_control import decide_level
 
@@ -35,8 +36,13 @@ def test_decision_engine_applies_contextual_skill_policy(
 ):
     context = _context(level, skill)
     level_decision = decide_level(context)
+    skill_decision = decide_primary_skill_from_context(context)
 
-    trajectory = build_lesson_trajectory(context, level_decision)
+    trajectory = build_lesson_trajectory(
+        context,
+        level_decision,
+        skill_decision=skill_decision,
+    )
 
     guided = next(
         phase for phase in trajectory.phases if phase.phase == "GUIDED_INTERACTION"
@@ -47,6 +53,7 @@ def test_decision_engine_applies_contextual_skill_policy(
 def test_decision_engine_invokes_contextual_policy_for_explicit_skill(monkeypatch):
     context = _context("A2", "SPEAKING")
     level_decision = decide_level(context)
+    skill_decision = decide_primary_skill_from_context(context)
     base_policy = policy_for_level(level_decision)
     calls = []
 
@@ -60,7 +67,11 @@ def test_decision_engine_invokes_contextual_policy_for_explicit_skill(monkeypatc
         spy_policy_for_context,
     )
 
-    build_lesson_trajectory(context, level_decision)
+    build_lesson_trajectory(
+        context,
+        level_decision,
+        skill_decision=skill_decision,
+    )
 
     assert len(calls) == 1
     received_level_decision, received_context = calls[0]
