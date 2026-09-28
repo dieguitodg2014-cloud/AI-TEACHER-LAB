@@ -8,7 +8,10 @@ from uuid import uuid4
 
 from core.foundation.models import ActivityPlan, Context, LevelDecision, LearningPlanDecision
 from core.foundation.validation import validate_learning_plan
+from core.pedagogy.contextual_trajectory_policy import policy_for_context
 from core.pedagogy.lesson_trajectory import LessonTrajectory, TrajectoryPhase
+from core.pedagogy.skill_decision import decide_primary_skill_from_context
+from core.pedagogy.trajectory_context_policy import TrajectoryContext
 from core.pedagogy.trajectory_policy import policy_for_level
 
 STAGES = (
@@ -32,7 +35,15 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     if duration < 30:
         raise ValueError("A minimum of 30 minutes is required for the MVP plan")
 
-    trajectory = build_lesson_trajectory(context, level_decision)
+    skill_decision = None
+    if context.primary_skill is not None:
+        skill_decision = decide_primary_skill_from_context(context)
+
+    trajectory = build_lesson_trajectory(
+        context,
+        level_decision,
+        skill_decision=skill_decision,
+    )
     allocations = _allocate_minutes(duration)
     objective = context.objective
 
@@ -156,7 +167,7 @@ def _resolve_trajectory_phases(
     return resolved
 
 
-def build_lesson_trajectory(context: Context, level_decision: LevelDecision) -> LessonTrajectory:
+def build_lesson_trajectory(\n    context: Context,\n    level_decision: LevelDecision,\n    *,\n    skill_decision=None,\n) -> LessonTrajectory:
     """Build the approved pedagogical progression before activity generation."""
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
