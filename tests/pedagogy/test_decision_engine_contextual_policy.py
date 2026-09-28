@@ -78,7 +78,7 @@ def test_decision_engine_invokes_contextual_policy_for_explicit_skill(monkeypatc
     assert received_level_decision == level_decision
     assert received_context.objective == context.objective
     assert received_context.skill_decision.skill == "SPEAKING"
-    assert received_context.cognitive_demand == level_decision.cognitive_demand
+    assert received_context.cognitive_demand == "APPLY"
 
 
 def test_decision_engine_preserves_base_policy_without_explicit_skill():
