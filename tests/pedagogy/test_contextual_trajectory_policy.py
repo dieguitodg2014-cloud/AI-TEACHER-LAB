@@ -2,6 +2,7 @@ import pytest
 
 from core.foundation.models import Context, LevelDecision
 from core.pedagogy.contextual_trajectory_policy import policy_for_context
+from core.pedagogy.pedagogical_skill_decision import PedagogicalSkillDecision
 from core.pedagogy.trajectory_context_policy import TrajectoryContext
 
 
@@ -24,7 +25,10 @@ def _decision(level: str) -> LevelDecision:
 def _context(skill: str, demand: str) -> TrajectoryContext:
     return TrajectoryContext(
         objective="Students will use the target language in a meaningful context.",
-        skill=skill,
+        skill_decision=PedagogicalSkillDecision(
+            skill=skill,
+            rationale="The test requires this explicit primary skill.",
+        ),
         cognitive_demand=demand,
     )
 
