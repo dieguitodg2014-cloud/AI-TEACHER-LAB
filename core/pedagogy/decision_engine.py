@@ -167,7 +167,12 @@ def _resolve_trajectory_phases(
     return resolved
 
 
-def build_lesson_trajectory(\n    context: Context,\n    level_decision: LevelDecision,\n    *,\n    skill_decision=None,\n) -> LessonTrajectory:
+def build_lesson_trajectory(
+    context: Context,
+    level_decision: LevelDecision,
+    *,
+    skill_decision=None,
+) -> LessonTrajectory:
     """Build the approved pedagogical progression before activity generation."""
     if context.level != level_decision.level:
         raise ValueError("Context level and LevelDecision level must match")
