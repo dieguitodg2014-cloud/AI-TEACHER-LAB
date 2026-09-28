@@ -180,10 +180,17 @@ def build_lesson_trajectory(
     policy = policy_for_level(level_decision)
 
     if skill_decision is not None:
+        context_demand = {
+            "A0": "RECOGNIZE",
+            "A1": "UNDERSTAND",
+            "A2": "APPLY",
+            "B1": "ANALYZE",
+            "B2": "CREATE",
+        }[level_decision.level]
         trajectory_context = TrajectoryContext(
             objective=context.objective,
             skill_decision=skill_decision,
-            cognitive_demand=level_decision.cognitive_demand,
+            cognitive_demand=context_demand,
         )
         policy = policy_for_context(level_decision, trajectory_context)
 
