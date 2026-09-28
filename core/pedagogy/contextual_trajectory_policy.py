@@ -67,7 +67,7 @@ def policy_for_context(
     base = policy_for_level(level_decision)
 
     requested_interaction = base.default_interaction
-    if context.skill == "SPEAKING":
+    if context.skill_decision.skill == "SPEAKING":
         requested_interaction = _max_interaction(
             requested_interaction,
             "I2",
