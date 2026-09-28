@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.pedagogy.activity_contract import CognitiveDemand, Skill
+from core.pedagogy.activity_contract import CognitiveDemand
+from core.pedagogy.pedagogical_skill_decision import PedagogicalSkillDecision
 
 
 @dataclass(frozen=True)
@@ -18,20 +19,14 @@ class TrajectoryContext:
     """Explicit pedagogical signals available to trajectory policy."""
 
     objective: str
-    skill: Skill
+    skill_decision: PedagogicalSkillDecision
     cognitive_demand: CognitiveDemand
 
     def __post_init__(self) -> None:
         if not self.objective.strip():
             raise ValueError("objective is required")
-        if self.skill not in {
-            "LISTENING",
-            "SPEAKING",
-            "READING",
-            "WRITING",
-            "MIXED",
-        }:
-            raise ValueError(f"unsupported trajectory skill: {self.skill}")
+        if not isinstance(self.skill_decision, PedagogicalSkillDecision):
+            raise ValueError("skill_decision is required")
         if self.cognitive_demand not in {
             "RECALL",
             "RECOGNIZE",
