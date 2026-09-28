@@ -19,6 +19,8 @@ def validate_context(context: Context) -> list[str]:
         errors.append("Audience is required")
     if context.group_size is not None and context.group_size <= 0:
         errors.append("Group size must be greater than zero")
+    if context.primary_skill is not None and context.primary_skill not in {"LISTENING", "SPEAKING", "READING", "WRITING", "MIXED"}:
+        errors.append("Unsupported primary skill")
     return errors
 
 

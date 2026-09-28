@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 Level = Literal["A0", "A1", "A2", "B1", "B2"]
+Skill = Literal["LISTENING", "SPEAKING", "READING", "WRITING", "MIXED"]
 
 
 class FrozenMapping(Mapping[str, Any]):
@@ -68,6 +69,7 @@ class Context:
     constraints: tuple[str, ...] = ()
     group_size: int | None = None
     topic: str | None = None
+    primary_skill: Skill | None = None
     prior_knowledge: tuple[str, ...] = ()
     technology: tuple[str, ...] = ()
     teacher_preferences: FrozenMapping = field(default_factory=FrozenMapping)

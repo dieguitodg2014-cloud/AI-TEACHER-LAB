@@ -33,6 +33,9 @@ def build_context(request: dict) -> ContextResult:
     audience = str(request.get("audience", "")).strip()
     objective = str(request.get("objective", "")).strip()
     topic = str(request.get("topic", "")).strip() or None
+    primary_skill = request.get("primary_skill")
+    if primary_skill is not None:
+        primary_skill = str(primary_skill).strip().upper()
 
     missing: list[str] = []
     if not level:
@@ -60,6 +63,7 @@ def build_context(request: dict) -> ContextResult:
         constraints=constraints,
         group_size=group_size,
         topic=topic,
+        primary_skill=primary_skill,
         prior_knowledge=[str(x) for x in request.get("prior_knowledge", [])],
         technology=[str(x) for x in request.get("technology", [])],
         teacher_preferences=dict(request.get("teacher_preferences", {})),
