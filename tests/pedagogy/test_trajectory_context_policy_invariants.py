@@ -38,7 +38,10 @@ def test_context_is_additive_to_level_policy(level, skill, demand):
     base = policy_for_level(_decision(level))
     context = TrajectoryContext(
         objective="Students will use the target language in a meaningful context.",
-        skill=skill,
+        skill_decision=PedagogicalSkillDecision(
+            skill=skill,
+            rationale="The test requires this explicit primary skill.",
+        ),
         cognitive_demand=demand,
     )
 
