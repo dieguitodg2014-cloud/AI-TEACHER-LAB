@@ -48,6 +48,7 @@ def test_decision_engine_applies_contextual_skill_policy(
         phase for phase in trajectory.phases if phase.phase == "GUIDED_INTERACTION"
     )
     assert guided.interaction_level == expected_interaction
+    assert guided.cognitive_demand == "APPLY"
     assert trajectory.primary_skill == skill
 
 
