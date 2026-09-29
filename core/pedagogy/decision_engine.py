@@ -9,6 +9,7 @@ from uuid import uuid4
 from core.foundation.models import ActivityPlan, Context, LevelDecision, LearningPlanDecision
 from core.foundation.validation import validate_learning_plan
 from core.pedagogy.contextual_trajectory_policy import policy_for_context
+from core.pedagogy.activity_materializer import materialize_activity_plans
 from core.pedagogy.lesson_trajectory import LessonTrajectory, TrajectoryPhase
 from core.pedagogy.skill_decision import decide_primary_skill_from_context
 from core.pedagogy.trajectory_context_policy import TrajectoryContext
@@ -47,99 +48,11 @@ def decide_learning_plan(context: Context, level_decision: LevelDecision) -> Lea
     allocations = _allocate_minutes(duration)
     objective = context.objective
 
-    # Six activity slots remain stable for downstream compatibility, but each
-    # slot explicitly covers the relevant trajectory phases.
-    activity_specs = (
-        (
-            "presentation",
-            ("experience", "notice"),
-            "teacher_to_class",
-            "Build access to the target language/content through meaningful experience and noticing.",
-            "Identify or recognize relevant target language/content.",
-            "MIXED",
-            "UNDERSTAND",
-            4,
-        ),
-        (
-            "modeling",
-            ("grammar_clarification",),
-            "teacher_to_class",
-            "Make successful performance visible through a clear model and concise clarification grounded in the target language/content.",
-            "Notice and reproduce the model with support.",
-            "MIXED",
-            "UNDERSTAND",
-            4,
-        ),
-        (
-            "guided_practice",
-            ("controlled_production",),
-            "pairs",
-            "Move learners from access into controlled production with structured support.",
-            "Use the target language in a supported exchange.",
-            "MIXED",
-            "APPLY",
-            3,
-        ),
-        (
-            "communicative_practice",
-            ("guided_interaction", "communicative_task"),
-            "pairs_or_small_groups",
-            "Build meaningful interaction and require purposeful communication around the lesson objective.",
-            "Complete a meaningful interaction task.",
-            "SPEAKING",
-            "APPLY",
-            2,
-        ),
-        (
-            "production",
-            ("expanded_production",),
-            "individual_or_pairs",
-            "Increase independence and prepare learners to transfer the objective to purposeful communication.",
-            "Produce language demonstrating the lesson objective.",
-            "MIXED",
-            "CREATE",
-            1,
-        ),
-        (
-            "assessment",
-            ("transfer",),
-            "individual",
-            "Collect final evidence of transfer and objective attainment in a relevant new context.",
-            "Provide an observable performance demonstrating the objective.",
-            "MIXED",
-            "APPLY",
-            0,
-        ),
+    sequence = materialize_activity_plans(
+        trajectory,
+        allocations,
+        objective,
     )
-
-    sequence = []
-    for (
-        stage,
-        trajectory_phases,
-        interaction,
-        purpose,
-        production,
-        skill,
-        cognitive_demand,
-        scaffolding,
-    ) in activity_specs:
-        phases = _resolve_trajectory_phases(trajectory, trajectory_phases)
-        phase_names = ", ".join(phase.phase.lower() for phase in phases)
-        language_target = objective if skill == "SPEAKING" else ""
-        sequence.append(
-            ActivityPlan(
-                f"act-{uuid4().hex[:10]}",
-                purpose,
-                interaction,
-                allocations[stage],
-                production,
-                assessment_link=f"Evidence collected from {phase_names} toward the stated objective.",
-                skill=skill,
-                cognitive_demand=cognitive_demand,
-                scaffolding=min(scaffolding, phases[0].scaffolding),
-                language_target=language_target,
-            )
-        )
 
     decision = LearningPlanDecision(
         plan_id=f"plan-{uuid4().hex[:12]}",
@@ -200,6 +113,7 @@ def build_lesson_trajectory(
             "P0",
             "I0",
             "LOW",
+            "RECOGNIZE",
             policy.starting_scaffolding,
             "Give learners meaningful access to the target language/content.",
         ),
@@ -208,6 +122,7 @@ def build_lesson_trajectory(
             "P0",
             "I0",
             "LOW",
+            "UNDERSTAND",
             policy.starting_scaffolding,
             "Make relevant language/content features visible and understandable.",
         ),
@@ -216,6 +131,7 @@ def build_lesson_trajectory(
             "P0",
             "I0",
             "MEDIUM",
+            "UNDERSTAND",
             max(2, policy.starting_scaffolding - 1),
             "Clarify form, meaning, or use when needed for the stated objective.",
         ),
@@ -224,6 +140,7 @@ def build_lesson_trajectory(
             "P1",
             "I1",
             "MEDIUM",
+            "APPLY",
             max(1, policy.starting_scaffolding - 1),
             "Move learners into supported, controlled production.",
         ),
@@ -232,6 +149,7 @@ def build_lesson_trajectory(
             "P1",
             policy.default_interaction,
             policy.default_demand,
+            "APPLY",
             max(1, policy.starting_scaffolding - 1),
             "Build meaningful interaction with structured support.",
         ),
@@ -240,6 +158,7 @@ def build_lesson_trajectory(
             policy.default_production,
             policy.default_interaction,
             policy.default_demand,
+            "CREATE",
             max(1, policy.transfer_scaffolding),
             "Increase independence and expand purposeful production.",
         ),
@@ -248,6 +167,7 @@ def build_lesson_trajectory(
             policy.default_production,
             policy.default_interaction,
             policy.default_demand,
+            "APPLY",
             policy.transfer_scaffolding,
             "Require purposeful communication around the lesson objective.",
         ),
@@ -256,6 +176,7 @@ def build_lesson_trajectory(
             "P3",
             "I4",
             "HIGH",
+            "APPLY",
             policy.transfer_scaffolding,
             "Provide evidence that learning transfers to a new relevant context.",
         ),
@@ -266,6 +187,7 @@ def build_lesson_trajectory(
         target_point="P3",
         phases=phases,
         final_evidence="Observable student performance demonstrating the stated objective and transferring it to a relevant new context.",
+        primary_skill=context.primary_skill,
     )
 
 

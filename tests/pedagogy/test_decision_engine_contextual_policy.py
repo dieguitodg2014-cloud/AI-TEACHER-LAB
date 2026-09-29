@@ -48,6 +48,8 @@ def test_decision_engine_applies_contextual_skill_policy(
         phase for phase in trajectory.phases if phase.phase == "GUIDED_INTERACTION"
     )
     assert guided.interaction_level == expected_interaction
+    assert guided.cognitive_demand == "APPLY"
+    assert trajectory.primary_skill == skill
 
 
 def test_decision_engine_invokes_contextual_policy_for_explicit_skill(monkeypatch):
@@ -103,3 +105,30 @@ def test_decision_engine_preserves_base_policy_without_explicit_skill():
 
     assert guided.interaction_level == base_policy.default_interaction
     assert guided.demand_level == base_policy.default_demand
+    assert trajectory.primary_skill is None
+
+
+def test_decide_learning_plan_materializes_explicit_skill_from_trajectory():
+    context = _context("A2", "SPEAKING")
+    level_decision = decide_level(context)
+
+    plan = decision_engine.decide_learning_plan(context, level_decision)
+
+    assert plan.sequence
+    assert all(activity.skill == "SPEAKING" for activity in plan.sequence)
+
+
+def test_decide_learning_plan_materializes_activity_values_from_trajectory():
+    context = _context("A2", "SPEAKING")
+    level_decision = decide_level(context)
+
+    plan = decision_engine.decide_learning_plan(context, level_decision)
+
+    guided = next(
+        activity for activity in plan.sequence
+        if activity.activity_id and activity.student_production == "Complete a meaningful interaction task."
+    )
+
+    assert guided.interaction == "pairs_or_small_groups"
+    assert guided.cognitive_demand == "APPLY"
+    assert guided.scaffolding == 2

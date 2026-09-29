@@ -9,12 +9,14 @@ def _phase(
     interaction_level="I0",
     demand_level="LOW",
     scaffolding=4,
+    cognitive_demand="RECOGNIZE",
 ):
     return TrajectoryPhase(
         phase=phase,
         production_level=production_level,
         interaction_level=interaction_level,
         demand_level=demand_level,
+        cognitive_demand=cognitive_demand,
         scaffolding=scaffolding,
         purpose="Build access to the target language.",
     )
@@ -38,6 +40,18 @@ def _trajectory(**overrides):
     }
     values.update(overrides)
     return LessonTrajectory(**values)
+
+
+def test_trajectory_preserves_primary_skill():
+    trajectory = _trajectory(primary_skill="SPEAKING")
+
+    assert trajectory.primary_skill == "SPEAKING"
+
+
+def test_trajectory_allows_legacy_missing_primary_skill():
+    trajectory = _trajectory()
+
+    assert trajectory.primary_skill is None
 
 
 def test_trajectory_requires_phases():
@@ -94,6 +108,19 @@ def test_trajectory_is_immutable_and_phases_are_tuple():
         trajectory.phases.append(_phase())
 
 
+def test_phase_requires_cognitive_demand():
+    with pytest.raises(ValueError, match="cognitive_demand"):
+        TrajectoryPhase(
+            phase="NOTICE",
+            production_level="P0",
+            interaction_level="I0",
+            demand_level="LOW",
+            cognitive_demand="",
+            scaffolding=2,
+            purpose="Notice the target language.",
+        )
+
+
 def test_phase_requires_purpose_and_valid_scaffolding():
     with pytest.raises(ValueError, match="purpose"):
         TrajectoryPhase(
@@ -101,6 +128,7 @@ def test_phase_requires_purpose_and_valid_scaffolding():
             production_level="P1",
             interaction_level="I1",
             demand_level="LOW",
+            cognitive_demand="RECOGNIZE",
             scaffolding=2,
             purpose="",
         )
@@ -111,6 +139,7 @@ def test_phase_requires_purpose_and_valid_scaffolding():
             production_level="P1",
             interaction_level="I1",
             demand_level="LOW",
+            cognitive_demand="RECOGNIZE",
             scaffolding=5,
             purpose="Notice the target language.",
         )
