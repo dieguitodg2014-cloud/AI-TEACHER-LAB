@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from core.foundation.models import Skill
+from core.pedagogy.activity_contract import CognitiveDemand
 
 ProductionLevel = Literal["P0", "P1", "P2", "P3"]
 InteractionLevel = Literal["I0", "I1", "I2", "I3", "I4"]
@@ -35,10 +36,13 @@ class TrajectoryPhase:
     production_level: ProductionLevel
     interaction_level: InteractionLevel
     demand_level: DemandLevel
+    cognitive_demand: CognitiveDemand
     scaffolding: int
     purpose: str
 
     def __post_init__(self) -> None:
+        if not self.cognitive_demand:
+            raise ValueError("cognitive_demand is required")
         if not 0 <= self.scaffolding <= 4:
             raise ValueError("scaffolding must be between 0 and 4")
         if not self.purpose.strip():
