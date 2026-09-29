@@ -40,6 +40,18 @@ def _trajectory(**overrides):
     return LessonTrajectory(**values)
 
 
+def test_trajectory_preserves_primary_skill():
+    trajectory = _trajectory(primary_skill="SPEAKING")
+
+    assert trajectory.primary_skill == "SPEAKING"
+
+
+def test_trajectory_allows_legacy_missing_primary_skill():
+    trajectory = _trajectory()
+
+    assert trajectory.primary_skill is None
+
+
 def test_trajectory_requires_phases():
     with pytest.raises(ValueError, match="at least one"):
         LessonTrajectory(
