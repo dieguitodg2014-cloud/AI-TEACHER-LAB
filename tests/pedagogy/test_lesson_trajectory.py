@@ -9,12 +9,14 @@ def _phase(
     interaction_level="I0",
     demand_level="LOW",
     scaffolding=4,
+    cognitive_demand="RECOGNIZE",
 ):
     return TrajectoryPhase(
         phase=phase,
         production_level=production_level,
         interaction_level=interaction_level,
         demand_level=demand_level,
+        cognitive_demand=cognitive_demand,
         scaffolding=scaffolding,
         purpose="Build access to the target language.",
     )
@@ -104,6 +106,19 @@ def test_trajectory_is_immutable_and_phases_are_tuple():
 
     with pytest.raises(AttributeError):
         trajectory.phases.append(_phase())
+
+
+def test_phase_requires_cognitive_demand():
+    with pytest.raises(ValueError, match="cognitive_demand"):
+        TrajectoryPhase(
+            phase="NOTICE",
+            production_level="P0",
+            interaction_level="I0",
+            demand_level="LOW",
+            cognitive_demand="",
+            scaffolding=2,
+            purpose="Notice the target language.",
+        )
 
 
 def test_phase_requires_purpose_and_valid_scaffolding():
