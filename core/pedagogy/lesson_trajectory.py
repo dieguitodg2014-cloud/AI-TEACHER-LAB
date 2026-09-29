@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from core.foundation.models import Skill
+
 ProductionLevel = Literal["P0", "P1", "P2", "P3"]
 InteractionLevel = Literal["I0", "I1", "I2", "I3", "I4"]
 DemandLevel = Literal["LOW", "MEDIUM", "HIGH"]
@@ -51,6 +53,7 @@ class LessonTrajectory:
     target_point: ProductionLevel
     phases: tuple[TrajectoryPhase, ...]
     final_evidence: str
+    primary_skill: Skill | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "phases", tuple(self.phases))
