@@ -129,5 +129,5 @@ def test_decide_learning_plan_materializes_activity_values_from_trajectory():
     )
 
     assert guided.interaction == "pairs_or_small_groups"
-    assert guided.cognitive_demand == "MEDIUM"
+    assert guided.cognitive_demand == "APPLY"
     assert guided.scaffolding == 2
