@@ -28,7 +28,7 @@ INTERACTION_LEVELS = {
     "individual": "I1",
     "pairs": "I1",
     "individual_or_pairs": "I1",
-    "pairs_or_small_groups": "I2",
+    "pairs_or_small_groups": "I1",
     "small_groups": "I3",
     "whole_class": "I4",
 }
