@@ -48,6 +48,7 @@ def test_decision_engine_applies_contextual_skill_policy(
         phase for phase in trajectory.phases if phase.phase == "GUIDED_INTERACTION"
     )
     assert guided.interaction_level == expected_interaction
+    assert trajectory.primary_skill == skill
 
 
 def test_decision_engine_invokes_contextual_policy_for_explicit_skill(monkeypatch):
@@ -103,3 +104,4 @@ def test_decision_engine_preserves_base_policy_without_explicit_skill():
 
     assert guided.interaction_level == base_policy.default_interaction
     assert guided.demand_level == base_policy.default_demand
+    assert trajectory.primary_skill is None
