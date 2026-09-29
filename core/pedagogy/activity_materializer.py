@@ -20,6 +20,19 @@ class ActivitySlot:
     legacy_scaffolding: int
 
 
+# Concrete ActivityPlan interactions are deliberately kept separate from the
+# trajectory's abstract I0-I4 interaction scale. This table is the explicit
+# contract between the two layers.
+INTERACTION_LEVELS = {
+    "teacher_to_class": "I0",
+    "individual": "I1",
+    "pairs": "I1",
+    "individual_or_pairs": "I1",
+    "pairs_or_small_groups": "I2",
+    "small_groups": "I3",
+    "whole_class": "I4",
+}
+
 ACTIVITY_SLOTS = (
     ActivitySlot(
         "presentation",
@@ -86,6 +99,8 @@ def materialize_activity_plans(
     """Materialize stable activity slots from the approved trajectory.
 
     Contextual skill and canonical cognitive demand come from the trajectory.
+    Concrete interaction is accepted only when the resolved trajectory phase
+    explicitly permits the ActivityPlan interaction.
     Legacy slot metadata remains only where the trajectory contract does not
     yet model an activity-level value.
     """
@@ -93,6 +108,8 @@ def materialize_activity_plans(
 
     for slot in ACTIVITY_SLOTS:
         phases = _resolve_trajectory_phases(trajectory, slot.trajectory_phases)
+        _validate_interaction_contract(slot, phases)
+
         skill = trajectory.primary_skill or slot.legacy_skill
         cognitive_demand = phases[-1].cognitive_demand
         language_target = objective if skill == "SPEAKING" else ""
@@ -132,3 +149,19 @@ def _resolve_trajectory_phases(
     if not resolved:
         raise ValueError("At least one trajectory phase is required")
     return resolved
+
+
+def _validate_interaction_contract(
+    slot: ActivitySlot,
+    phases: tuple[TrajectoryPhase, ...],
+) -> None:
+    """Ensure an activity never exceeds its resolved trajectory interaction."""
+    required_level = INTERACTION_LEVELS[slot.interaction]
+    required_rank = int(required_level[1])
+    allowed_rank = min(int(phase.interaction_level[1]) for phase in phases)
+
+    if required_rank > allowed_rank:
+        raise ValueError(
+            f"Activity interaction '{slot.interaction}' requires {required_level}, "
+            f"but resolved trajectory phases allow at most I{allowed_rank}"
+        )
