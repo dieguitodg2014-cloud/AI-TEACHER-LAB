@@ -128,6 +128,7 @@ def test_phase_requires_purpose_and_valid_scaffolding():
             production_level="P1",
             interaction_level="I1",
             demand_level="LOW",
+            cognitive_demand="RECOGNIZE",
             scaffolding=2,
             purpose="",
         )
@@ -138,6 +139,7 @@ def test_phase_requires_purpose_and_valid_scaffolding():
             production_level="P1",
             interaction_level="I1",
             demand_level="LOW",
+            cognitive_demand="RECOGNIZE",
             scaffolding=5,
             purpose="Notice the target language.",
         )
