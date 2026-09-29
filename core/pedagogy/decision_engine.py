@@ -266,6 +266,7 @@ def build_lesson_trajectory(
         target_point="P3",
         phases=phases,
         final_evidence="Observable student performance demonstrating the stated objective and transferring it to a relevant new context.",
+        primary_skill=context.primary_skill,
     )
 
 
