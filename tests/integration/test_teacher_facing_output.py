@@ -30,11 +30,18 @@ class TeacherFacingOutputTests(unittest.TestCase):
         result.resource_decision = None
         result.resource_tool = None
 
+        captured = {}
+
+        def planner(request):
+            captured.update(request)
+            return result
+
         html = run_teacher_facing_lesson(
             {},
-            planner=lambda request: result,
+            planner=planner,
         )
 
+        self.assertTrue(captured["teacher_facing"])
         self.assertIn("A2", html)
         self.assertIn("adult ESL learners", html)
         self.assertIn("Talk about past experiences", html)
@@ -50,3 +57,4 @@ class TeacherFacingOutputTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+"
