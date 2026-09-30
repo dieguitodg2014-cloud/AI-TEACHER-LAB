@@ -31,8 +31,14 @@ def run_teacher_facing_lesson(
     """Run the configured lesson workflow and render its accepted teacher card.
 
     The adapter does not make pedagogical, provider, QC, or acceptance
-    decisions. It only consumes the result produced by the existing runtime.
+    decisions. It only marks the request as teacher-facing so the existing
+    runtime applies the teacher-facing generation contract and acceptance gates,
+    then consumes the resulting accepted artifact.
     """
-    result = planner(request)
+    teacher_request = dict(request)
+    teacher_request["teacher_facing"] = True
+
+    result = planner(teacher_request)
     card = build_teacher_lesson_card(result)
     return render_teacher_lesson_card(card)
+"
