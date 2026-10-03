@@ -1,24 +1,15 @@
 {
-  "tools": [
-    {
-      "tool_id": "local-lesson-generator",
-      "connector": "local_openai_compatible",
-      "capabilities": ["lesson_generation"],
-      "quality": 0.7,
-      "reliability": 0.9,
-      "accessibility": 1.0,
-      "speed": 0.7,
-      "cost": 0.0
-    }
-  ],
+  "tools": [],
   "policy": {
     "free_first": true,
     "provider_policy": {
       "pedagogical_authority": "chatgpt",
       "primary_provider": "chatgpt",
       "secondary_provider": "gemini",
-      "specialized_resource_creators": ["notebooklm"],
-      "fallback_providers": ["gemma_local"],
+      "specialized_resource_creators": [
+        "notebooklm"
+      ],
+      "fallback_providers": [],
       "fallback_rule": "Fallback providers may execute an approved task but may not redefine the pedagogical decision."
     }
   }
