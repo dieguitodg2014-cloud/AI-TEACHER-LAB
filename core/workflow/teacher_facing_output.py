@@ -41,4 +41,3 @@ def run_teacher_facing_lesson(
     result = planner(teacher_request)
     card = build_teacher_lesson_card(result)
     return render_teacher_lesson_card(card)
-"
