@@ -22,6 +22,19 @@ class RequestInterpreterTests(unittest.TestCase):
             ["students struggle with questions", "no extra homework."],
         )
 
+    def test_extracts_natural_language_topic_and_primary_skill(self):
+        result = interpret_request(
+            "Create an A2 English lesson for adult ESL learners, "
+            "90 minutes, on Present Perfect, with speaking as the main skill."
+        )
+
+        self.assertEqual(result["level"], "A2")
+        self.assertEqual(result["duration_minutes"], 90)
+        self.assertEqual(result["audience"], "adult ESL learners")
+        self.assertEqual(result["topic"], "Present Perfect")
+        self.assertEqual(result["primary_skill"], "SPEAKING")
+        self.assertNotIn("objective", result)
+
     def test_does_not_invent_missing_pedagogical_information(self):
         result = interpret_request("Create a lesson about English grammar.")
 

@@ -26,9 +26,28 @@ _AUDIENCE_FROM_FOR = re.compile(
     r"\bfor\s+((?:(?:adult|ESL|young|university|college)\s+)*(?:students?|learners?|people))\b",
     re.IGNORECASE,
 )
-_OBJECTIVE = re.compile(r"\b(?:objective|goal|aim)\s*:\s*(.+?)(?=\s+(?:topic|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
-_TOPIC = re.compile(r"\btopic\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|level|audience|duration|constraints?)\s*:|$)", re.IGNORECASE)
-_AUDIENCE = re.compile(r"\baudience\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|topic|level|duration|constraints?)\s*:|$)", re.IGNORECASE)
+_OBJECTIVE = re.compile(
+    r"\b(?:objective|goal|aim)\s*:\s*(.+?)(?=\s+(?:topic|level|audience|duration|constraints?)\s*:|$)",
+    re.IGNORECASE,
+)
+_TOPIC = re.compile(
+    r"\btopic\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|level|audience|duration|constraints?)\s*:|$)",
+    re.IGNORECASE,
+)
+_TOPIC_FROM_ON = re.compile(
+    r"\bon\s+([^,.]+?)(?=\s*,|\s+with\s+|\s+for\s+|\s*$)",
+    re.IGNORECASE,
+)
+_AUDIENCE = re.compile(
+    r"\baudience\s*:\s*(.+?)(?=\s+(?:objective|goal|aim|topic|level|duration|constraints?)\s*:|$)",
+    re.IGNORECASE,
+)
+_PRIMARY_SKILL = re.compile(
+    r"\b(?:with\s+)?"
+    r"(listening|speaking|reading|writing)"
+    r"\s+as\s+(?:the\s+)?(?:main|primary)\s+skill\b",
+    re.IGNORECASE,
+)
 _CONSTRAINTS = re.compile(r"\bconstraints?\s*:\s*(.+)$", re.IGNORECASE)
 
 
@@ -93,7 +112,19 @@ def interpret_request(request: str | dict[str, Any]) -> dict[str, Any]:
             match = pattern.search(text)
             if match:
                 value = match.group(1)
-                normalized[field] = _clean_topic(value) if field == "topic" else _clean(value)
+                normalized[field] = (
+                    _clean_topic(value) if field == "topic" else _clean(value)
+                )
+
+    if not normalized.get("topic"):
+        match = _TOPIC_FROM_ON.search(text)
+        if match:
+            normalized["topic"] = _clean_topic(match.group(1))
+
+    if not normalized.get("primary_skill"):
+        skill = _PRIMARY_SKILL.search(text)
+        if skill:
+            normalized["primary_skill"] = skill.group(1).upper()
 
     if not normalized.get("audience"):
         audience = _AUDIENCE_FROM_GROUP.search(text)
@@ -109,7 +140,9 @@ def interpret_request(request: str | dict[str, Any]) -> dict[str, Any]:
         match = _CONSTRAINTS.search(text)
         if match:
             normalized["constraints"] = [
-                _clean(item) for item in re.split(r"\s*;\s*", match.group(1)) if _clean(item)
+                _clean(item)
+                for item in re.split(r"\s*;\s*", match.group(1))
+                if _clean(item)
             ]
 
     return normalized
