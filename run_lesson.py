@@ -6,7 +6,10 @@ import argparse
 from typing import Any
 
 from core.context.request_interpreter import interpret_request
-from core.workflow.teacher_facing_output import run_teacher_facing_lesson
+from core.workflow.configured_runtime import run_configured_lesson_planning
+from core.workflow.teacher_facing_output import (
+    render_teacher_facing_result,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,12 +18,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     request_group = parser.add_mutually_exclusive_group(required=True)
     request_group.add_argument("--request", help="Natural-language lesson request.")
-    request_group.add_argument("--objective", help="Observable learning objective for a structured request.")
-    parser.add_argument("--level", help="Learner level, e.g. A0, A1, A2, B1, or B2")
+    request_group.add_argument(
+        "--objective",
+        help="Observable learning objective for a structured request.",
+    )
+    parser.add_argument(
+        "--level",
+        help="Learner level, e.g. A0, A1, A2, B1, or B2",
+    )
     parser.add_argument("--audience", help="Learner audience")
-    parser.add_argument("--duration", type=int, default=90, help="Lesson duration in minutes")
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=90,
+        help="Lesson duration in minutes",
+    )
     parser.add_argument("--topic", default="", help="Lesson topic")
-    parser.add_argument("--group-size", type=int, default=None, help="Number of learners")
+    parser.add_argument(
+        "--group-size",
+        type=int,
+        default=None,
+        help="Number of learners",
+    )
     return parser
 
 
@@ -37,21 +56,56 @@ def build_request(args: argparse.Namespace) -> dict[str, Any] | str:
         "duration_minutes": args.duration,
         "objective": args.objective,
     }
+
     if args.topic:
         request["topic"] = args.topic
+
     if args.group_size is not None:
         request["group_size"] = args.group_size
+
     return request
+
+
+def _teacher_facing_request(request: dict[str, Any] | str) -> dict[str, Any]:
+    if isinstance(request, dict):
+        normalized = dict(request)
+    else:
+        normalized = {"request": request}
+
+    normalized["teacher_facing"] = True
+    return normalized
 
 
 def main() -> int:
     args = build_parser().parse_args()
+
     try:
-        output = run_teacher_facing_lesson(build_request(args))
+        request = build_request(args)
+        result = run_configured_lesson_planning(
+            _teacher_facing_request(request)
+        )
     except ValueError as exc:
         print(str(exc))
         return 1
-    print(output)
+
+    if result.status == "MISSING_CONTEXT":
+        missing = ", ".join(result.missing)
+        print(f"Missing required lesson information: {missing}.")
+        return 1
+
+    if result.status != "READY":
+        print(f"Lesson workflow status: {result.status}.")
+        if result.errors:
+            for error in result.errors:
+                print(f"- {error}")
+        return 1
+
+    try:
+        print(render_teacher_facing_result(result))
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+
     return 0
 
 

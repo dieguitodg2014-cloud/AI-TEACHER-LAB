@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from core.workflow.configured_runtime import run_configured_lesson_planning
-from core.workflow.teacher_lesson_card import TeacherLessonCard, teacher_lesson_card_from_result
+from core.workflow.teacher_lesson_card import (
+    TeacherLessonCard,
+    teacher_lesson_card_from_result,
+)
 from core.workflow.teacher_lesson_card_renderer import render_teacher_lesson_card
 from core.workflow.vertical_slice import VerticalSliceResult
 
@@ -21,6 +24,12 @@ def build_teacher_lesson_card(result: VerticalSliceResult) -> TeacherLessonCard:
             f"Teacher-facing output requires READY result; got {result.status}"
         )
     return teacher_lesson_card_from_result(result)
+
+
+def render_teacher_facing_result(result: VerticalSliceResult) -> str:
+    """Render an already-executed accepted workflow result."""
+    card = build_teacher_lesson_card(result)
+    return render_teacher_lesson_card(card)
 
 
 def run_teacher_facing_lesson(
@@ -39,5 +48,4 @@ def run_teacher_facing_lesson(
     teacher_request["teacher_facing"] = True
 
     result = planner(teacher_request)
-    card = build_teacher_lesson_card(result)
-    return render_teacher_lesson_card(card)
+    return render_teacher_facing_result(result)
