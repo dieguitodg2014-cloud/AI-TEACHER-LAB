@@ -10,6 +10,7 @@ def complete_lesson():
         },
         "activities": [
             {
+                "skill": "SPEAKING",
                 "language_target": "should + base verb",
                 "assessment_link": "Teacher checks the advice produced.",
             }
@@ -34,13 +35,21 @@ def test_missing_target_language_is_rejected():
     )
 
 
-def test_activity_without_language_target_is_rejected():
+def test_speaking_activity_without_language_target_is_rejected():
     lesson = complete_lesson()
     lesson["activities"][0]["language_target"] = ""
 
     assert "ALIGNMENT_ACTIVITY_LANGUAGE_TARGET_MISSING:1" in (
         validate_teacher_facing_alignment(lesson)
     )
+
+
+def test_non_speaking_activity_without_language_target_is_allowed():
+    lesson = complete_lesson()
+    lesson["activities"][0]["skill"] = "READING"
+    lesson["activities"][0]["language_target"] = ""
+
+    assert validate_teacher_facing_alignment(lesson) == []
 
 
 def test_activity_without_assessment_link_is_rejected():

@@ -1,5 +1,18 @@
 {
-  "tools": [],
+  "tools": [
+    {
+      "tool_id": "mvp-lesson-generator",
+      "capabilities": [
+        "lesson_generation"
+      ],
+      "quality": 8,
+      "reliability": 10,
+      "accessibility": 10,
+      "speed": 10,
+      "cost": 0,
+      "connector": "mvp_lesson_generator"
+    }
+  ],
   "policy": {
     "free_first": true,
     "provider_policy": {

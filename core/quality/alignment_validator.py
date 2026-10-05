@@ -23,9 +23,8 @@ def validate_teacher_facing_alignment(
 ) -> list[str]:
     """Validate the minimum observable alignment chain for teacher-facing lessons.
 
-    This validator checks structural connections that already exist in the
-    teacher-facing contract. It intentionally does not attempt deep semantic
-    interpretation.
+    Language targets are required at activity level when the activity skill is
+    SPEAKING, matching ActivityGenerationContract and activity_validator.
     """
     if not isinstance(lesson, Mapping):
         return ["INVALID_ALIGNMENT_INPUT"]
@@ -59,11 +58,19 @@ def validate_teacher_facing_alignment(
             errors.append(f"ALIGNMENT_ACTIVITY_INVALID:{index}")
             continue
 
-        if not _meaningful_text(activity.get("language_target")):
-            errors.append(f"ALIGNMENT_ACTIVITY_LANGUAGE_TARGET_MISSING:{index}")
+        skill = str(activity.get("skill", "")).strip().upper()
+
+        if skill == "SPEAKING" and not _meaningful_text(
+            activity.get("language_target")
+        ):
+            errors.append(
+                f"ALIGNMENT_ACTIVITY_LANGUAGE_TARGET_MISSING:{index}"
+            )
 
         if not _meaningful_text(activity.get("assessment_link")):
-            errors.append(f"ALIGNMENT_ACTIVITY_ASSESSMENT_LINK_MISSING:{index}")
+            errors.append(
+                f"ALIGNMENT_ACTIVITY_ASSESSMENT_LINK_MISSING:{index}"
+            )
 
     assessment = lesson.get("assessment")
     if not isinstance(assessment, Mapping) or not assessment:
